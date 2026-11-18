@@ -1,14 +1,30 @@
-# 若存 RuoCun｜Coding Agent 工程参考实现
+<div align="center">
+
+# 若存 RuoCun
+
+**Coding Agent 工程参考实现**
+
+[![发布 v1.0.0](https://img.shields.io/badge/Release-v1.0.0-23604B)](https://github.com/hmmgotit/RuoCun/releases/tag/v1.0.0)
+[![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](docs/install-and-recovery.md)
+[![Windows x64 安装包](https://img.shields.io/badge/Windows-x64-2563A8)](docs/install-and-recovery.md)
+[![MIT 许可证](https://img.shields.io/badge/License-MIT-596575)](LICENSE)
+
+[![中文课程 22 章](https://img.shields.io/badge/%E4%B8%AD%E6%96%87%E8%AF%BE%E7%A8%8B-22_%E7%AB%A0-23604B)](https://hmmgotit.github.io/RuoCun/learning/课程学习地图.html)
+[![Terminal-Bench 2.1 项目自测 71/89](https://img.shields.io/badge/TB_2.1_%E8%87%AA%E6%B5%8B-71%2F89-245BA7)](docs/benchmark/README.md)
+[![v1.0.0 离线测试 336 项通过](https://img.shields.io/badge/v1.0.0_%E7%A6%BB%E7%BA%BF%E6%B5%8B%E8%AF%95-336_%E9%80%9A%E8%BF%87-31734D)](https://github.com/hmmgotit/RuoCun/releases/tag/v1.0.0)
+
+**[开始读课](https://hmmgotit.github.io/RuoCun/learning/课程学习地图.html)** · [快速安装](#快速开始) · [测评记录](docs/benchmark/README.md) · [项目主页](https://hmmgotit.github.io/RuoCun/)
+
+</div>
+
+<p align="center">
+  <img src="docs/assets/ruocun-welcome-demo.gif" alt="若存的原生欢迎形象，以及在 Windows Terminal 中验证普通价 180 元、会员价 200 元的过程">
+</p>
+<p align="center"><sub>折扣案例 · Windows Terminal 实录 · 本地模拟模型响应</sub></p>
 
 若存是一套可运行的终端编码智能体，为已经接触过 Agent 或 Harness、想读懂一套完整工程的开发者而做。
 
 配套的 22 章中文源码课程沿着一次编码任务展开。从模型如何接收任务、工具如何执行，到上下文如何管理、会话中断后如何恢复，每章都从具体工程问题出发，回到源码讲清设计取舍。你可以先跑通一个任务，再动手改动其中一环，用任务结果检验自己的判断。
-
-[开始读课](https://hmmgotit.github.io/RuoCun/learning/课程学习地图.html) · [打开项目主页](https://hmmgotit.github.io/RuoCun/) · [查看 89 题成绩](docs/benchmark/README.md) · [下载 v1.0.0](https://github.com/hmmgotit/RuoCun/releases/tag/v1.0.0)
-
-![若存的原生欢迎形象，以及在 Windows Terminal 中验证普通价 180 元、会员价 200 元的过程](docs/assets/ruocun-welcome-demo.gif)
-
-*折扣案例 · Windows Terminal 实录 · 本地模拟模型响应*
 
 ## 课程示例
 
@@ -77,6 +93,10 @@
 ## Terminal-Bench 2.1
 
 **在 Terminal-Bench 2.1 项目自测中，若存通过 71 / 89 项任务（79.78%）。与官方榜的 Codex + GPT‑6 Astra（xhigh，85.8%）相差约 6 个百分点，按 89 题折算约 5 题。**
+
+89 题自测使用 DeepSeek 官方模型 **DeepSeek-V4.1-Flash-1017**，API 模型名为 `deepseek-flash`，主请求配置为 `max`。五题缓存对照的双方也使用该模型，前三题的主请求配置为 `high`，后两题为 `max`。 [模型版本](https://api-docs.deepseek.com/updates/#deepseek-v41-flash-1017-update) · [五题对照条件](docs/benchmark/README.md#五道同题的缓存命中)
+
+v1.0.0 的 **336 项离线回归**未调用真实模型。上方的折扣案例实录使用本地模拟模型响应。 [发布验收记录](https://github.com/hmmgotit/RuoCun/releases/tag/v1.0.0)
 
 Terminal-Bench 2.1 是第三方基准，通过 Harbor 在独立容器中评测 Agent，任务覆盖系统管理、安全、数据科学、科学计算、调试和机器学习等领域。89 道题的最终成绩、判分来源和可公开的用量数据均可查阅。[Harbor](https://www.harborframework.com/) · [评测报告](docs/benchmark/README.md) · [逐题 CSV](docs/benchmark/results.csv) · [精简 XLSX](docs/benchmark/terminal-bench-2.1.xlsx)
 
