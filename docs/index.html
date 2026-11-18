@@ -46,6 +46,28 @@
         <h2 id="course-title">课程示例</h2>
         <a href="learning/课程学习地图.html">查看全部 22 章</a>
       </div>
+      <article class="chapter-preview">
+        <h3><a href="learning/16-前缀缓存怎样配合请求.html">第 16 章 · 前缀缓存怎样配合请求</a></h3>
+        <p>两次请求的 <code>system</code> 一样，为什么命中量会变？这一章把原目录、切到工作树、工具重排三次请求并排放，再沿目录追到摘要、压缩、用量和动手练习。</p>
+        <a href="learning/16-前缀缓存怎样配合请求.html#prefix-request-diff">
+          <img src="assets/lesson-layout-16.png" width="1280" height="960" alt="第 16 章文章目录、标题与 A、B、C 三次请求的工具和消息顺序对照" loading="lazy">
+        </a>
+      </article>
+      <details class="lesson-previews">
+        <summary>再看第 06 章和第 17 章的文章布局</summary>
+        <article class="chapter-preview">
+          <h3><a href="learning/01-文件编辑可靠性-精致教材预览.html">第 06 章 · 文件编辑可靠性</a></h3>
+          <a href="learning/01-文件编辑可靠性-精致教材预览.html#price-task">
+            <img src="assets/lesson-layout-06.png" width="1280" height="960" alt="第 06 章文章目录、文件编辑问题和同事保存时的三种状态对照" loading="lazy">
+          </a>
+        </article>
+        <article class="chapter-preview">
+          <h3><a href="learning/17-经验怎样用到当前任务.html">第 17 章 · 经验怎样用到当前任务</a></h3>
+          <a href="learning/17-经验怎样用到当前任务.html#memory-case">
+            <img src="assets/lesson-layout-17.png" width="1280" height="960" alt="第 17 章文章目录，以及历史记录、页面入口和本次测试的对照" loading="lazy">
+          </a>
+        </article>
+      </details>
       <div class="lessons">
         <a class="lesson" href="learning/01-文件编辑可靠性-精致教材预览.html#stale-observation">
           <img src="assets/course-06.png" alt="课件图展示文件基线失效和重新读取" loading="lazy">
@@ -79,6 +101,7 @@
       <h2 id="benchmark-title">Terminal-Bench 2.1</h2>
       <p class="measure"><strong>在 Terminal-Bench 2.1 项目自测中，若存通过 71 / 89 项任务（79.78%）。</strong>与官方榜的 Codex + GPT‑6 Astra（xhigh，85.8%）相差约 6 个百分点，按 89 题折算约 5 题。</p>
       <p class="measure">若存的数字来自历史制品的逐题汇总，包含补判与复测。官方榜单分数为多次试验的汇总。 <a href="https://hub.harborframework.com/datasets/terminal-bench/terminal-bench-2-1/latest?leaderboard=main&amp;tab=leaderboard">Harbor 官方榜单</a></p>
+      <p class="measure">若存已确认用量按低峰价估算为 <strong>¥31.07</strong>，按高峰价为 <strong>¥62.15</strong>，分别约为该 Codex 榜单条目总费用的 <strong>0.52%</strong> 和 <strong>1.04%</strong>。两边的模型和试次数不同。</p>
       <div class="result-panel">
         <div class="filter-bar" hidden id="filters">
           <div class="field">
@@ -109,20 +132,22 @@
       </div>
       <details class="leaderboard">
         <summary>榜单原图与费用参考</summary>
-        <p class="measure">若存 89 题的已确认模型用量按低峰和高峰分别估算为 ¥31.07 和 ¥62.15，5 次请求缺用量。Codex + GPT‑6 Astra（xhigh）的榜单条目费用为 $888.54。两组金额分别反映各自的试次数、运行条件和计价。</p>
+        <p class="measure">若存每题保留一个有效成绩，5 次请求缺用量。Codex 榜单条目按多次试验统计，总费用为 $888.54。按 2026 年 11 月 18 日中间价 1 美元兑 6.7118 元折算为 ¥5,963.70。 <a href="https://www.chinamoney.com.cn/chinese/bkccpr/index.html?tab=2">人民币汇率中间价</a></p>
         <a href="benchmark/leaderboard.png"><img src="benchmark/leaderboard.png" alt="Terminal-Bench 2.1 历史榜单" loading="lazy"></a>
       </details>
     </section>
-    <section class="band two-up" aria-label="设计详解">
+    <section class="band two-up" aria-label="上下文与记忆">
       <article>
-        <h2>上下文放不下怎么办</h2>
-        <p>先裁剪冗长的工具输出，仍超预算再摘要早期对话。最近的消息保留原文。需要核对某次测试或工具回执时，用 <code>ArchiveRead</code> 回查 SQLite 归档。</p>
-        <a href="learning/14-上下文放不下怎么办.html">读上下文压缩这一章</a>
+        <h2>压缩之后，怎么回查原文？</h2>
+        <p>调试跑了几十轮，构建日志挤满了上下文。若存把工具定义、消息和输出余量一起算进预算，先裁剪很长的工具输出，还不够才摘要较早的对话。生成摘要时保留近期消息，工具调用和对应结果按组处理。</p>
+        <p>新视图确认保存后才切换，压缩失败时保留原视图。想核对「会员价测试失败」的细节，可按归档 ID 用 <code>ArchiveRead</code> 回查 SQLite 中的原始测试输出。压缩策略参考 DeepSeek Harness。</p>
+        <p><a href="learning/14-上下文放不下怎么办.html#candidate-strategy">了解压缩策略</a> · <a href="learning/15-摘要丢了细节怎样回查.html#summary-lineage-paths">沿摘要回查原文</a></p>
       </article>
       <article>
-        <h2>上一轮的经验怎样复用</h2>
-        <p>把证实过的做法写成适用条件、做法和证据。下一次遇到相似任务时，若存可召回少量相关经验，再读当前代码确认它是否适用。</p>
-        <a href="learning/17-经验怎样用到当前任务.html">读任务记忆这一章</a>
+        <h2>一条旧经验怎样帮到新任务？</h2>
+        <p>上次遇到「空页仍有下一页游标」的问题，可以把继续翻页的条件、做法和验证用例一起记下来。下次碰到相似的分页问题，模型先核对当前接口约定，再跑相应用例确认。</p>
+        <p>普通 CLI 默认加载启动快照，自动学习关闭。<code>--memory-strategy task</code> 可补充与任务相关的旧经验，<code>--memory-learning controlled</code> 可从纠错和验证结果中提炼新经验。</p>
+        <p><a href="learning/17-经验怎样用到当前任务.html#memory-case">看旧经验怎么用</a> · <a href="learning/18-新经验怎样产生.html#learning-case">看新经验怎么记</a></p>
       </article>
     </section>
   </main>
