@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head><meta charset="utf-8"/><meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>模型收到什么：system 装配、项目指令与动态事实 · RuoCun设计学习</title>
+<link href="assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="assets/ruocun-code.css" rel="stylesheet"/><link href="assets/ruocun-textbook.css" rel="stylesheet"/><link href="assets/ruocun-article.css" rel="stylesheet"/><link href="assets/model-input.css" rel="stylesheet"/>
+<script defer="" src="assets/ruocun-textbook.js"></script></head>
+<body class="textbook-read"><a class="textbook-skip" href="#model-input">跳到正文</a>
+<header class="textbook-masthead"><div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#model-input"><svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg><span>RuoCun <span>设计学习</span></span></a>
+<nav aria-label="文章导航"><a href="课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a class="textbook-original" href="#article-takeaways">这一篇带走什么</a></nav></div></header>
+<main class="reading-layout"><aside class="reading-nav"><div class="textbook-nav-title">模型收到什么</div><p class="textbook-nav-caption">文章目录</p><details class="v2-course-toc" open=""><summary>展开文章目录</summary><nav><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#pricing-context-case"><span class="v2-toc-number">1</span><span>从原任务到下一次 Read</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#case-startup"><span class="v2-toc-number">1.1</span><span>同一个 path，为什么换个目录就失效</span></a></li><li><a class="v2-toc-child-link" href="#case-worktree"><span class="v2-toc-number">1.2</span><span>切换前后，模型各收到哪些消息</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#system-assembly"><span class="v2-toc-number">2</span><span>请求结构与 system 装配</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#request-two-parts"><span class="v2-toc-number">2.1</span><span>messages 带历史，tools 给接口</span></a></li><li><a class="v2-toc-child-link" href="#system-sources"><span class="v2-toc-number">2.2</span><span>基础提示由模板和启动材料组成</span></a></li><li><a class="v2-toc-child-link" href="#template-substitution"><span class="v2-toc-number">2.3</span><span>把项目约定填入模板占位符</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#project-instruction-scope"><span class="v2-toc-number">3</span><span>项目规则的查找与拼接</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#project-chain"><span class="v2-toc-number">3.1</span><span>向上找 Git 根，再从根向下读取</span></a></li><li><a class="v2-toc-child-link" href="#instruction-order-and-dedup"><span class="v2-toc-number">3.2</span><span>按整段规则文本去重</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#system-refresh-lifecycle"><span class="v2-toc-number">4</span><span>首条 system 的更新</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#captured-inputs"><span class="v2-toc-number">4.1</span><span>为什么刷新 system 后仍是旧规则？</span></a></li><li><a class="v2-toc-child-link" href="#rebuild-first-system"><span class="v2-toc-number">4.2</span><span>替换首条 system，保留后续消息</span></a></li><li><a class="v2-toc-child-link" href="#mutable-skill-catalog"><span class="v2-toc-number">4.3</span><span>Skills 清单确认后原地扩充</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#runtime-directory-facts"><span class="v2-toc-number">5</span><span>会话目录与快照</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#command-cd-versus-context"><span class="v2-toc-number">5.1</span><span>Shell 的 cd 只改变本次子进程的目录</span></a></li><li><a class="v2-toc-child-link" href="#directory-snapshot-shape"><span class="v2-toc-number">5.2</span><span>工具与快照从同一执行上下文取目录</span></a></li><li><a class="v2-toc-child-link" href="#directory-snapshot-when"><span class="v2-toc-number">5.3</span><span>为什么只和最近一份目录快照比较？</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#dynamic-message-placement"><span class="v2-toc-number">6</span><span>补充消息的位置与更新</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#session-start-position"><span class="v2-toc-number">6.1</span><span>SessionStart 上下文单独放在下标 1</span></a></li><li><a class="v2-toc-child-link" href="#later-system-context"><span class="v2-toc-number">6.2</span><span>任务上下文与建议按事件追加</span></a></li><li><a class="v2-toc-child-link" href="#stable-prefix-boundary"><span class="v2-toc-number">6.3</span><span>为什么把目录事实放在首条 system 之外？</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#prompt-schema-execution"><span class="v2-toc-number">7</span><span>模型输入与工具执行</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#tool-summary-versus-schema"><span class="v2-toc-number">7.1</span><span>tools 按当前模式和可见性生成</span></a></li><li><a class="v2-toc-child-link" href="#actual-path-and-result"><span class="v2-toc-number">7.2</span><span>路径依据执行状态，需求依据行为结果核对</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#learning-check"><span class="v2-toc-number">8</span><span>学习效果检测</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#check-source-and-time"><span class="v2-toc-number">8.1</span><span>消息来源、刷新时机与执行目录</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#interview-practice"><span class="v2-toc-number">9</span><span>模拟面试官提问</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#interview-agent-development"><span class="v2-toc-number">9.1</span><span>Agent 开发实习</span></a></li><li><a class="v2-toc-child-link" href="#interview-agent-harness"><span class="v2-toc-number">9.2</span><span>Agent harness 岗位</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways"><span class="v2-toc-number">10</span><span>这一篇带走什么</span></a></li></ol></nav></details></aside><article class="lesson-paper v2-paper pilot-paper" id="model-input"><header class="design-hero model-input-hero">
+<h1>模型收到什么</h1>
+<p class="model-input-subtitle">system 装配、项目指令与动态事实</p>
+<p class="target">明明叫 <code>prices.mjs</code> 的文件还在，为什么切换工作树后，同样的 <code>Read</code> 请求却找不到了？把切换前后发给模型的两次请求摆在一起，就能看清程序换了哪个目录，以及模型该怎么填路径。</p>
+</header>
+<section class="v2-topic-group" id="pricing-context-case">
+<header class="v2-group-heading"><span>01</span><h2>从原任务到下一次 Read</h2></header>
+<section class="design-section" id="case-startup">
+<h3>1.1 同一个 path，为什么换个目录就失效</h3>
+<p>假设你从 <code>/shop/packages/pricing</code> 启动 RuoCun，<code>prices.mjs</code> 就在这里。你提出“在工作树里把普通价打九折”。这里的工作树是 Git 在另一处目录检出的整个仓库，给这次修改提供一个单独的位置。本例中的价格文件已提交，所以新工作树里也有它，仍在 <code>packages/pricing/</code> 下。</p>
+<p>模型可以用 <code>Read</code> 的 <code>path</code> 指定文件。填入 <code>prices.mjs</code> 这种相对路径时，程序会从工具的当前目录（<code>cwd</code>）找。假设模型进入了名叫 <code>discount</code> 的工作树，随后沿用旧参数，看看图里的第二行会发生什么。</p>
+<figure class="textbook-diagram model-input-figure" id="read-path-diagram">
+<figcaption><span>图 1</span><strong>当前目录和 path 决定查找位置</strong></figcaption>
+<div aria-label="读取路径对照" class="textbook-diagram-scroll" role="region" tabindex="0"><img alt="切换前从 pricing 找 prices.mjs，定位成功。切换后从新工作树根找同一个相对路径，定位失败。传入 packages/pricing/prices.mjs 后，定位到新工作树中的价格文件。" height="325" src="diagram/model-input-read-path.svg" width="840"/></div>
+</figure>
+<p>工具按参数算出了路径，读取时才发现那个位置没有文件。<strong>它从新工作树的根开始找，价格文件在它的子目录里。</strong>接下来看看模型凭什么知道执行目录已经变了。</p>
+</section>
+<section class="design-section" id="case-worktree">
+<h3>1.2 切换前后，模型各收到哪些消息</h3>
+<p>发给模型的请求里，<code>messages</code> 是按顺序排列的消息，<code>tools</code> 是本轮提供给模型的工具接口。消息的 <code>role</code> 标识角色，例如 <code>system</code> 可以承载规则，<code>tool</code> 可以承载工具结果。下面节选切换前后的两次请求，假设 <code>EnterWorktree</code> 已经可用，期间没有裁剪历史。</p>
+<figure class="textbook-diagram model-input-figure" id="request-delta-diagram">
+<figcaption><span>图 2</span><strong>进入工作树前后的两次请求</strong></figcaption>
+<div aria-label="两次模型请求对照" class="textbook-diagram-scroll" role="region" tabindex="0"><img alt="切换前有首条 system 的项目约定、用户的改价任务和程序写入的 pricing 目录说明。切换后的请求保留这些消息，随后依次多出模型的 EnterWorktree 调用、对应工具结果和程序写入的 discount 新目录说明。tools 是请求里的另一个字段。" height="647" src="diagram/model-input-request-delta.svg" width="840"/></div>
+</figure>
+<p id="model-input-first-check"><strong>看着图判断三件事。</strong>原任务在哪条消息？哪条消息给出了最新的执行目录？如果接下来让 <code>Read</code> 打开价格文件，<code>path</code> 填什么？</p>
+<details class="answer-box"><summary>核对三处</summary><div>
+<p>两份请求里都有“在工作树里把普通价打九折”，这条才是用户交代的任务。右边最后一条目录说明也是 <code>role=user</code>，由程序在请求前按实际目录追加。结合图 1，现在从 <code>discount</code> 工作树根找文件，下一次应传 <code>{"path":"packages/pricing/prices.mjs"}</code>。</p>
+<p><code>EnterWorktree</code> 的回包也带路径，记录的是那次切换的结果。请求前单独核对目录，后续再切换时就能给模型新值。首条消息里的项目约定继续适用，会员价仍要保留。</p>
+</div></details>
+<p>接下来沿这两类信息追来源。先看项目约定怎样进入首条 <code>system</code>，再看程序何时会补上新目录。</p>
+</section>
+</section>
+<section class="v2-topic-group" id="system-assembly">
+<header class="v2-group-heading"><span>02</span><h2>请求结构与 system 装配</h2></header>
+<section class="design-section" id="request-two-parts">
+<h3>2.1 messages 带历史，tools 给接口</h3>
+<p><a href="01-一次任务怎样跑完.html#request-inputs" rel="noopener" target="_blank">上一章用同一循环带回了新的工具结果</a>。图 2 接着问这份请求还有哪些材料。规则、任务、过程和结果放进 <code>messages</code>。名为 <code>Read</code> 的接口放进 <code>tools</code>，说明模型可以传哪些参数。这两项分别由程序准备。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/model-input/loop.py#L314" rel="noopener" target="_blank">loop.py:314 · 请求带走当前历史与工具接口</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>7 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="314"></span><span data-line="315"></span><span data-line="316"></span><span data-line="317"></span><span data-line="318"></span><span data-line="319"></span><span data-line="320"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        opts = cast(StreamChatOptions, <span class="hljs-built_in">dict</span>(options))
+        opts[<span class="hljs-string">"</span><span class="hljs-string">model</span><span class="hljs-string">"</span>] = session.model
+        opts[<span class="hljs-string">"</span><span class="hljs-string">messages</span><span class="hljs-string">"</span>] = copy.deepcopy(session.messages)
+        opts[<span class="hljs-string">"</span><span class="hljs-string">tools</span><span class="hljs-string">"</span>] = api_tools() <span class="hljs-keyword">if</span> api_tools is not <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> registry.toApiTools()
+        <span class="hljs-keyword">if</span> opts[<span class="hljs-string">"</span><span class="hljs-string">tools</span><span class="hljs-string">"</span>]:
+            opts[<span class="hljs-string">"</span><span class="hljs-string">parallelToolCalls</span><span class="hljs-string">"</span>] = <span class="hljs-keyword">True</span>
+        opts[<span class="hljs-string">"</span><span class="hljs-string">extra</span><span class="hljs-string">"</span>] = {**options.get(<span class="hljs-string">"</span><span class="hljs-string">extra</span><span class="hljs-string">"</span>, {}), <span class="hljs-string">"</span><span class="hljs-string">reasoning_effort</span><span class="hljs-string">"</span>: reasoning_effort}</code></pre></div></figure>
+<p><code>opts["messages"]</code>先复制当前会话历史。请求前的处理还会确认目录事实，并把确认后的消息交给发送入口。<code>opts["tools"]</code>从本轮可用的工具定义取得。现在从图 2 的第一条消息往回查，看看里面的项目约定怎样填进 <code>system</code>。</p>
+</section>
+<section class="design-section" id="system-sources">
+<h3>2.2 基础提示由模板和启动材料组成</h3>
+<p>模板提供通用的行为框架，但不知道这次启动在哪个项目、选择了哪个模型，也不知道已经加载了哪些项目材料。运行时先准备这些值，再调用 <code>system_prompt(selected_model)</code>：</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/model-input/runtime.py#L605" rel="noopener" target="_blank">runtime.py:605 · 装配本次system的入口</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>10 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="605"></span><span data-line="606"></span><span data-line="607"></span><span data-line="608"></span><span data-line="609"></span><span data-line="610"></span><span data-line="611"></span><span data-line="612"></span><span data-line="613"></span><span data-line="614"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">system_prompt</span>(selected_model: <span class="hljs-built_in">str</span>) -&gt; <span class="hljs-built_in">str</span>:
+        text = buildSystemPrompt({
+            <span class="hljs-string">"</span><span class="hljs-string">modelId</span><span class="hljs-string">"</span>: selected_model, <span class="hljs-string">"</span><span class="hljs-string">toolSummaries</span><span class="hljs-string">"</span>: tool_summaries,
+            <span class="hljs-string">"</span><span class="hljs-string">platform</span><span class="hljs-string">"</span>: sys.platform, <span class="hljs-string">"</span><span class="hljs-string">interactive</span><span class="hljs-string">"</span>: not <span class="hljs-built_in">bool</span>(args.prompt),
+            <span class="hljs-string">"</span><span class="hljs-string">projectInstructions</span><span class="hljs-string">"</span>: project_text, <span class="hljs-string">"</span><span class="hljs-string">memories</span><span class="hljs-string">"</span>: memory_text,
+        })
+        catalog = skillCatalogLines(skills)
+        <span class="hljs-keyword">if</span> catalog:
+            text += SKILLS_HEADER + catalog
+        text += agentCatalog(env, selected_model, definitions=agent_definitions)</code></pre></div></figure>
+<p><code>buildSystemPrompt</code>先填模板；后面的 <code>+=</code>继续加上Skills目录和子代理目录。再往后，运行时还追加当前版本的能力说明；在相应语言条件下，还会追加中文思考提示。它并不是“读一个模板，原样发给模型”。</p>
+<div class="table-scroll"><table><thead><tr><th>材料</th><th>为本次任务提供什么</th><th>进入首条system的方式</th></tr></thead><tbody>
+<tr><td>基础模板</td><td>通用工作方式、工具使用指导和回答要求。</td><td>读取打包资源，再替换占位符。</td></tr>
+<tr><td>当前模型与运行参数</td><td>模型身份、相关能力提示、平台和交互方式。</td><td><code>modelId</code>等参数参与填充。</td></tr>
+<tr><td>工具摘要</td><td>工具名称和简要用途，帮助判断可以借助哪些能力。</td><td>注册表在启动阶段生成 <code>tool_summaries</code>字符串。</td></tr>
+<tr><td>项目指令</td><td>本例的双价格检查约定，以及会员价保持原样。</td><td>读取规则文件，合成 <code>project_text</code>。</td></tr>
+<tr><td>启动记忆</td><td>启动阶段选中的经验材料。</td><td>启动快照的 <code>text</code>成为 <code>memory_text</code>。</td></tr>
+<tr><td>Skills目录</td><td>有哪些流程、分别适合何时使用。</td><td><code>skillCatalogLines(skills)</code>生成目录，追加到模板后。</td></tr>
+<tr><td>子代理目录与能力说明</td><td>有哪些可派发角色，以及当前版本能力的具体边界。</td><td><code>agentCatalog</code>和运行时说明继续追加。</td></tr>
+</tbody></table></div>
+<p>目录的作用是让模型判断“哪个流程值得加载”。例如Skills目录列出名称、描述、触发信息和必要的调用名，不能据此断言整个Skill正文已经进了system。目录与正文分开，后续遇到匹配任务时才能按需取得详细流程，避免把每个流程一开始全部展开。</p>
+<p>启动记忆也只代表这次启动选入的材料；按任务召回的新经验是另一条输入路径。<a href="17-经验怎样用到当前任务.html" rel="noopener" target="_blank">《经验怎样用到当前任务：启动、召回、适用判断与检查》</a>会解释选取与适用判断；<a href="19-流程怎样按任务加载.html" rel="noopener" target="_blank">《流程怎样按任务加载：Skill目录、正文与动态发现》</a>会接着讲目录如何引向正文。本篇先确认它们在输入里占什么位置。</p>
+</section>
+<section class="design-section" id="template-substitution">
+<h3>2.3 把项目约定填入模板占位符</h3>
+<p>模板装配最核心的动作，是把参数值填到对应占位符里：</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/model-input/system_prompt.py#L171" rel="noopener" target="_blank">system_prompt.py:171 · 模板占位符与实参</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>9 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="171"></span><span data-line="172"></span><span data-line="173"></span><span data-line="174"></span><span data-line="175"></span><span data-line="176"></span><span data-line="177"></span><span data-line="178"></span><span data-line="179"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    replacements: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">str</span>] = {
+        <span class="hljs-string">"</span><span class="hljs-string">{model_id}</span><span class="hljs-string">"</span>: model_id,
+        <span class="hljs-string">"</span><span class="hljs-string">{model_vision_note}</span><span class="hljs-string">"</span>: _vision_note(model_id, <span class="hljs-keyword">False</span>),
+        <span class="hljs-string">"</span><span class="hljs-string">{model_vision_note_en}</span><span class="hljs-string">"</span>: _vision_note(model_id, <span class="hljs-keyword">True</span>),
+        <span class="hljs-string">"</span><span class="hljs-string">{project_instruction_files}</span><span class="hljs-string">"</span>: opts.get(<span class="hljs-string">"</span><span class="hljs-string">projectInstructions</span><span class="hljs-string">"</span>) or none,
+        <span class="hljs-string">"</span><span class="hljs-string">{tools}</span><span class="hljs-string">"</span>: opts[<span class="hljs-string">"</span><span class="hljs-string">toolSummaries</span><span class="hljs-string">"</span>],
+        <span class="hljs-string">"</span><span class="hljs-string">{platform}</span><span class="hljs-string">"</span>: opts.get(<span class="hljs-string">"</span><span class="hljs-string">platform</span><span class="hljs-string">"</span>) or unknown,
+        <span class="hljs-string">"</span><span class="hljs-string">{env_snapshot}</span><span class="hljs-string">"</span>: opts.get(<span class="hljs-string">"</span><span class="hljs-string">envSnapshot</span><span class="hljs-string">"</span>) or <span class="hljs-string">"</span><span class="hljs-string">"</span>,
+        <span class="hljs-string">"</span><span class="hljs-string">{memory}</span><span class="hljs-string">"</span>: opts.get(<span class="hljs-string">"</span><span class="hljs-string">memories</span><span class="hljs-string">"</span>) or none_yet,</code></pre></div></figure>
+<p>例如 <code>{project_instruction_files}</code>会换成已读取的两份约定；<code>{memory}</code>会换成启动记忆文本。函数最后逐个 <code>text.replace(key, value)</code>，返回字符串。它没有在这里读取价格文件、运行检查，也没有把“会员价不变”转成一条自动验收程序。</p>
+<p>读代码还要核对调用点是否真的传了参数。模板构造器支持 <code>lang</code>和 <code>envSnapshot</code>，但上面的运行时调用没有传这两项：这里默认使用中文基础模板，环境快照占位符得到空串。不能仅凭构造器支持一个字段，就说当前请求已包含完整环境变量快照，或界面换语言后基础模板一定整体切成英文。</p>
+<p>这一步让模型看见了项目约定。能否把约定落实到价格上，还要看模型选了什么动作、程序是否允许执行，以及试算得出了什么。</p>
+</section>
+</section>
+<section class="v2-topic-group" id="project-instruction-scope">
+<header class="v2-group-heading"><span>03</span><h2>项目规则的查找与拼接</h2></header>
+<section class="design-section" id="project-chain">
+<h3>3.1 向上找 Git 根，再从根向下读取</h3>
+<p>仓库根的规则说改完要核对两种价格，<code>pricing</code> 的规则专门说明会员价保持原样。<code>reports</code> 是同级模块。先沿目录树找一找，从启动目录 <code>pricing</code> 往上，到哪一级能看见 <code>.git</code>？</p>
+<div class="model-input-case">
+<figure class="ruocun-code" data-language="text" id="pricing-repository-tree">
+<figcaption class="ruocun-code-caption"><span>仓库结构</span><span>9 行</span><button aria-label="复制仓库目录结构" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span><span data-line="2"></span><span data-line="3"></span><span data-line="4"></span><span data-line="5"></span><span data-line="6"></span><span data-line="7"></span><span data-line="8"></span><span data-line="9"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-text"><span class="model-input-rule-chain">/shop/
+</span>├── .git/
+├── RUOCUN.md
+<span class="model-input-rule-chain">└── packages/
+</span><span class="model-input-rule-chain">    ├── pricing/
+</span>    │   ├── RUOCUN.md
+    │   └── prices.mjs
+    └── reports/
+        └── RUOCUN.md</code></pre></div></figure>
+<div class="design-trace model-input-rules">
+<strong>场景推演 · 两份项目约定</strong>
+<p><code>/shop/RUOCUN.md</code><br/>价格行为变更后，分别检查普通价与会员价。</p>
+<p><code>/shop/packages/pricing/RUOCUN.md</code><br/>折扣只用于普通价，会员价保持原样。</p>
+</div>
+</div>
+<p>本例从pricing启动，为什么能取得 <code>/shop/RUOCUN.md</code>，却不读旁边reports里的约定？关键在 <code>_projectChain</code>：它从传入的启动目录向上走，找到存在 <code>.git</code>的目录以后，反转已经经过的路径。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/model-input/project_doc.py#L12" rel="noopener" target="_blank">project_doc.py:12 · 形成项目指令的目录链</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>10 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="12"></span><span data-line="13"></span><span data-line="14"></span><span data-line="15"></span><span data-line="16"></span><span data-line="17"></span><span data-line="18"></span><span data-line="19"></span><span data-line="20"></span><span data-line="21"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">_projectChain</span>(start: Path) -&gt; <span class="hljs-built_in">list</span>[Path]:
+    chain: <span class="hljs-built_in">list</span>[Path] = []
+    directory = start
+    <span class="hljs-keyword">while</span> <span class="hljs-keyword">True</span>:
+        chain.append(directory)
+        <span class="hljs-keyword">if</span> (directory / <span class="hljs-string">"</span><span class="hljs-string">.git</span><span class="hljs-string">"</span>).exists():
+            <span class="hljs-keyword">return</span> <span class="hljs-built_in">list</span>(<span class="hljs-built_in">reversed</span>(chain))
+        <span class="hljs-keyword">if</span> directory.parent == directory:
+            <span class="hljs-keyword">return</span> [start]
+        directory = directory.parent</code></pre></div></figure>
+<p>代入本例，向上找到 <code>/shop</code>后，得到下面这条读取链：</p>
+<div class="design-trace"><strong>项目目录链</strong><pre><code class="language-text">/shop
+  → /shop/packages
+  → /shop/packages/pricing</code></pre></div>
+<p>它只访问这条链上的候选文件，不递归扫描所有后代目录，所以reports没有被包含。若一路走到文件系统根仍没找到 <code>.git</code>，代码返回 <code>[start]</code>，即只保留传入目录；也不是把整个盘的祖先规则都拼起来。<code>.git</code>检查用的是存在性，既能作为目录，也能作为工作树中的标记文件。</p>
+<p>这个例子里，<code>/shop</code> 是用来确定规则链的仓库根，启动时记录的工作区根 <code>workspaceRoot</code> 是 <code>/shop/packages/pricing</code>。真正用来拼相对路径的是当前目录 <code>ctx.cwd</code>，它起初也在 <code>pricing</code>，进入工作树后就有了新值。</p>
+</section>
+<section class="design-section" id="instruction-order-and-dedup">
+<h3>3.2 按整段规则文本去重</h3>
+<p>规则加载先处理已显式声明的兼容用户指令源，再读用户级 <code>~/.ruocun/RUOCUN.md</code>，然后沿项目链处理项目级来源。每个目录内，显式兼容来源在前，原生文件依次是 <code>RUOCUN.md</code>和 <code>RUOCUN.local.md</code>：</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/model-input/project_doc.py#L64" rel="noopener" target="_blank">project_doc.py:64 · 每层来源的读取与最终拼接</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>6 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="64"></span><span data-line="65"></span><span data-line="66"></span><span data-line="67"></span><span data-line="68"></span><span data-line="69"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            level = parent <span class="hljs-keyword">if</span> parent in chain <span class="hljs-keyword">else</span> root
+            <span class="hljs-keyword">if</span> level == directory:
+                read(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">兼容项目级(</span><span class="hljs-string">{</span>source.id<span class="hljs-string">}</span><span class="hljs-string">: </span><span class="hljs-string">{</span>source.path<span class="hljs-string">}</span><span class="hljs-string">) @ </span><span class="hljs-string">{</span>rel<span class="hljs-string">}</span><span class="hljs-string">"</span>, Path(source.path), source.id)
+        read(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">RUOCUN.md @ </span><span class="hljs-string">{</span>rel<span class="hljs-string">}</span><span class="hljs-string">"</span>, directory / <span class="hljs-string">"</span><span class="hljs-string">RUOCUN.md</span><span class="hljs-string">"</span>)
+        read(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">RUOCUN.local.md @ </span><span class="hljs-string">{</span>rel<span class="hljs-string">}</span><span class="hljs-string">"</span>, directory / <span class="hljs-string">"</span><span class="hljs-string">RUOCUN.local.md</span><span class="hljs-string">"</span>)
+    <span class="hljs-keyword">return</span> <span class="hljs-string">"</span><span class="hljs-string">\n</span><span class="hljs-string">\n</span><span class="hljs-string">"</span>.join(parts)</code></pre></div></figure>
+<p>显式兼容项目源还要属于这次传入的工作区；位于目录链上的文件跟着实际层级进入，链外的声明来源归到启动目录那一层。这里不展开兼容设置，先抓住范围：加载器不会仅因一个文件叫 <code>AGENTS.md</code>，就把它自动当成本产品的原生项目指令。工程协作规则与产品送给模型的规则，要分别核对入口。</p>
+<p>对每个候选文件，内部的 <code>read</code>先读取并清理首尾空白与BOM，再按内容判断是否已经出现：</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/model-input/project_doc.py#L34" rel="noopener" target="_blank">project_doc.py:34 · 缺失处理与完整内容去重</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>11 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="34"></span><span data-line="35"></span><span data-line="36"></span><span data-line="37"></span><span data-line="38"></span><span data-line="39"></span><span data-line="40"></span><span data-line="41"></span><span data-line="42"></span><span data-line="43"></span><span data-line="44"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">read</span>(label: <span class="hljs-built_in">str</span>, file: Path, source_id: <span class="hljs-built_in">str</span> | <span class="hljs-keyword">None</span> = <span class="hljs-keyword">None</span>) -&gt; <span class="hljs-keyword">None</span>:
+        <span class="hljs-keyword">try</span>:
+            content = file.read_bytes().decode(<span class="hljs-string">"</span><span class="hljs-string">utf-8</span><span class="hljs-string">"</span>, errors=<span class="hljs-string">"</span><span class="hljs-string">replace</span><span class="hljs-string">"</span>).strip().strip(<span class="hljs-string">"</span><span class="hljs-string">\ufeff</span><span class="hljs-string">"</span>).strip()
+        <span class="hljs-keyword">except</span> OSError:
+            <span class="hljs-keyword">if</span> sourceStates is not <span class="hljs-keyword">None</span> and source_id is not <span class="hljs-keyword">None</span>:
+                sourceStates[source_id] = <span class="hljs-string">"</span><span class="hljs-string">缺失或不可读；该源未加载</span><span class="hljs-string">"</span>
+            <span class="hljs-keyword">return</span>
+        <span class="hljs-keyword">if</span> content and content not in seen:
+            seen.add(content)
+            parts.append(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">### </span><span class="hljs-string">{</span>label<span class="hljs-string">}</span><span class="hljs-string">\n</span><span class="hljs-string">{</span>content<span class="hljs-string">}</span><span class="hljs-string">"</span>)
+            state = <span class="hljs-string">"</span><span class="hljs-string">生效：内容已注入</span><span class="hljs-string">"</span></code></pre></div></figure>
+<p><code>except OSError</code>让缺失或不可读的来源被跳过；空内容也不会加入。<code>seen</code>记录的是清理后的完整内容，同样一份文字在多个来源出现时，只保留先进入的一份。它没有把规则拆成一句一句比较，也没有按标题合并。</p>
+<p>假设本例只有两份非空原生规则，最终项目文字包含：</p>
+<figure class="ruocun-code" data-language="text">
+<figcaption class="ruocun-code-caption"><span>输出</span><span>5 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span><span data-line="2"></span><span data-line="3"></span><span data-line="4"></span><span data-line="5"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-text">### RUOCUN.md @ ../..
+价格行为变更后，分别检查普通价与会员价。
+
+### RUOCUN.md @ .
+折扣只用于普通价，会员价保持原样。</code></pre></div></figure>
+<p>如果根规则写“所有价格都打折”，子规则写“会员价不变”，两句会按顺序一同出现在提示里。<code>seen</code> 比较的是整段文字是否相同，两句都会通过。要让模型看见明确的适用范围，规则作者可以写明“默认打折，会员价除外”。</p>
+</section>
+</section>
+<section class="v2-topic-group" id="system-refresh-lifecycle">
+<header class="v2-group-heading"><span>04</span><h2>首条 system 的更新</h2></header>
+<section class="design-section" id="captured-inputs">
+<h3>4.1 为什么刷新 system 后仍是旧规则？</h3>
+<p>假设启动时读到了“改完核对两种价格”。会话中途，有人把磁盘里的规则改成“只核对普通价”，然后切换模型，触发重建首条 <code>system</code>。新请求究竟带哪一句？沿源码先找读取文件发生在什么时候。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/model-input/runtime.py#L582" rel="noopener" target="_blank">runtime.py:582 · 项目指令在启动阶段读取</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>1 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="582"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    project_text = <span class="hljs-string">"</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> args.no_project_instructions <span class="hljs-keyword">else</span> loadProjectInstructions(cwd, userRoot=user_root)</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/model-input/runtime.py#L600" rel="noopener" target="_blank">runtime.py:600 · 启动记忆先形成快照</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>4 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="600"></span><span data-line="601"></span><span data-line="602"></span><span data-line="603"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    recall_counts: RecallCounts = {<span class="hljs-string">"</span><span class="hljs-string">injected</span><span class="hljs-string">"</span>: <span class="hljs-number">0</span>, <span class="hljs-string">"</span><span class="hljs-string">stale</span><span class="hljs-string">"</span>: <span class="hljs-number">0</span>, <span class="hljs-string">"</span><span class="hljs-string">changed</span><span class="hljs-string">"</span>: <span class="hljs-number">0</span>, <span class="hljs-string">"</span><span class="hljs-string">types</span><span class="hljs-string">"</span>: {}}
+    startup_snapshot = (StartupMemorySnapshot() <span class="hljs-keyword">if</span> args.no_memory <span class="hljs-keyword">else</span>
+                        <span class="hljs-keyword">await</span> buildStartupMemorySnapshot(memory_store, onRecall=recall_counts.update))
+    memory_text = startup_snapshot.text</code></pre></div></figure>
+<p>第一处赋值发生在启动时。“改完核对两种价格”已经成了 <code>project_text</code> 字符串。前面见过的 <code>system_prompt(selected_model)</code> 在装配时取这个外层变量。内层函数能访问外层变量的关系叫闭包。切换模型会给构造函数一个新模型，规则变量仍是原值，所以这次请求仍会带上第一句。</p>
+<p><strong>「重建首条 system 时，项目规则沿用启动时读出的 project_text」</strong>。每次装配可以复用这份规则，代价是磁盘改动要经过实际重读与重新赋值才能进入提示。启动记忆的 <code>memory_text</code> 也用已选材料。任务记忆走按任务召回的路径，新增内容会出现在后面的消息位置。</p>
+</section>
+<section class="design-section" id="rebuild-first-system">
+<h3>4.2 替换首条 system，保留后续消息</h3>
+<p>真正刷新时，<code>refresh_system_prompt</code>先取得当前模型，重新装配提示，再用新system加上原来下标1之后的历史：</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/model-input/runtime.py#L690" rel="noopener" target="_blank">runtime.py:690 · 重建并替换首条system</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>6 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="690"></span><span data-line="691"></span><span data-line="692"></span><span data-line="693"></span><span data-line="694"></span><span data-line="695"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">refresh_system_prompt</span>(*, sanitize: <span class="hljs-built_in">bool</span> = <span class="hljs-keyword">False</span>) -&gt; <span class="hljs-keyword">None</span>:
+        history = sanitizeHistoryForResume(session.messages) <span class="hljs-keyword">if</span> sanitize <span class="hljs-keyword">else</span> session.messages
+        prompt = system_prompt(session.model)
+        messages = [{<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">system</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: prompt}, *history[<span class="hljs-number">1</span>:]]
+        <span class="hljs-keyword">await</span> conversation.replace_context(session, messages, reset_prompt=<span class="hljs-keyword">False</span>)
+        session.setSystemPrompt(prompt)</code></pre></div></figure>
+<p><code>history[1:]</code>保留的是首条system之后的消息，所以这次刷新并不意味着清空任务历史。<code>conversation.replace_context</code>负责确认替换后的会话上下文；<code>setSystemPrompt</code>同步会话记录的系统提示。源码中两步分开，不能把拼出一个新字符串当成已经发布给后续请求。</p>
+<p>启动或恢复会走这条重建路径。模型切换也会装配对应模型的新system：有的路径经过准备与上下文变换后提交，有的调用这里的刷新函数；语言变化在运行入口检查到时也会触发刷新。这些是状态变化时的动作，并非每次模型请求都重读所有来源。</p>
+<div class="table-scroll"><table><thead><tr><th>当前发生的事</th><th>可以发生的更新</th><th>不能据此推断什么</th></tr></thead><tbody>
+<tr><td>启动新进程</td><td>重新准备本次项目文字、启动记忆等来源，再装配system。</td><td>不代表所有磁盘内容都无条件注入；开关与选取逻辑仍有效。</td></tr>
+<tr><td>当前会话重建首条system</td><td>按当前模型、当前可见的闭包数据重新组合文字。</td><td>不代表重新执行 <code>loadProjectInstructions</code>或启动记忆选择。</td></tr>
+<tr><td>界面语言变化后重建</td><td>相应附加语言提示可变化；工具描述有自己的语言传参。</td><td>当前调用没有传 <code>lang</code>，不能说基础模板整体自动切英文。</td></tr>
+<tr><td>进入或退出worktree</td><td><code>ctx.cwd</code>变化，请求前补新的目录事实。</td><td>不代表重建首条system或重读工作树中的项目规则。</td></tr>
+</tbody></table></div>
+<p>排查“规则改了为什么还没生效”时，可以沿表追两步。先查加载规则的入口有没有重走，再查新消息有没有提交。读出新文件、重新装配提示和将提示发布到会话，各自需要有对应的证据。</p>
+</section>
+<section class="design-section" id="mutable-skill-catalog">
+<h3>4.3 Skills 清单确认后原地扩充</h3>
+<p>也不能反过来说“启动读过的东西以后全都不变”。<code>skills</code>是一个列表，动态发现与安装的确认流程可以扩充它。运行时先把新增目录作为后续system消息提交，再确认候选并扩展已安装项：</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/model-input/runtime.py#L1985" rel="noopener" target="_blank">runtime.py:1985 · 新增目录与活跃清单更新</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>6 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1985"></span><span data-line="1986"></span><span data-line="1987"></span><span data-line="1988"></span><span data-line="1989"></span><span data-line="1990"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">                <span class="hljs-keyword">if</span> catalog_texts:
+                    catalog = [{<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">system</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: text} <span class="hljs-keyword">for</span> text in catalog_texts]
+                    <span class="hljs-keyword">await</span> conversation.replace_context(session, [*session.messages, *catalog], reset_prompt=<span class="hljs-keyword">False</span>)
+                <span class="hljs-comment"># 保存期间即使收到暂停，也须发布已确认工作目录对应的同一候选。</span>
+                skill_discovery.confirm(candidate, skills)
+                skills.extend(installed)</code></pre></div></figure>
+<p><code>confirm(candidate, skills)</code>内部会把发现或激活的条目加入同一列表，后面的 <code>skills.extend(installed)</code>再加入安装项。以后如果重建首条system，<code>skillCatalogLines(skills)</code>会读到这个已更新的列表。它与“每轮扫描磁盘重新加载全部Skill”仍是不同机制。</p>
+<p>判断装配能读到什么，要追具体的更新动作。<code>project_text</code> 的值来自启动时的文件读取，<code>skills</code> 列表能被安装和发现流程原地扩充。下一节的目录事实会在准备请求时重新从实际执行上下文取得。</p>
+</section>
+</section>
+<section class="v2-topic-group" id="runtime-directory-facts">
+<header class="v2-group-heading"><span>05</span><h2>会话目录与快照</h2></header>
+<section class="design-section" id="command-cd-versus-context">
+<h3>5.1 Shell 的 cd 只改变本次子进程的目录</h3>
+<p>先回到进入工作树之前，排除一个常见误会。此时会话还在pricing，若一条普通Shell命令执行 <code>cd ../reports</code>，即使命令成功，变的也是这次子进程的工作目录；它没有把 <code>ctx.cwd</code>写回reports。下一次工具调用仍以会话当前执行目录为依据。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/model-input/exec_shell.py#L130" rel="noopener" target="_blank">exec_shell.py:130 · 每次命令取执行上下文中的目录</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>1 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="130"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    cwd = ctx.cwd or ctx.workspaceRoot</code></pre></div></figure>
+<p>从初始pricing目录运行这一条命令后，再调用 <code>Read</code>读取 <code>prices.mjs</code>，目标仍是pricing下的文件；不会因此加载reports的规则，也不需要追加“会话cwd已到reports”的快照。把命令输出里的路径当成会话事实，会制造一份与程序实际执行状态不一致的输入。</p>
+<p>回到图 2。执行 <code>EnterWorktree</code> 成功后，程序明确把新根目录写入执行上下文。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/model-input/enter_worktree.py#L49" rel="noopener" target="_blank">enter_worktree.py:49 · 显式更新当前执行目录</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>5 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="49"></span><span data-line="50"></span><span data-line="51"></span><span data-line="52"></span><span data-line="53"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-comment"># 切换文件和命令的当前目录，继续用原工作区的项目配置。</span>
+    <span class="hljs-built_in">setattr</span>(ctx, <span class="hljs-string">"</span><span class="hljs-string">activeWorktree</span><span class="hljs-string">"</span>, ActiveWorktree(worktree, ctx.cwd))
+    ctx.cwd = worktree.root
+    <span class="hljs-keyword">return</span> (<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">已进入 worktree：</span><span class="hljs-string">{</span>worktree.root<span class="hljs-string">}</span><span class="hljs-string">（分支 </span><span class="hljs-string">{</span>worktree.branch<span class="hljs-string">}</span><span class="hljs-string">）。此处用于文件操作和运行命令。</span><span class="hljs-string">"</span>
+            <span class="hljs-string">"</span><span class="hljs-string">记忆、MCP、LSP 和技能继续采用原项目的配置。结束时调用 ExitWorktree。</span><span class="hljs-string">"</span>)</code></pre></div></figure>
+<div class="design-trace"><strong>EnterWorktree 返回（场景推演）</strong><pre><code class="language-text">已进入 worktree：/shop/packages/pricing/.ruocun/worktrees/discount（分支 ruocun-wt-discount）。此处用于文件操作和运行命令。记忆、MCP、LSP 和技能继续采用原项目的配置。结束时调用 ExitWorktree。</code></pre></div>
+<p><code>activeWorktree</code>记下原来的 <code>ctx.cwd</code>，<code>ctx.cwd = worktree.root</code>才是这次切换的关键赋值。退出工作树时恢复此前目录；工作区根没有随之赋新值。模型需要被告知变化，路径解析程序则直接读取这个新值。</p>
+</section>
+<section class="design-section" id="directory-snapshot-shape">
+<h3>5.2 工具与快照从同一执行上下文取目录</h3>
+<p>切到 <code>discount</code> 后，模型如果还拿旧的 <code>pricing</code> 当起点，就会沿用 <code>path="prices.mjs"</code>。程序却会在新工作树的根解析这个短路径，图 1 的第二行就会发生。图 2 右边最后一条消息给了模型新的目录事实。把它的 <code>content</code> 展开，就能看到 <code>workspace_root</code> 和 <code>cwd</code>。程序把当时的目录状态记成一条消息，这里称它为目录快照。</p>
+<div class="design-trace"><strong>进入工作树后的目录快照（场景推演）</strong><pre><code class="language-text">&lt;ruocun-runtime-context&gt;
+Runtime directory facts; supersede older directory facts in history and summaries. This is not a new task.
+{"workspace_root":"/shop/packages/pricing","cwd":"/shop/packages/pricing/.ruocun/worktrees/discount"}
+&lt;/ruocun-runtime-context&gt;</code></pre></div>
+<p>英文说明提醒模型用刚生成的目录事实理解路径。生成这份消息时，<code>buildRuntimeContext</code> 直接读取工具执行上下文 <code>ToolContext</code>。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/model-input/runtime_context.py#L18" rel="noopener" target="_blank">runtime_context.py:18 · 目录事实的来源与消息形状</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>8 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="18"></span><span data-line="19"></span><span data-line="20"></span><span data-line="21"></span><span data-line="22"></span><span data-line="23"></span><span data-line="24"></span><span data-line="25"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">_content</span>(workspace: <span class="hljs-built_in">str</span>, cwd: <span class="hljs-built_in">str</span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">return</span> _PREFIX + json.dumps({<span class="hljs-string">"</span><span class="hljs-string">workspace_root</span><span class="hljs-string">"</span>: workspace, <span class="hljs-string">"</span><span class="hljs-string">cwd</span><span class="hljs-string">"</span>: cwd},
+                                ensure_ascii=<span class="hljs-keyword">False</span>, separators=(<span class="hljs-string">"</span><span class="hljs-string">,</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">:</span><span class="hljs-string">"</span>)) + _SUFFIX
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title">buildRuntimeContext</span>(ctx: ToolContext) -&gt; ChatMessage:
+    <span class="hljs-string">"""只从当前执行的 ToolContext 取得真实目录。"""</span>
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">user</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: _content(ctx.workspaceRoot, ctx.cwd or ctx.workspaceRoot)}</code></pre></div></figure>
+<p><strong>「Read 的路径基准和模型的目录快照来自同一份 ToolContext」</strong>。这两处都用 <code>ctx.cwd or ctx.workspaceRoot</code> 取得有效目录，有 <code>cwd</code> 就用它，否则取工作区根。<a href="#actual-path-and-result">路径解析</a>直接拿这个目录去解释模型提交的相对路径。生成快照的一侧把这个值写进请求，模型看到后可以把参数改为 <code>packages/pricing/prices.mjs</code>。</p>
+<p>快照与原任务都可以是 <code>role=user</code>。这里的快照由程序生成，请求里的固定前后缀、两个字符串字段及规范化内容供 <code>isRuntimeContext</code> 识别。模型还要自己选好 <code>path</code>，实际读取的位置仍由工具按当前上下文解析。仅在聊天里写下一段路径文字，不会给执行上下文赋值。</p>
+</section>
+<section class="design-section" id="directory-snapshot-when">
+<h3>5.3 为什么只和最近一份目录快照比较？</h3>
+<p>假设模型在 <code>discount</code> 连续读取两个文件，目录始终相同。若每次发请求都重新附加同一份快照，历史就会多出重复消息，占用请求空间。只在变化时追加可以省下这些重复，但比较对象要选对。</p>
+<p>再看退出工作树这一步。历史里先有 <code>pricing</code>，后有 <code>discount</code>，现在实际目录又回到 <code>pricing</code>。如果只要历史里出现过 <code>pricing</code> 就跳过追加，最近的目录说明还会指向 <code>discount</code>。模型若沿用它，就可能仍提交 <code>packages/pricing/prices.mjs</code>，工具会在原价格目录下再拼出一个 <code>packages/pricing/</code>，找错位置。为此，程序从历史尾部向前找最近一条标准目录快照。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/model-input/runtime_context.py#L43" rel="noopener" target="_blank">runtime_context.py:43 · 与最近一条标准快照比较</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>5 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="43"></span><span data-line="44"></span><span data-line="45"></span><span data-line="46"></span><span data-line="47"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">needsRuntimeContext</span>(messages: Sequence[ChatMessage], snapshot: ChatMessage) -&gt; <span class="hljs-built_in">bool</span>:
+    <span class="hljs-keyword">for</span> message in <span class="hljs-built_in">reversed</span>(messages):
+        <span class="hljs-keyword">if</span> isRuntimeContext(message):
+            <span class="hljs-keyword">return</span> message != snapshot
+    <span class="hljs-keyword">return</span> <span class="hljs-keyword">True</span></code></pre></div></figure>
+<p><strong>「目录快照与最近一份比较，回到旧目录也是一次变化」</strong>。第一次遇到的标准快照就是 <code>discount</code>。当前快照写的是 <code>pricing</code>，两者不同，函数返回 <code>True</code>。找不到快照也会返回 <code>True</code>，只有最近一份与当前相同时才返回 <code>False</code>。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/model-input/context_runtime.py#L203" rel="noopener" target="_blank">context_runtime.py:203 · 请求前确认新增的目录事实</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>6 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="203"></span><span data-line="204"></span><span data-line="205"></span><span data-line="206"></span><span data-line="207"></span><span data-line="208"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">_ensureRuntimeContext</span>(<span class="hljs-built_in">self</span>) -&gt; <span class="hljs-keyword">None</span>:
+        <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>.ctx.signal.is_set():
+            <span class="hljs-keyword">raise</span> InterruptedError(<span class="hljs-string">"</span><span class="hljs-string">上下文检查已取消。</span><span class="hljs-string">"</span>)
+        snapshot = buildRuntimeContext(<span class="hljs-built_in">self</span>.ctx)
+        <span class="hljs-keyword">if</span> needsRuntimeContext(<span class="hljs-built_in">self</span>.session.messages, snapshot):
+            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.journal.replace_context(<span class="hljs-built_in">self</span>.session, [*<span class="hljs-built_in">self</span>.session.messages, snapshot], reset_prompt=<span class="hljs-keyword">False</span>)</code></pre></div></figure>
+<p><code>_ensureRuntimeContext</code> 根据判断结果决定是否提交“旧消息加一条快照”。代入退出的例子，追加的新快照告诉模型当前已经回到 <code>pricing</code>。用表里的四个时点核对一下。</p>
+<div class="table-scroll"><table><thead><tr><th>时点</th><th>当前ctx.cwd</th><th>是否追加目录事实</th></tr></thead><tbody>
+<tr><td>首次模型请求前</td><td>启动pricing目录。</td><td>没有已有标准快照，追加。</td></tr>
+<tr><td>Read后继续，目录未变</td><td>仍是pricing。</td><td>与最近快照相同，不追加。</td></tr>
+<tr><td>EnterWorktree成功后的请求前</td><td>discount工作树根。</td><td>与pricing快照不同，追加。</td></tr>
+<tr><td>退出工作树后的请求前</td><td>恢复pricing。</td><td>与最近的worktree快照不同，再追加。</td></tr>
+</tbody></table></div>
+<p>追加快照后，后续消息仍可能接在它后面。目录未变时，用户新发的要求也可能在末尾。读历史时要依照标记和消息顺序找最近有效的目录说明。</p>
+<p>请求前检查还可能与上下文压缩配合。尾部新增目录消息以后，真正尚未得到助手处理的用户输入仍需被保护，不能因为它不再是最后一条user消息就丢掉。当前实现专门跳过目录快照，找到最近的真实用户输入。<a href="14-上下文放不下怎么办.html" rel="noopener" target="_blank">《上下文放不下怎么办：预算、完整工具组与摘要提交》</a>会继续解释保护与裁剪；此处先把“事实更新没有取代用户目标”讲清楚。</p>
+</section>
+</section>
+<section class="v2-topic-group" id="dynamic-message-placement">
+<header class="v2-group-heading"><span>06</span><h2>补充消息的位置与更新</h2></header>
+<section class="design-section" id="session-start-position">
+<h3>6.1 SessionStart 上下文单独放在下标 1</h3>
+<p>前面讨论的是首条system。Hook是在指定事件前后运行的扩展处理，可以提供附加信息或参与决策。启动或恢复时，SessionStart Hook可以提供 <code>additional_context</code>。运行时清理历史中带若存 SessionStart 标记的系统消息，再把本次非空的附加内容插入下标 1。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/model-input/runtime.py#L2097" rel="noopener" target="_blank">runtime.py:2097 · SessionStart附加上下文的位置</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>10 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="2097"></span><span data-line="2098"></span><span data-line="2099"></span><span data-line="2100"></span><span data-line="2101"></span><span data-line="2102"></span><span data-line="2103"></span><span data-line="2104"></span><span data-line="2105"></span><span data-line="2106"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        start_hook = <span class="hljs-keyword">await</span> session_hook(<span class="hljs-string">"</span><span class="hljs-string">SessionStart</span><span class="hljs-string">"</span>, lifecycle_id,
+                                        RunCtx(<span class="hljs-built_in">str</span>(cwd), source=<span class="hljs-string">"</span><span class="hljs-string">resume</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> args.resume <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">startup</span><span class="hljs-string">"</span>), cancelled)
+        messages = [message <span class="hljs-keyword">for</span> message in session.messages <span class="hljs-keyword">if</span> not (
+            message.get(<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>) == <span class="hljs-string">"</span><span class="hljs-string">system</span><span class="hljs-string">"</span> and <span class="hljs-built_in">isinstance</span>(message.get(<span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>), <span class="hljs-built_in">str</span>)
+            and message[<span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>].startswith(_SESSION_START_MARKER + <span class="hljs-string">"</span><span class="hljs-string">\n</span><span class="hljs-string">"</span>))]
+        <span class="hljs-keyword">if</span> start_hook.additional_context.strip():
+            start_context = conversation.redact(start_hook.additional_context)
+            messages.insert(<span class="hljs-number">1</span>, {<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">system</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">{</span>_SESSION_START_MARKER<span class="hljs-string">}</span><span class="hljs-string">\n</span><span class="hljs-string">{</span>start_context<span class="hljs-string">}</span><span class="hljs-string">"</span>})
+        <span class="hljs-keyword">if</span> messages != session.messages:
+            <span class="hljs-keyword">await</span> conversation.replace_context(session, messages, reset_prompt=<span class="hljs-keyword">False</span>)</code></pre></div></figure>
+<p>下标0是重建的基础system，下标1是单独的SessionStart上下文，后面才接其余历史。没有非空内容就不会插入这条。恢复时按若存 SessionStart 标记定位上一次注入的内容，避免多次启动的附加内容不断叠加。</p>
+<p>Hook提供的内容会先经过会话脱敏，再进入历史。这里关注的是信息位置与替换时机；Hook能拦截哪些事件、如何影响参数和决策，由<a href="21-执行前后怎样插入规则.html" rel="noopener" target="_blank">《执行前后怎样插入规则：Hooks改参、决策与收据》</a>系统展开。</p>
+</section>
+<section class="design-section" id="later-system-context">
+<h3>6.2 任务上下文与建议按事件追加</h3>
+<p>另一些内容应当贴近它出现的时点。例如真实用户输入被接受时，UserPromptSubmit的附加上下文与满足条件的任务记忆会汇总；会话先追加用户消息，再追加这一份非空system上下文：</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/model-input/conversation.py#L252" rel="noopener" target="_blank">conversation.py:252 · 用户输入与任务上下文的相对位置</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>9 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="252"></span><span data-line="253"></span><span data-line="254"></span><span data-line="255"></span><span data-line="256"></span><span data-line="257"></span><span data-line="258"></span><span data-line="259"></span><span data-line="260"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            messages = session.messages
+            <span class="hljs-keyword">if</span> not rejected:
+                <span class="hljs-built_in">self</span>._require_paired(session)
+                projected = modelInput(item.payload) <span class="hljs-keyword">if</span> model_content is <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> model_content
+                <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>._safe(projected) != projected:
+                    <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"</span><span class="hljs-string">模型输入无法完整保存，保留排队原文，停止本次消费。</span><span class="hljs-string">"</span>)
+                messages = [*messages, {<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">user</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: copy.deepcopy(projected)}]
+                <span class="hljs-keyword">if</span> hook_context:
+                    messages.append({<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">system</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: <span class="hljs-built_in">self</span>.redact(hook_context)})</code></pre></div></figure>
+<p>这里的 <code>hook_context</code>是调用方汇总后传入的字符串，可能同时包含Hook附加内容和本次任务召回的记忆。只有相应功能启用、内容非空时才有这条消息，不能说每个用户请求后都固定跟着一段记忆。</p>
+<p>工具执行后也可能产生进度建议。它们在已有工具组之后进入历史：</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/model-input/loop.py#L528" rel="noopener" target="_blank">loop.py:528 · 有建议时追加后续system</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>7 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="528"></span><span data-line="529"></span><span data-line="530"></span><span data-line="531"></span><span data-line="532"></span><span data-line="533"></span><span data-line="534"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        advice = progress.step(batch_names, runningBackground=running_background, interactive=interactive, enabled=progress_advice)
+        <span class="hljs-keyword">if</span> advice and not ctx.signal.is_set():
+            messages = [*session.messages, {<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">system</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: advice}]
+            <span class="hljs-keyword">if</span> journal is <span class="hljs-keyword">None</span>:
+                session.messages = messages
+            <span class="hljs-keyword">else</span>:
+                <span class="hljs-keyword">await</span> journal.replace_context(session, messages, reset_prompt=<span class="hljs-keyword">False</span>)</code></pre></div></figure>
+<p>反思建议另有触发判断，同样在有内容时追加system；前面见到的动态Skills目录也走后续追加。它们不会因为使用相同的role，就与基础system拥有相同的来源或更新生命周期。</p>
+<div class="table-scroll"><table><thead><tr><th>信息</th><th>消息位置</th><th>更新责任</th></tr></thead><tbody>
+<tr><td>基础system</td><td>首条消息，下标0。</td><td>状态变化时重新装配并替换。</td></tr>
+<tr><td>SessionStart附加上下文</td><td>非空时插在下标1，角色system。</td><td>启动或恢复时清理带若存 SessionStart 标记的历史消息，再提交本次内容。</td></tr>
+<tr><td>输入Hook与任务记忆</td><td>相应用户输入后，角色system。</td><td>消费该输入时按条件汇总并提交。</td></tr>
+<tr><td>进度、反思、新增Skill目录</td><td>相应事件后追加，角色system。</td><td>各自的触发与确认流程。</td></tr>
+<tr><td>当前目录事实</td><td>需要更新时追加，角色user。</td><td>请求前从实际执行上下文取值并比较。</td></tr>
+</tbody></table></div>
+<p>因此，排查“模型为什么还按旧信息做事”时，应先问内容来自哪条路径、有没有真正进入本轮消息，而不是只看首条system是否更新。多条system消息可以同时存在；角色告诉你消息类型，不能独自解释它的时效和来源。</p>
+</section>
+<section class="design-section" id="stable-prefix-boundary">
+<h3>6.3 为什么把目录事实放在首条 system 之外？</h3>
+<p>假设让首条 <code>system</code> 也负责公布当前目录。图 2 中从 <code>pricing</code> 切到 <code>discount</code> 时，就要改写首条消息；项目约定本身没有变，首条消息也必须跟着目录更新。若更进一步，直接从新工作树根重新收集项目约定，目录链只会走到该工作树自己的 <code>.git</code> 标记。本例原来从 <code>pricing</code> 子目录读出的会员价说明就不会自动被带上。</p>
+<p>目录变化只需追加快照。首条 <code>system</code> 保持原来的刷新时机，启动时读到的规则可以照常使用。代价是历史中可能同时存在新旧目录，所以快照要能被识别，还要说明新事实的时间顺序。</p>
+<p>不过“较稳定”只是请求组织方式，不能直接换算成缓存命中或费用下降。模型服务看到的还有实际序列化后的消息、工具接口、模型选择和其他请求参数。<a href="16-前缀缓存怎样配合请求.html" rel="noopener" target="_blank">《前缀缓存怎样配合请求：稳定布局、摘要与命中观察》</a>会解释缓存所需的原理、命中条件与观察方法；本篇只确认稳定材料与变化事实怎样组织，优先保证当前事实正确。</p>
+</section>
+</section>
+<section class="v2-topic-group" id="prompt-schema-execution">
+<header class="v2-group-heading"><span>07</span><h2>模型输入与工具执行</h2></header>
+<section class="design-section" id="tool-summary-versus-schema">
+<h3>7.1 tools 按当前模式和可见性生成</h3>
+<p>system中的工具摘要来自启动时的注册表转换，生成后保存在 <code>tool_summaries</code>字符串中。当前请求的 <code>tools</code>则由独立回调取得：</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/model-input/runtime.py#L1672" rel="noopener" target="_blank">runtime.py:1672 · 取当前模式下的接口</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>2 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1672"></span><span data-line="1673"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">def</span> <span class="hljs-title">api_tools</span>() -&gt; <span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any]]:
+            <span class="hljs-keyword">return</span> apiToolsForMode(registry, <span class="hljs-string">"</span><span class="hljs-string">plan</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> permissions.getMode() == <span class="hljs-string">"</span><span class="hljs-string">plan</span><span class="hljs-string">"</span> <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">normal</span><span class="hljs-string">"</span>, ctx.lang)</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/model-input/tools_for_mode.py#L10" rel="noopener" target="_blank">tools_for_mode.py:10 · 过滤当前可见工具</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>4 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="10"></span><span data-line="11"></span><span data-line="12"></span><span data-line="13"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">apiToolsForMode</span>(registry: ToolRegistry, mode: Mode, lang: <span class="hljs-built_in">str</span> | <span class="hljs-keyword">None</span> = <span class="hljs-keyword">None</span>) -&gt; <span class="hljs-built_in">list</span>[ApiTool]:
+    <span class="hljs-keyword">if</span> mode == <span class="hljs-string">"</span><span class="hljs-string">normal</span><span class="hljs-string">"</span>:
+        <span class="hljs-keyword">return</span> registry.toApiTools(<span class="hljs-keyword">lambda</span> tool: registry.isMcpVisible(tool.name), lang, hideUnactivatedDeferred=<span class="hljs-keyword">True</span>)
+    <span class="hljs-keyword">return</span> registry.toApiTools(<span class="hljs-keyword">lambda</span> tool: not tool.name.startswith(<span class="hljs-string">"</span><span class="hljs-string">mcp__</span><span class="hljs-string">"</span>) and tool.capability not in (<span class="hljs-string">"</span><span class="hljs-string">write</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">exec</span><span class="hljs-string">"</span>), lang, hideUnactivatedDeferred=<span class="hljs-keyword">True</span>)</code></pre></div></figure>
+<p>沿代码看一项就够。会话进入只读规划时，写工具会从本轮 <code>tools</code> 里移除，启动时生成的简要用途仍留在 system 文本里。工具的实际公布范围在<a href="04-工具调用怎样落地.html#tool-disclosure" rel="noopener" target="_blank">工具契约篇</a>继续拆解。这里先区分三份信息各自的作用。摘要帮助选择，接口说明怎样填写，实际调用则由程序重新检查。</p>
+</section>
+<section class="design-section" id="actual-path-and-result">
+<h3>7.2 路径依据执行状态，需求依据行为结果核对</h3>
+<p>再回到价格文件。进入worktree后，模型应根据新目录使用 <code>packages/pricing/prices.mjs</code>。它即使仍在回答里说“我在原pricing目录”，也不会因此把实际工具目录改回去。路径处理直接依据执行上下文：</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/model-input/paths.py#L69" rel="noopener" target="_blank">paths.py:69 · 工具路径解析的实际基准</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>4 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="69"></span><span data-line="70"></span><span data-line="71"></span><span data-line="72"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">approvedPath</span>(ctx: ToolContext, p: <span class="hljs-built_in">str</span>, *, write: <span class="hljs-built_in">bool</span> = <span class="hljs-keyword">False</span>) -&gt; <span class="hljs-built_in">str</span>:
+    absolute, external = <span class="hljs-keyword">await</span> asyncio.to_thread(classifyPath, ctx.cwd or ctx.workspaceRoot, p)
+    <span class="hljs-keyword">if</span> ctx.signal.is_set():
+        <span class="hljs-keyword">raise</span> InterruptedError(<span class="hljs-string">"</span><span class="hljs-string">工具调用已取消</span><span class="hljs-string">"</span>)</code></pre></div></figure>
+<p><code>classifyPath</code>得到 <code>ctx.cwd or ctx.workspaceRoot</code>与模型传入的路径，再进入后续检查。目录事实是把程序当前状态告诉模型，帮助它选对参数；实际执行本身不依赖模型是否在自然语言里复述正确。跨路径批准与模式裁决，由<a href="08-执行之前谁说了算.html" rel="noopener" target="_blank">《执行之前谁说了算：路径、模式与批准裁决》</a>解释。</p>
+<p>当前篇章的判断到这里落地。目录消息让模型有依据选对 <code>path</code>，真实执行目录让工具打开对应文件。至于同一文件里修改哪处，以及改完如何验证两种价格，交给<a href="01-文件编辑可靠性-精致教材预览.html#price-task" rel="noopener" target="_blank">文件编辑的实际演示</a>。</p>
+<p>这几层配合，才形成完整约束：把必要规则和事实交给模型，明确可用接口，在执行时检查条件，最后核对结果。输入设计改善模型做判断的依据；它既不能替模型承诺每步选择正确，也不能替程序省掉验证。</p>
+</section>
+</section>
+<section class="v2-topic-group" id="learning-check">
+<header class="v2-group-heading"><span>08</span><h2>学习效果检测</h2></header>
+<section class="design-section" id="check-source-and-time">
+<h3>8.1 消息来源、刷新时机与执行目录</h3>
+<p><strong>1．从pricing启动，根目录、pricing、reports各有一份不同的RUOCUN.md。哪些项目规则进入？若没有Git标记，行为又怎样？</strong></p>
+<details class="answer-box"><summary>展开答案</summary><div><p>有本例的Git标记时，链是 <code>/shop → /shop/packages → /shop/packages/pricing</code>，因此根目录和pricing的规则进入，reports不在链上，不会被顺带读取。用户级与显式兼容来源另按相应规则处理。若向上始终找不到 <code>.git</code>，项目链只保留传入的pricing目录，不继续收集全部祖先。</p></div></details>
+<p><strong>2．根规则和local文件各有不同文字。后读local是否会删除根规则？两份内容完全相同呢？</strong></p>
+<details class="answer-box"><summary>展开答案</summary><div><p>不同内容会按顺序一起拼接，程序没有实现按语义覆盖或删除父规则。清理首尾空白与BOM后，完整内容相同才被 <code>seen</code>去重，保留先进入的一份。读取顺序、内容去重、语义冲突是三件事。</p></div></details>
+<p><strong>3．启动后修改了磁盘上的项目规则，接着因模型变化重建system。新规则会自动进入吗？如果动态Skills清单已确认扩充呢？</strong></p>
+<details class="answer-box"><summary>展开答案</summary><div><p>这次请求中的项目规则仍取自启动时读出的 <code>project_text</code>。规则文件的改动要经过读取、赋值和装配才能进入请求。已经确认扩充的项目 Skills 会进入后续装配，因为 <code>skillCatalogLines(skills)</code> 读取的是被更新过的列表。</p></div></details>
+<p><strong>4．</strong> 你从 <code>/repo/docs</code> 启动，目录快照也是这里。一次 Shell 执行 <code>cd exports</code> 后打印 <code>/repo/docs/exports</code>。用户接着说“读刚才那个目录里的 report.csv”。下一次 <code>Read</code> 该填什么？如果两个目录各有同名文件，怎样判断究竟读了哪份？</p>
+<details class="answer-box"><summary>展开答案</summary><div><p>Shell 打印的是该子进程的目录。会话仍从 <code>/repo/docs</code> 解析相对路径，传 <code>{"path":"exports/report.csv"}</code> 才指向用户指定的文件，假设路径在允许范围内。核对会话的目录事实和那次 Read 的实际参数。直接传文件名即使读成功，也可能读的是 docs 下的同名文件。</p></div></details>
+<p><strong>5．进入discount工作树后，workspaceRoot是什么？价格文件该用哪个相对路径？此时工作树里的规则改了，会被自动重读吗？</strong></p>
+<details class="answer-box"><summary>展开答案</summary><div><p><code>workspaceRoot</code> 仍是 <code>/shop/packages/pricing</code>，<code>ctx.cwd</code> 变成 <code>/shop/packages/pricing/.ruocun/worktrees/discount</code>。工具从新根解析参数，快照也会用这份执行状态告诉模型新的基准，所以模型应传 <code>packages/pricing/prices.mjs</code>。首条 <code>system</code> 里的规则继续取自启动时读到的 <code>project_text</code>。</p></div></details>
+<p><strong>6．目录已经连续两次请求没变，用户又发来“再检查数量为0的情况”。最后一条消息必须是目录快照吗？退出工作树回到旧目录时呢？</strong></p>
+<details class="answer-box"><summary>展开答案</summary><div><p>目录不变时省略重复快照，末尾可以是真实用户的新要求。退出时，最近的快照仍是 <code>discount</code>，实际目录已回到 <code>pricing</code>，这时要追加一条。若用更早出现过的 <code>pricing</code> 跳过追加，最新的目录消息就会留在 <code>discount</code>。</p></div></details>
+<p><strong>7．看到多条system：首条基础提示、下标1的SessionStart上下文、工具结果后的进度建议。它们会随同一次刷新一起重新读取吗？工具摘要里有某工具，就一定能调用吗？</strong></p>
+<details class="answer-box"><summary>展开答案</summary><div><p>不会。首条system按自己的装配路径替换，SessionStart 在启动或恢复时清理带若存标记的历史消息，再插入本次非空的附加内容，进度建议在相应执行事件后追加。工具摘要还是文字信息；是否已向模型公布接口，要看当前 <code>tools</code>，能否执行还要经过执行层检查。消息角色相同、名称曾出现，都不能替代来源与生命周期核对。</p></div></details>
+</section>
+</section>
+<section class="v2-topic-group" id="interview-practice">
+<header class="v2-group-heading"><span>09</span><h2>模拟面试官提问</h2></header>
+<section class="design-section" id="interview-agent-development">
+<h3>9.1 Agent 开发实习</h3>
+<h4>独立核心题</h4>
+<p><strong>RuoCun怎样把通用Agent变成理解当前项目约定的Agent？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div>
+<p><strong>口述回答：</strong>它先取得当前项目的规则与选中的经验，再把这些材料和模板、工具摘要、Skills及子代理目录共同装配进基础system。项目规则按用户级来源和Git根到启动目录的链读取，所以能同时带上全仓库约定和当前模块要求。后续工具结果与动态目录事实继续进入消息，模型据此选择下一步。</p>
+<p><strong>机制依据：</strong><code>loadProjectInstructions</code>形成 <code>project_text</code>；<code>system_prompt</code>把它与 <code>memory_text</code>等传给模板构造器，再追加目录和能力说明；请求取当前 <code>session.messages</code>。</p>
+<p><strong>适用边界：</strong>规则可见不等于保证服从。冲突规则只是按顺序拼接，行动仍受接口和执行检查约束，需求最后还要验证。</p>
+</div></details>
+<p><strong>怎样减少Agent对文件位置和项目行为的乱猜？本项目有哪些具体做法？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div>
+<p><strong>口述回答：</strong>先给它真实的项目约定，再用程序当前执行上下文生成目录事实，让它知道在哪个位置操作。需要代码内容时通过Read取得原文，而不是靠记忆猜文件。接口明确参数要求，程序在执行时核对路径与条件，修改后再看行为结果。每层都提供具体依据，不能只靠一句“不要幻觉”。</p>
+<p><strong>机制依据：</strong>目录快照来自 <code>ToolContext</code>，路径解析同样使用 <code>ctx.cwd or ctx.workspaceRoot</code>，使提示信息与执行基准有共同来源。正文的180／200用于检查价格需求。</p>
+<p><strong>适用边界：</strong>这些机制降低信息缺失和状态不一致带来的风险，不保证模型总能找到正确文件或选择正确动作。完整代码定位见<a href="05-从问题找到代码.html" rel="noopener" target="_blank">《从问题找到代码：Glob、Grep、Read怎样配合》</a>，本篇已讲清输入与执行状态的关系。</p>
+</div></details>
+<h4>重点追问链</h4>
+<p><strong>主问：进入工作树以后，怎样让模型继续原任务，而不是按旧目录改文件？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p><strong>口述回答：</strong>EnterWorktree先更新实际的ctx.cwd。下次请求前，程序根据这个上下文生成目录快照，与最近一份比较，变化了就追加到历史，再把新历史交给模型。消息明确是目录事实，不是新任务，所以原价格目标继续保留，路径判断依据则更新了。</p><p><strong>机制与边界：</strong>项目规则不因切换自动重读；工作区根仍保留。新工作树检出整个仓库，模型仍需要据此选对相对路径。</p></div></details>
+<p><strong>追问1：先回到初始pricing目录。若一条Shell命令执行 <code>cd ../reports</code>成功，也会更新会话目录吗？</strong></p>
+<details class="answer-box"><summary>展开追问1回答</summary><div><p><strong>口述回答：</strong>普通Shell里的cd只改变那次子进程目录，没有回写ctx.cwd，所以不能把reports当成会话新目录。事实消息跟实际执行上下文走，不跟一段命令文本或输出里的路径走。</p><p><strong>依据：</strong>Shell计划每次从 <code>ctx.cwd or ctx.workspaceRoot</code>取启动目录；本篇的EnterWorktree则有明确的 <code>ctx.cwd = worktree.root</code>赋值，两者机制不同。</p></div></details>
+<p><strong>追问2：模型还是选错了文件，目录快照是不是就没有价值？</strong></p>
+<details class="answer-box"><summary>展开追问2回答</summary><div><p><strong>口述回答：</strong>它提供的是正确的状态依据，不能替模型完成全部定位。还要看本轮是否真的带了这份事实、模型传了什么路径、实际读到了什么，再根据反馈修正。程序继续按真实上下文解析与检查，最后用差异和行为验证目标。</p><p><strong>关联与边界：</strong>路径权限由<a href="08-执行之前谁说了算.html" rel="noopener" target="_blank">执行裁决篇</a>展开；文本定位与读取基线可关联已完成的<a href="01-文件编辑可靠性-精致教材预览.html" rel="noopener" target="_blank">文件编辑篇</a>。不能仅用模型的自述认定路径或结果正确。</p></div></details>
+</section>
+<section class="design-section" id="interview-agent-harness">
+<h3>9.2 Agent harness 岗位</h3>
+<h4>独立核心题</h4>
+<p><strong>怎样设计上下文更新，既保留稳定材料，又让模型知道当前事实？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div>
+<p><strong>口述回答：</strong>先按来源和更新责任分开。项目规则与启动记忆形成这次进程选中的字符串，基础system在特定状态变化时重建；当前目录由执行上下文产生，变化才追加；SessionStart、任务记忆和建议分别在自己的事件位置提交。这样能解释每份输入是谁更新的，也避免为一个目录变化重写全部基础提示。</p>
+<p><strong>机制依据：</strong>首条system用 <code>refresh_system_prompt</code>替换；SessionStart插下标1；后续事件可追加system；<code>_ensureRuntimeContext</code>比较最近标准快照后追加user目录事实。</p>
+<p><strong>适用边界：</strong>Skills列表有单独的确认更新路径，不能笼统称全部来源固定。稳定布局也不自动等于缓存命中；关联<a href="16-前缀缓存怎样配合请求.html" rel="noopener" target="_blank">前缀缓存篇</a>再检查真实请求与服务返回的命中信息。</p>
+</div></details>
+<p><strong>为什么不能把工具摘要当作当前可执行能力的唯一依据？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div>
+<p><strong>口述回答：</strong>摘要是启动时生成的文字，作用是帮助模型认识能力。本次公布的接口来自当前工具表，要考虑模式、MCP可见性与延迟激活；接口出现以后，执行器仍要核对调用和权限条件。文字、接口、执行是不同环节，任何一层都不能单独证明操作已经允许或成功。</p>
+<p><strong>机制依据：</strong><code>api_tools()</code>调用 <code>apiToolsForMode</code>，plan会排除mcp__与write、exec工具，并隐藏未激活延迟项；请求再把这份结果装入 <code>tools</code>。</p>
+<p><strong>适用边界：</strong>接口与执行屏障的完整实现由<a href="04-工具调用怎样落地.html" rel="noopener" target="_blank">工具契约篇</a>承接；本篇不把一段能力说明等同于执行授权。</p>
+</div></details>
+<h4>重点追问链</h4>
+<p><strong>主问：用户说“规则文件改了，为什么刷新system还是旧规则”，你会怎么排查？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p><strong>口述回答：</strong>先区分读取与装配。追到runtime里的project_text，看它在启动时由loadProjectInstructions生成；刷新只调用system_prompt再拼接现有变量，没有重新读磁盘。因此要确认期待的是重建消息还是重读规则，当前实现并没有通用热加载语义。</p><p><strong>机制与边界：</strong>同时核对实际加载链、缺失或去重情况，再看本轮请求的首条system，不能只检查磁盘文件。重新启动会走新的来源准备过程，但是否选入仍受范围和开关影响。</p></div></details>
+<p><strong>追问1：闭包能看到最新变量，为什么这里却没有看到文件最新内容？</strong></p>
+<details class="answer-box"><summary>展开追问1回答</summary><div><p><strong>口述回答：</strong>闭包能访问外层变量，不会自动重做生成该值的操作。project_text仍是此前读出的字符串，没有重新读取赋值就不会变成新文件内容。反过来，skills列表如果被确认流程原地扩充，后续装配就能遍历新增项；判断依据是数据的实际更新路径。</p><p><strong>依据：</strong>对照启动赋值、装配读取以及 <code>confirm</code>和 <code>extend</code>，可以解释两种不同表现，而不是给闭包一条笼统的新鲜度规则。</p></div></details>
+<p><strong>追问2：那把目录也写进基础system、每次刷新，是否更简单？</strong></p>
+<details class="answer-box"><summary>展开追问2回答</summary><div><p><strong>口述回答：</strong>目录放在首条提示里，每次进入或退出工作树都得改写这条消息，连同已经装好的项目约定一起重新提交。RuoCun 请求前从执行上下文取目录，首次或与最近快照不同时才追加，因此目录变化可以独立发布。代价是历史可保留多个目录值，需要识别最新的快照。</p><p><strong>适用边界：</strong>历史整理还要分辨真正待处理的用户输入和同为 <code>role=user</code> 的目录消息。完整裁剪与预算机制见<a href="14-上下文放不下怎么办.html" rel="noopener" target="_blank">上下文压缩篇</a>。缓存收益需要看实际请求和服务端观测。</p></div></details>
+</section>
+</section>
+<section class="v2-topic-group" id="article-takeaways">
+<header class="v2-group-heading"><span>10</span><h2>这一篇带走什么</h2></header>
+<p>每轮请求带上项目约定、当前目录说明和可用工具接口，模型据此选择下一步，程序再按实际执行状态处理。</p>
+<ul class="pilot-takeaways">
+<li>排查漏掉的项目规则，先沿 Git 根到启动目录核对读取范围，再看整段内容是否重复。加载器按顺序拼接不同内容，规则中的冲突仍需要明确写出适用范围和例外。</li>
+<li>磁盘上的规则变了，要找实际读取和赋值的入口。当前会话重建首条 <code>system</code> 会沿用启动时读出的 <code>project_text</code>。要让改动进入请求，需要重新读入规则，再发布用新数据装配的消息。</li>
+<li>目录快照应和最近一份标准快照比较。返回曾经去过的目录时，较早相同的快照不能说明当前状态，最近一份仍可能指向别处。</li>
+<li>追查文件读到了哪里，先看请求里的目录说明和模型实际提交的 <code>path</code>，再看工具用哪份 <code>ToolContext</code> 解析。模型靠目录信息选参数，文件工具以执行上下文为基准。</li>
+</ul>
+<p>模型现在拿到了新的目录和 <code>Read</code> 接口，准备发出读取请求。但界面第一眼可能只收到路径的前几个字符。下一篇<a href="03-模型响应怎样变成调用.html#two-reads" rel="noopener" target="_blank">从两项交错的 Read 分片拼出完整调用</a>，再看结果怎样随新的请求回去。</p>
+</section>
+</article></main></body></html>

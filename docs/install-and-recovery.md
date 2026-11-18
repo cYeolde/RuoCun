@@ -1,0 +1,46 @@
+# 安装与恢复
+
+在 Windows x64 安装 CPython 3.11，打开 PowerShell 或 Windows Terminal。从 [v1.0.0 Release](https://github.com/hmmgotit/RuoCun/releases/tag/v1.0.0) 下载 wheel，把下面的路径换成实际下载位置。
+
+```powershell
+$venvPath = Join-Path $env:LOCALAPPDATA 'RuoCun/venv-1.0.0'
+py -3.11 -m venv $venvPath
+$ruocunPython = Join-Path $venvPath 'Scripts/python.exe'
+$wheel = '.\ruocun-1.0.0-py311-none-win_amd64.whl'
+& $ruocunPython -I -X utf8 -m pip install $wheel
+& $ruocunPython -I -X utf8 -m pip check
+& $ruocunPython -I -X utf8 -m ruocun --version
+& $ruocunPython -I -X utf8 -m ruocun --help
+```
+
+首次运行时，在向导中选择服务商、配置模型账户并确认是否信任当前项目。用 `/doctor` 查看配置与平台能力，用 `/lang zh` 切换中文。实际使用时将 `--cwd` 指向目标项目目录。
+
+```powershell
+& $ruocunPython -I -X utf8 -m ruocun --cwd 'C:\path\to\project'
+```
+
+可以把轮子和依赖包一起带到离线机器。先在 Windows x64 的 Python 3.11 环境里下载 `requirements-runtime-win311.lock` 对应的依赖，再从本地安装。
+
+```powershell
+py -3.11 -m pip download --only-binary=:all: --require-hashes -r requirements-runtime-win311.lock --dest wheelhouse
+# 复制 wheelhouse、锁文件和若存 wheel 后，在目标机器运行
+& $ruocunPython -I -X utf8 -m pip install --no-index --find-links wheelhouse --require-hashes -r requirements-runtime-win311.lock
+& $ruocunPython -I -X utf8 -m pip install --no-index --no-deps $wheel
+```
+
+## 继续会话
+
+若存把会话与配置存在用户目录下的 `.ruocun`。回到同一个项目，用 `--continue` 继续最近的未完成会话，或加上会话 ID 打开指定历史记录。也可以在交互界面用 `/resume` 选择会话。运行 `/recovery` 可查看需要核对的未决操作。
+
+```powershell
+& $ruocunPython -I -X utf8 -m ruocun --cwd 'C:\path\to\project' --continue
+```
+
+## 更新和回退
+
+1. 先用 `/tasks` 查看后台任务，等待完成或停止后用 `/exit` 退出。
+2. 备份用户目录下的 `.ruocun` 整个目录，包括会话数据库及其伴随文件。若另用 `--config` 指定配置文件，也一起备份。跨 Windows 用户恢复时，通过向导重新录入系统凭据。
+3. 在新的虚拟环境安装新包并运行 `pip check`。保留旧环境和旧数据备份。
+4. 需要回退时，退出相关程序，用旧虚拟环境配合同版本的数据备份重新启动。遇到旧会话格式迁移提示，先读 `--help` 中 `--upgrade-session` 的用法。
+
+卸载时，对安装若存的虚拟环境运行 `python -m pip uninstall ruocun`。需要进一步约束内置文件和命令的写入范围时，参见 [Windows MXC 沙箱](windows-sandbox.md)。

@@ -1,0 +1,12 @@
+* text=auto eol=lf
+*.zip binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.xlsx binary
+*.woff2 binary
+*.whl binary
+*.gz binary
+/requirements-*-win311.lock -text

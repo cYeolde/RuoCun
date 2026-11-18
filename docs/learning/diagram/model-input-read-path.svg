@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 325" role="img" aria-labelledby="path-title path-desc">
+  <title id="path-title">同一个 Read 参数，切换工作树前后会查到哪里</title>
+  <desc id="path-desc">第一行，工具当前目录是原价格模块 pricing，读取 prices.mjs 会在 pricing 下找到文件。第二行，工具当前目录已变为新工作树根 discount，沿用 prices.mjs 会在根目录查找并失败。第三行，从 discount 读取 packages/pricing/prices.mjs 才会找到价格文件。pricing 和 discount 是教学用的目录简称。</desc>
+  <defs>
+    <style>
+      text { fill: #172638; font: 16px "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", system-ui, sans-serif; }
+      .heading, .result { font-weight: 700; }
+      .secondary { fill: #52647a; }
+      .path { font: 15px "Cascadia Code", Consolas, monospace; }
+      .blue { fill: #2456a6; }
+      .amber { fill: #884b0a; }
+      .arrow { fill: none; stroke: #52647a; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    </style>
+    <path id="resolve-arrow" d="M0 0H18M12 -5L18 0 12 5"/>
+  </defs>
+
+  <rect width="840" height="325" fill="#fff"/>
+  <text class="heading" x="40" y="39">工具当前目录 <tspan class="path">cwd</tspan></text>
+  <text class="heading" x="192" y="39"><tspan class="path">Read</tspan> 的 <tspan class="path">path</tspan></text>
+  <text class="heading" x="480" y="39">实际查找位置及结果</text>
+
+  <rect x="24" y="56" width="792" height="64" rx="7" fill="#f4f6f9" stroke="#dce3ec"/>
+  <text x="40" y="81" class="secondary">原价格目录</text>
+  <text x="40" y="104" class="path">pricing</text>
+  <text x="169" y="95" class="secondary">+</text>
+  <text x="192" y="95" class="path">prices.mjs</text>
+  <use href="#resolve-arrow" x="449" y="90" class="arrow"/>
+  <text x="480" y="81" class="result">找到</text>
+  <text x="480" y="104" class="path">pricing/prices.mjs</text>
+
+  <rect x="24" y="132" width="792" height="64" rx="7" fill="#fbf6ea" stroke="#e9dcc3"/>
+  <text x="40" y="157" class="secondary">新工作树根</text>
+  <text x="40" y="180" class="path">discount</text>
+  <text x="169" y="171" class="secondary">+</text>
+  <text x="192" y="171" class="path">prices.mjs</text>
+  <use href="#resolve-arrow" x="449" y="166" class="arrow"/>
+  <text x="480" y="157" class="result amber">找不到</text>
+  <text x="480" y="180" class="path">discount/prices.mjs</text>
+
+  <rect x="24" y="208" width="792" height="64" rx="7" fill="#eaf0fa" stroke="#c4d3ea"/>
+  <text x="40" y="233" class="secondary">新工作树根</text>
+  <text x="40" y="256" class="path">discount</text>
+  <text x="169" y="247" class="secondary">+</text>
+  <text x="192" y="247" class="path blue">packages/pricing/prices.mjs</text>
+  <use href="#resolve-arrow" x="449" y="242" class="arrow"/>
+  <text x="480" y="233" class="result blue">找到</text>
+  <text x="480" y="256" class="path">discount/packages/pricing/prices.mjs</text>
+
+  <text x="24" y="303" class="secondary"><tspan class="path">pricing</tspan> 表示启动时的价格模块目录。<tspan class="path">discount</tspan> 表示新工作树根目录。</text>
+</svg>

@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 398" role="img" aria-labelledby="fragment-title fragment-desc">
+  <title id="fragment-title">交错到达的两项 Read 分片</title>
+  <desc id="fragment-desc">依次收到 index 0 的名称 Re 与路径前半段、index 1 的名称 Read 与折扣文件路径前半段、index 0 的名称 ad 与价格文件路径后半段、index 1 的折扣路径后半段。第三行后 call_prices 的参数完整，仍等待整个响应。</desc>
+  <defs><style>
+    text { fill: #172638; font: 16px "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif; }
+    .heading { font-size: 17px; font-weight: 700; }
+    .code { font: 15px "Cascadia Code", Consolas, "Microsoft YaHei", monospace; }
+    .muted { fill: #52647a; }
+    .pending { fill: #885610; }
+    .complete { fill: #204e95; }
+    .grid { stroke: #dce3ec; stroke-width: 1; }
+  </style></defs>
+  <rect width="840" height="398" fill="#ffffff"/>
+  <text x="32" y="33" class="heading">分片到达</text>
+  <text x="368" y="33" class="heading code">index=0 · call_prices</text>
+  <text x="611" y="33" class="heading code">index=1 · call_rules</text>
+  <rect x="24" y="48" width="792" height="288" rx="9" fill="#f6f8fb" class="grid"/>
+  <path d="M24 120H816 M24 192H816 M24 264H816 M348 48V336 M593 48V336" fill="none" class="grid"/>
+  <rect x="356" y="199" width="229" height="58" rx="5" fill="#eaf1fb"/>
+  <rect x="601" y="271" width="207" height="58" rx="5" fill="#eaf1fb"/>
+
+  <text x="38" y="76">1</text>
+  <text x="70" y="76"><tspan class="code">index=0</tspan> · 名称 <tspan class="code">Re</tspan></text>
+  <text x="70" y="101" class="code">{&quot;path&quot;:&quot;pri</text>
+  <text x="368" y="76" class="pending">暂存 Re，路径待补</text>
+  <text x="368" y="101" class="code">{&quot;path&quot;:&quot;pri</text>
+  <text x="611" y="88" class="muted">等待该项分片</text>
+
+  <text x="38" y="148">2</text>
+  <text x="70" y="148"><tspan class="code">index=1</tspan> · 名称 <tspan class="code">Read</tspan></text>
+  <text x="70" y="173" class="code">{&quot;path&quot;:&quot;折扣</text>
+  <text x="368" y="160" class="muted">继续等待 index=0</text>
+  <text x="611" y="148" class="pending">暂存 Read，路径待补</text>
+  <text x="611" y="173" class="code">{&quot;path&quot;:&quot;折扣</text>
+
+  <text x="38" y="220">3</text>
+  <text x="70" y="220"><tspan class="code">index=0</tspan> · 名称 <tspan class="code">ad</tspan></text>
+  <text x="70" y="245" class="code">ces.mjs&quot;}</text>
+  <text x="368" y="220" class="complete">拼成 Read，路径收齐</text>
+  <text x="368" y="245" class="code">{&quot;path&quot;:&quot;prices.mjs&quot;}</text>
+  <text x="611" y="232" class="muted">继续等待 index=1</text>
+
+  <text x="38" y="292">4</text>
+  <text x="70" y="292" class="code">index=1</text>
+  <text x="70" y="317" class="code">.md&quot;}</text>
+  <text x="368" y="304" class="muted">保留已拼好的内容</text>
+  <text x="611" y="292" class="complete">拼成 Read，路径收齐</text>
+  <text x="611" y="317" class="code">{&quot;path&quot;:&quot;折扣.md&quot;}</text>
+
+  <text x="24" y="368" class="muted">源码推演节选。单项参数收齐后，主循环仍等整个响应结束。</text>
+</svg>

@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 340" role="img" aria-labelledby="feedback-title feedback-desc">
+  <title id="feedback-title">一次编辑拒绝怎样进入下一次请求</title>
+  <desc id="feedback-desc">模型提出编号 edit_short 的 Edit。工具在写入前发现旧文出现两次，返回拒绝。主循环保存工具请求及同一编号的反馈。下一次请求保留只改普通价的原任务和文件原文，带上新的拒绝，模型据此重新选择。</desc>
+  <defs>
+    <style>
+      text { fill: #172638; font: 16px "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", system-ui, sans-serif; }
+      .head { font-size: 19px; font-weight: 700; }
+      .muted { fill: #52647a; }
+      .mono { font: 15px "Cascadia Code", Consolas, monospace; }
+      .blue { fill: #2456a6; }
+      .amber { fill: #82500f; }
+    </style>
+    <marker id="feedback-arrow" orient="auto" markerWidth="8" markerHeight="8" refX="6" refY="4">
+      <path d="M1 1L6 4L1 7" fill="none" stroke="#63748a" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+  <rect width="840" height="340" fill="#fff"/>
+
+  <text x="24" y="36" class="head">模型提出行动</text>
+  <text x="301" y="36" class="head">本地程序检查并回填</text>
+  <text x="570" y="36" class="head">下一次请求发给模型</text>
+
+  <g fill="none" stroke="#63748a" stroke-width="1.65" marker-end="url(#feedback-arrow)">
+    <path d="M267 153H291"/>
+    <path d="M536 153H560"/>
+  </g>
+  <rect x="24" y="56" width="232" height="195" rx="7" fill="#f4f6f9" stroke="#dce3ec"/>
+  <text x="40" y="88" class="muted"><tspan class="mono">assistant</tspan> · 请求调用</text>
+  <text x="40" y="123" class="mono blue">id = edit_short</text>
+  <text x="40" y="155" class="mono">Edit(prices.mjs)</text>
+  <text x="40" y="193" class="muted">要替换的旧文</text>
+  <text x="40" y="224" class="mono">return count * price;</text>
+
+  <rect x="301" y="56" width="226" height="195" rx="7" fill="#fff6e7" stroke="#e8d7b8"/>
+  <text x="317" y="88" class="amber"><tspan class="mono">tool</tspan> · 编辑被拒绝</text>
+  <text x="317" y="124" class="mono amber">tool_call_id</text>
+  <text x="317" y="151" class="mono blue">edit_short</text>
+  <text x="317" y="191" class="amber">旧文出现了两次</text>
+  <text x="317" y="223">工具在写入前停下</text>
+
+  <rect x="570" y="56" width="246" height="195" rx="7" fill="#f4f7fb" stroke="#dce3ec"/>
+  <text x="586" y="88" class="muted">沿用已有消息</text>
+  <text x="586" y="116">原任务 · 只改普通价</text>
+  <text x="586" y="144"><tspan class="mono">Read</tspan> · 文件原文</text>
+  <path d="M586 159H800" stroke="#c9d5e5" stroke-width="1"/>
+  <text x="586" y="185" class="blue">多了两条对应消息</text>
+  <text x="586" y="212"><tspan class="mono">edit_short</tspan> · 编辑请求</text>
+  <text x="586" y="238"><tspan class="mono">edit_short</tspan> · 拒绝反馈</text>
+
+  <path d="M24 269H816" stroke="#dce3ec"/>
+  <text x="24" y="298">下一步同时依据「只改普通价」和「旧文重复」。原任务、旧行动和新事实一起送回。</text>
+  <text x="24" y="323" class="muted">源码推演节选 · 起点是模型已收到 Read 返回的文件原文。</text>
+</svg>

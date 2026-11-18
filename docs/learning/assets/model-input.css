@@ -1,0 +1,71 @@
+.model-input-hero h1 {
+  margin-bottom: 4px;
+}
+
+.model-input-subtitle {
+  margin: 0 0 16px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.model-input-hero .target strong {
+  color: var(--ink);
+}
+
+#model-input .model-input-figure img {
+  min-width: 660px;
+}
+
+#pricing-repository-tree .model-input-rule-chain {
+  color: var(--blue);
+  font-weight: 700;
+}
+
+@media (min-width: 901px) {
+  #model-input .model-input-hero h1 {
+    font-size: 46px;
+    line-height: 1.25;
+  }
+
+  .model-input-hero .target {
+    max-inline-size: 40em;
+    font-size: inherit;
+  }
+
+  #model-input .design-section > :is(p, ul, ol) {
+    max-inline-size: 42em;
+  }
+
+  #model-input :is(.v2-topic-group, .design-section) {
+    scroll-margin-top: 16px;
+  }
+
+  #case-startup {
+    margin-top: 20px;
+  }
+
+  .model-input-case {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 28px;
+    margin: 24px 0;
+  }
+
+  .model-input-case .ruocun-code {
+    margin: 0;
+  }
+
+  .model-input-case .model-input-rules {
+    margin: 0;
+    padding: 8px 12px 8px 20px;
+    border: 0;
+    border-inline-start: 1px solid var(--line);
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .model-input-rules p:last-child {
+    margin-bottom: 0;
+  }
+}

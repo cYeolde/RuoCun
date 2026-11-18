@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>工具可能已经执行：意图、结果确认与恢复 · RuoCun 设计学习</title>
+<link href="assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="assets/ruocun-code.css" rel="stylesheet"/>
+<link href="assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="assets/ruocun-article.css" rel="stylesheet"/>
+<link href="assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="assets/ruocun-textbook.js"></script>
+</head>
+<body class="textbook-read">
+<a class="textbook-skip" href="#durable-execution">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#durable-execution">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航">
+<a href="课程学习地图.html" rel="noopener" target="_blank">学习地图</a>
+<a class="textbook-original" href="#article-takeaways">这一篇带走什么</a>
+</nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title">工具可能已经执行</div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc" open="">
+<summary>展开文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#durable-start"><span class="v2-toc-number">1</span><span>磁盘上已经是“九折”，重开后还要再 Edit 一次吗？</span></a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#durable-journal"><span class="v2-toc-number">2</span><span>工具意图与已确认结果</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#durable-journal-1"><span class="v2-toc-number">2.1</span><span>先提交执行意图，再进入处理器</span></a></li><li><a class="v2-toc-child-link" href="#durable-journal-2"><span class="v2-toc-number">2.2</span><span>确定拒绝能回流，结果未知需要停住</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#durable-resume"><span class="v2-toc-number">3</span><span>恢复视图与人工核实</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#durable-resume-1"><span class="v2-toc-number">3.1</span><span>从 journal 补配对，保持已执行操作的原身份</span></a></li><li><a class="v2-toc-child-link" href="#durable-resume-2"><span class="v2-toc-number">3.2</span><span>人工说明进入原记录，继续运行要有明确决定</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#durable-commit"><span class="v2-toc-number">4</span><span>检查点与取消收尾</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#durable-commit-1"><span class="v2-toc-number">4.1</span><span>数据库提交后才发布新 revision 和投递状态</span></a></li><li><a class="v2-toc-child-link" href="#durable-commit-2"><span class="v2-toc-number">4.2</span><span>取消批次时等待已开始的工具和收据</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-assessment"><span class="v2-toc-number">5</span><span>学习效果检测</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#article-assessment-1"><span class="v2-toc-number">5.1</span><span>为不同故障切点选恢复依据</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-interview"><span class="v2-toc-number">6</span><span>模拟面试官提问</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#article-interview-1"><span class="v2-toc-number">6.1</span><span>Agent 开发实习</span></a></li><li><a class="v2-toc-child-link" href="#article-interview-2"><span class="v2-toc-number">6.2</span><span>Agent harness 岗位</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways"><span class="v2-toc-number">7</span><span>这一篇带走什么</span></a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper course-lesson" id="durable-execution"><header class="design-hero">
+<h1>工具可能已经执行</h1><p class="article-subtitle">意图、结果确认与恢复</p>
+<p class="target">用一次写盘后的中断，看清文件已改、工具结果已确认和模型下一轮能看到结果之间的距离。</p>
+</header>
+<section class="v2-topic-group" id="durable-start">
+<header class="v2-group-heading"><span>01</span><h2>磁盘上已经是“九折”，重开后还要再 Edit 一次吗？</h2></header><div class="design-section">
+<p>上一篇的<a href="09-请求出错怎样继续.html#request-transport" rel="noopener" target="_blank">断流示例</a>里，Read 还未派发。这里把中断往后挪：用户要把 <code>pricing.txt</code> 中的“普通价”改成“九折”，模型的完整响应已保存，里面有编号为 <code>call-price</code> 的 Edit，程序有机会实际写文件。重开时对话尾部只有这条调用。此时先看执行账本，也就是程序在会话历史之外保存的工具意图和结果。</p>
+<figure class="reasoning-figure" id="durable-recovery-evidence">
+<figcaption>源码推演 · 同样读到“九折”，恢复手里却有两套证据</figcaption>
+<div aria-label="源码推演 · 同样读到“九折”，恢复手里却有两套证据" class="table-scroll" role="region" tabindex="0"><table>
+<thead><tr><th scope="col">证据</th><th scope="col">现场 A</th><th scope="col">现场 B</th></tr></thead>
+<tbody>
+<tr><th scope="row">文件现值</th><td>九折</td><td>九折</td></tr>
+<tr><th scope="row">对话尾部</th><td>助手调用 <code>call-price</code>，没有工具回包。</td><td>助手调用 <code>call-price</code>，没有工具回包。</td></tr>
+<tr><th scope="row">执行账本</th><td><code>started</code>，结果为空。</td><td><code>result_committed</code>，有该次编辑的结果与差异。</td></tr>
+</tbody>
+</table></div>
+</figure>
+<details class="answer-box"><summary>哪一种能给 call-price 补回原结果？另一种下一步该做什么？</summary><div><p>B 有该调用的已确认结果，按 <code>call-price</code> 原样补回即可。A 只证明意图已登记，即使文件看起来改过，也缺少这次工具运行的已确认回包。保留未决，核对实际状态后决定如何继续。</p></div></details>
+<p>只看对话尾部的做法会把 A、B 都当作工具没跑过。若原操作是往报告里追加一行，就会在已经追加过的报告里再写一遍。只看文件现值也无法给 A 造出可信的回包，文件可能在这个调用开始前就由别的操作改过。执行身份和结果一起保存，恢复时才知道哪条原记录能补。</p>
+</div></section>
+<section class="v2-topic-group" id="durable-journal">
+<header class="v2-group-heading"><span>02</span><h2>工具意图与已确认结果</h2></header><div class="design-section">
+</div><section class="design-section" id="durable-journal-1"><h3>2.1 先提交执行意图，再进入处理器</h3>
+<p>沿<a href="08-执行之前谁说了算.html#permission-plan" rel="noopener" target="_blank">派发前对参数、权限和取消的检查</a>往下走。编辑获准后，会话构造一条 <code>Intent</code>，把工具身份、最终参数摘要、批准记录引用和 <code>owner_epoch</code> 一起入账。这里的 <code>owner</code> 是有权提交当前会话数据库写事务的程序实例，接管数据库时持有版本 <code>owner_epoch</code> 递增。主会话的工具引用写为 <code>ToolRef("main", call_id)</code>，子执行用自己的范围，避免同名调用 ID 互相覆盖。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/session/conversation.py#L570" rel="noopener" target="_blank">src/ruocun/session/conversation.py · 第 570–583 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>14 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="570"></span><span data-line="571"></span><span data-line="572"></span><span data-line="573"></span><span data-line="574"></span><span data-line="575"></span><span data-line="576"></span><span data-line="577"></span><span data-line="578"></span><span data-line="579"></span><span data-line="580"></span><span data-line="581"></span><span data-line="582"></span><span data-line="583"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>.blocked:
+            <span class="hljs-keyword">raise</span> RuntimeError(<span class="hljs-string">"</span><span class="hljs-string">会话存在未确认的工具结果，拒绝继续。</span><span class="hljs-string">"</span>)
+        digest = hashlib.sha256(args.encode(<span class="hljs-string">"</span><span class="hljs-string">utf-8</span><span class="hljs-string">"</span>)).hexdigest()
+        run_ref = <span class="hljs-built_in">self</span>._shell_refs.get(tool_ref, agent_run or RunRef(<span class="hljs-string">"</span><span class="hljs-string">main</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">foreground</span><span class="hljs-string">"</span>))
+        intent = Intent(
+            tool_ref, run_ref, name,
+            <span class="hljs-built_in">self</span>.redact(args), digest, effect,
+            approval_ref or <span class="hljs-built_in">self</span>.approval_ref or (<span class="hljs-string">"</span><span class="hljs-string">text-confirmed</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> effect <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">read-only</span><span class="hljs-string">"</span>),
+            <span class="hljs-built_in">self</span>.policy_version, <span class="hljs-built_in">self</span>.owner_epoch, datetime.now(timezone.utc).isoformat(),
+            parent_tool_ref=parent_tool_ref,
+        )
+        cached = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.worker.enqueue_intent(intent).wait()
+        <span class="hljs-built_in">self</span>._current_tool.set(tool_ref <span class="hljs-keyword">if</span> cached is <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> <span class="hljs-keyword">None</span>)
+        <span class="hljs-keyword">return</span> cached</code></pre></div></figure>
+<p>派发等存储提交回执后才进入处理器。意图提交失败时，本次 Edit 不进入实际写入。已有同一身份的意图时，存储先核对其最终参数与授权等内容，再决定能否复用 <code>result_committed</code>。身份相同而内容不同需要报冲突。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/session/durable_store.py#L734" rel="noopener" target="_blank">src/ruocun/session/durable_store.py · 第 734–748 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>15 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="734"></span><span data-line="735"></span><span data-line="736"></span><span data-line="737"></span><span data-line="738"></span><span data-line="739"></span><span data-line="740"></span><span data-line="741"></span><span data-line="742"></span><span data-line="743"></span><span data-line="744"></span><span data-line="745"></span><span data-line="746"></span><span data-line="747"></span><span data-line="748"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">commit_intent</span>(<span class="hljs-built_in">self</span>, owner: DbOwner, intent: Intent) -&gt; ToolResult | <span class="hljs-keyword">None</span>:
+        <span class="hljs-string">"""工具执行前持久化意图。如果同一 ToolRef 已保存结果，直接返回旧结果。"""</span>
+
+        <span class="hljs-keyword">def</span> <span class="hljs-title">body</span>(con: <span class="hljs-string">"</span><span class="hljs-string">sqlite3.Connection</span><span class="hljs-string">"</span>) -&gt; ToolResult | <span class="hljs-keyword">None</span>:
+            existing = _read_tool(con, intent.tool_ref)
+            <span class="hljs-keyword">if</span> existing is not <span class="hljs-keyword">None</span>:
+                saved = existing.intent
+                <span class="hljs-keyword">if</span> saved is <span class="hljs-keyword">None</span> or replace(
+                    intent, owner_epoch=saved.owner_epoch, created_at=saved.created_at
+                ) != saved:
+                    <span class="hljs-keyword">raise</span> StoreError(<span class="hljs-string">"</span><span class="hljs-string">同一工具操作身份对应的最终参数或授权内容冲突。</span><span class="hljs-string">"</span>)
+            <span class="hljs-keyword">if</span> existing is not <span class="hljs-keyword">None</span> and existing.state == <span class="hljs-string">"</span><span class="hljs-string">result_committed</span><span class="hljs-string">"</span>:
+                <span class="hljs-keyword">return</span> existing.result
+            <span class="hljs-keyword">if</span> intent.owner_epoch != owner.owner_epoch:
+                <span class="hljs-keyword">raise</span> OwnerFencedError(<span class="hljs-string">"</span><span class="hljs-string">工具意图属于旧 owner epoch。</span><span class="hljs-string">"</span>)</code></pre></div></figure>
+<p>代入现场 B，存储按工具身份找到相同意图，<code>result_committed</code> 分支直接把已确认结果交回派发器，处理器完全不用再跑。代入 A，<code>started</code> 只说明先写下了执行意图。从落盘到写文件之间，进程可能在进入处理器前退出，也可能刚写完还没落结果就退出。存储无法单靠这行记录分辨。RuoCun 接受了部分其实未执行的调用也要人工核实的代价，避免把可能已发生的副作用重做一次。<strong>「意图记录证明工具可能已经开始，已确认结果才能用来恢复回包」</strong>。</p>
+</section><section class="design-section" id="durable-journal-2"><h3>2.2 确定拒绝能回流，结果未知需要停住</h3>
+<p>Edit 确定找不到 <code>old_string</code> 时，通过 <code>ToolRejected</code> 回给模型明确的错误，模型可以重新读取目标。处理器意外异常可能发生在写入之后。对具有持久副作用的工具，派发把这一路升级成 <code>UnknownToolOutcome</code>，结果保存异常时也采用同样处理。普通读取出错可以回读失败文本。程序保留这几条不同路径，下一步才有正确依据。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/tool_batch.py#L270" rel="noopener" target="_blank">src/ruocun/tools/tool_batch.py · 第 270–287 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>18 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="270"></span><span data-line="271"></span><span data-line="272"></span><span data-line="273"></span><span data-line="274"></span><span data-line="275"></span><span data-line="276"></span><span data-line="277"></span><span data-line="278"></span><span data-line="279"></span><span data-line="280"></span><span data-line="281"></span><span data-line="282"></span><span data-line="283"></span><span data-line="284"></span><span data-line="285"></span><span data-line="286"></span><span data-line="287"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            <span class="hljs-keyword">if</span> journal is not <span class="hljs-keyword">None</span>:
+                <span class="hljs-keyword">try</span>:
+                    <span class="hljs-keyword">if</span> image is <span class="hljs-keyword">None</span>:
+                        <span class="hljs-keyword">await</span> journal.result(call_id, result)
+                    <span class="hljs-keyword">else</span>:
+                        <span class="hljs-keyword">await</span> journal.result(call_id, result, image)
+                <span class="hljs-keyword">except</span> Exception <span class="hljs-keyword">as</span> exc:
+                    <span class="hljs-keyword">if</span> not effect:
+                        <span class="hljs-keyword">raise</span>
+                    <span class="hljs-keyword">raise</span> UnknownToolOutcome(
+                        <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">工具结果保存未确认（</span><span class="hljs-string">{</span><span class="hljs-built_in">type</span>(exc).__name__<span class="hljs-string">}</span><span class="hljs-string">），已停止；请核实原操作。</span><span class="hljs-string">"</span>
+                    ) <span class="hljs-keyword">from</span> exc
+            <span class="hljs-keyword">if</span> finished_handler and hooks is not <span class="hljs-keyword">None</span> and call_id in post_hooks and not ctx.signal.is_set():
+                post_ctx = RunCtx(hook_cwd, tool_name=tool.name, args_json=raw,
+                                  payload={<span class="hljs-string">"</span><span class="hljs-string">tool</span><span class="hljs-string">"</span>: tool.name, <span class="hljs-string">"</span><span class="hljs-string">args</span><span class="hljs-string">"</span>: raw, <span class="hljs-string">"</span><span class="hljs-string">result</span><span class="hljs-string">"</span>: result})
+                <span class="hljs-keyword">await</span> _invoke_tool_hook(hooks, <span class="hljs-string">"</span><span class="hljs-string">PostToolUse</span><span class="hljs-string">"</span>, call_id, post_ctx, ctx.signal, post_hooks[call_id], journal)
+            <span class="hljs-keyword">await</span> audit(call, <span class="hljs-string">"</span><span class="hljs-string">failed</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> looksFailed(result) <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">completed</span><span class="hljs-string">"</span>)
+            <span class="hljs-keyword">return</span> _message(call_id, result, image)</code></pre></div></figure>
+<p>成功保存工具结果后，批次将文本包装为 <code>role=tool</code>、<code>tool_call_id=call-price</code> 的消息；批次结果按原呼叫顺序写入会话。由此形成两个提交点，一处确认单次工具结果，一处将结果写入下一次模型可见的历史。出现 <code>UnknownToolOutcome</code> 时主循环直接返回 <code>outcome_unknown</code>，不发下一次普通模型请求。</p>
+</section></section>
+<section class="v2-topic-group" id="durable-resume">
+<header class="v2-group-heading"><span>03</span><h2>恢复视图与人工核实</h2></header><div class="design-section">
+</div><section class="design-section" id="durable-resume-1"><h3>3.1 从 journal 补配对，保持已执行操作的原身份</h3>
+<p>启动恢复时，存储把仍处于 <code>started</code> 的记录标成 <code>outcome_unknown</code>。已确认的结果继续保留。若有未决工具、运行或附件，会话保留阻塞状态；可以先查询恢复视图。阻塞解除后修复历史，按照助手原始调用列表找同一作用域的工具记录。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/session/recovery.py#L59" rel="noopener" target="_blank">src/ruocun/session/recovery.py · 第 59–71 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>13 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="59"></span><span data-line="60"></span><span data-line="61"></span><span data-line="62"></span><span data-line="63"></span><span data-line="64"></span><span data-line="65"></span><span data-line="66"></span><span data-line="67"></span><span data-line="68"></span><span data-line="69"></span><span data-line="70"></span><span data-line="71"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">for</span> call in calls:
+            call_id = call[<span class="hljs-string">'</span><span class="hljs-string">id</span><span class="hljs-string">'</span>]
+            record = by_id.get(call_id)
+            <span class="hljs-keyword">if</span> call_id in existing:
+                output.append(existing[call_id])
+            <span class="hljs-keyword">elif</span> record is not <span class="hljs-keyword">None</span> and record.state == <span class="hljs-string">'</span><span class="hljs-string">result_committed</span><span class="hljs-string">'</span> and record.result is not <span class="hljs-keyword">None</span>:
+                output.append(copy.deepcopy(record.result) <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(record.result, <span class="hljs-built_in">dict</span>) <span class="hljs-keyword">else</span>
+                              {<span class="hljs-string">'</span><span class="hljs-string">role</span><span class="hljs-string">'</span>: <span class="hljs-string">'</span><span class="hljs-string">tool</span><span class="hljs-string">'</span>, <span class="hljs-string">'</span><span class="hljs-string">tool_call_id</span><span class="hljs-string">'</span>: call_id, <span class="hljs-string">'</span><span class="hljs-string">content</span><span class="hljs-string">'</span>: record.result})
+            <span class="hljs-keyword">else</span>:
+                content = (<span class="hljs-string">'</span><span class="hljs-string">[恢复：结果未知] 操作可能已执行；必须先核实，禁止自动重试。</span><span class="hljs-string">'</span>
+                           <span class="hljs-keyword">if</span> records is <span class="hljs-keyword">None</span> or record is not <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span>
+                           <span class="hljs-string">'</span><span class="hljs-string">[恢复：未执行] 此工具没有执行意图记录，未自动重放。</span><span class="hljs-string">'</span>)
+                output.append({<span class="hljs-string">'</span><span class="hljs-string">role</span><span class="hljs-string">'</span>: <span class="hljs-string">'</span><span class="hljs-string">tool</span><span class="hljs-string">'</span>, <span class="hljs-string">'</span><span class="hljs-string">tool_call_id</span><span class="hljs-string">'</span>: call_id, <span class="hljs-string">'</span><span class="hljs-string">content</span><span class="hljs-string">'</span>: content})</code></pre></div></figure>
+<p>补配对有三种实质。已经配对的消息原样保留；有已确认结果就用该结果补同一个 ID；已保存调用却缺执行意图时可以补“未执行”。只要未决操作仍在，普通回合不继续，给一个新 ID 同样不能绕过未决状态。受管 Shell 可先尝试核实原 runner 的可信材料，避免把仍能恢复的原执行误判为需要重做。</p>
+<p>现有 <code>REC-05</code> 自动验证覆盖了这些切点。保存意图后中断，文件保持原文。文件替换后、结果保存前中断，文件已有新内容。两次重开都保留未决。结果确认后、配对前中断则可以补回结果。从这组观测能看到，内置文件写入和数据库提交分属两个边界，中间有无法靠数据库单独确认的区间。</p>
+</section><section class="design-section" id="durable-resume-2"><h3>3.2 人工说明进入原记录，继续运行要有明确决定</h3>
+<p>针对 <code>call-price</code>，用户可查询 <code>/recovery</code>，按未决条目的作用域和 ID 核实文件现状与期望差异，再用 <code>resolve</code> 提交说明。原记录保存“用户处理未决操作”及其说明，区别于工具原始回包；<code>decide</code> 用于核实运行终态。恢复决定与消息一起提交，同一个决定身份重复提交相同内容可以取得原回执，内容冲突则拒绝。要继续受支持的普通子代理，还需明确的 <code>continue</code> 决定和可验证材料，并使用新 run，详见<a href="13-重活交给子代理.html" rel="noopener" target="_blank">子代理章节</a>。</p>
+</section></section>
+<section class="v2-topic-group" id="durable-commit">
+<header class="v2-group-heading"><span>04</span><h2>检查点与取消收尾</h2></header><div class="design-section">
+</div><section class="design-section" id="durable-commit-1"><h3>4.1 数据库提交后才发布新 revision 和投递状态</h3>
+<p>会话检查点是一份可从磁盘恢复的完整进度，记录模型消息、已接纳输入、后台事件投递等状态。每次成功提交更改，就分配新的检查点版本号 <code>revision</code>。想象后台验证结果基于第 7 版准备，用户输入“保留日志”却先提交成第 8 版。同一个数据库所有者也可能持有两份不同时间的快照。</p>
+<figure class="reasoning-figure" id="revision-commit-evidence">
+<figcaption>源码推演 · 同一个 owner 手里的两个版本</figcaption>
+<div class="reasoning-grid">
+<section><h4>数据库当前</h4><p><code>revision=8</code><br/>已保存“保留日志”。</p></section>
+<section><h4>待提交验证结果</h4><p>新操作 ID，<code>expected_revision=7</code>。<br/>候选消息带验证回包，没有第 8 版的输入。</p></section>
+</div>
+</figure>
+<details class="answer-box"><summary>若直接覆盖，先丢哪条记录？若要求版本一致，后台事件现在算投递了吗？</summary><div><p>直接覆盖会抹掉“保留日志”。按版本提交时 <code>8 != 7</code>，事务拒绝本次覆盖，数据库也没有在本次事务中确认后台事件已经投递。</p></div></details>
+<p><code>Conversation</code> 在检查点锁内为本次变更构造完整候选，由单独的存储工作线程串行提交。数据库在事务里核对 <code>owner</code> 的实例身份和 <code>owner_epoch</code>，再查 <code>expected_revision</code> 是否等于当前版本。前者挡旧进程继续写，后者挡同一进程的旧快照覆盖已更新的状态。检查点、发给模型的消息和已消费的后台事件标记使用同一个事务，保存成功要一起生效。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/session/durable_store.py#L1201" rel="noopener" target="_blank">src/ruocun/session/durable_store.py · 第 1201–1220 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>20 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1201"></span><span data-line="1202"></span><span data-line="1203"></span><span data-line="1204"></span><span data-line="1205"></span><span data-line="1206"></span><span data-line="1207"></span><span data-line="1208"></span><span data-line="1209"></span><span data-line="1210"></span><span data-line="1211"></span><span data-line="1212"></span><span data-line="1213"></span><span data-line="1214"></span><span data-line="1215"></span><span data-line="1216"></span><span data-line="1217"></span><span data-line="1218"></span><span data-line="1219"></span><span data-line="1220"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            current = <span class="hljs-built_in">int</span>(_read_meta(con, <span class="hljs-string">"</span><span class="hljs-string">revision</span><span class="hljs-string">"</span>) or <span class="hljs-number">0</span>)
+            <span class="hljs-keyword">if</span> current != expected_revision:
+                <span class="hljs-keyword">raise</span> StoreError(<span class="hljs-string">"</span><span class="hljs-string">revision 冲突，拒绝覆盖比自己更新的状态。</span><span class="hljs-string">"</span>)
+            revision = current + <span class="hljs-number">1</span>
+            <span class="hljs-keyword">from</span> .archive <span class="hljs-keyword">import</span> save_projection
+            <span class="hljs-keyword">if</span> archive_import is not <span class="hljs-keyword">None</span>:
+                <span class="hljs-built_in">self</span>._import_archive_materials(con, archive_import)
+            save_projection(con, <span class="hljs-built_in">self</span>._session_id, <span class="hljs-string">"</span><span class="hljs-string">main</span><span class="hljs-string">"</span>, <span class="hljs-built_in">list</span>(checkpoint.messages), archive_rewrite, archive_import)
+            <span class="hljs-keyword">for</span> event_id in consumed_event_ids:
+                con.execute(
+                    <span class="hljs-string">"</span><span class="hljs-string">UPDATE events SET delivered=? </span><span class="hljs-string">"</span>
+                    <span class="hljs-string">"</span><span class="hljs-string">WHERE id=? AND delivered IS NULL</span><span class="hljs-string">"</span>,
+                    (revision, event_id),
+                )
+            _put_meta(con, <span class="hljs-string">"</span><span class="hljs-string">checkpoint</span><span class="hljs-string">"</span>, asdict(replace(
+                checkpoint,
+                revision=revision,
+                delivered_revision=revision,
+            )))
+            _put_meta(con, <span class="hljs-string">"</span><span class="hljs-string">revision</span><span class="hljs-string">"</span>, revision)</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/session/conversation.py#L486" rel="noopener" target="_blank">src/ruocun/session/conversation.py · 第 486–501 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>16 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="486"></span><span data-line="487"></span><span data-line="488"></span><span data-line="489"></span><span data-line="490"></span><span data-line="491"></span><span data-line="492"></span><span data-line="493"></span><span data-line="494"></span><span data-line="495"></span><span data-line="496"></span><span data-line="497"></span><span data-line="498"></span><span data-line="499"></span><span data-line="500"></span><span data-line="501"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        handle = <span class="hljs-built_in">self</span>.worker.enqueue_checkpoint(<span class="hljs-built_in">self</span>.revision, checkpoint, consumed, **archive_args)
+        <span class="hljs-keyword">try</span>:
+            revision = <span class="hljs-keyword">await</span> handle.wait()
+        <span class="hljs-keyword">except</span> BaseException:
+            outcome = handle.status()
+            <span class="hljs-keyword">if</span> background is not <span class="hljs-keyword">None</span> and outcome.state == <span class="hljs-string">"</span><span class="hljs-string">failed</span><span class="hljs-string">"</span>:
+                background.unstageConsumed(<span class="hljs-built_in">list</span>(consumed))
+            <span class="hljs-keyword">else</span>:
+                <span class="hljs-built_in">self</span>.blocked = <span class="hljs-keyword">True</span>
+                <span class="hljs-keyword">if</span> background is not <span class="hljs-keyword">None</span>:
+                    background.checkpointUnknown = <span class="hljs-keyword">True</span>
+            <span class="hljs-keyword">raise</span>
+        <span class="hljs-keyword">if</span> background is not <span class="hljs-keyword">None</span>:
+            background.acknowledge(<span class="hljs-built_in">list</span>(consumed))
+        <span class="hljs-built_in">self</span>.revision = revision
+        <span class="hljs-built_in">self</span>._accepted_inputs = inputs</code></pre></div></figure>
+<p>如果后台消费的保存已明确失败，可撤销这次暂存消费，让事件仍待投递；如果等待被中断且提交结果无法确认，则阻塞普通推进。只有拿到回执才确认消费、发布 revision 和接纳输入列表。<strong>「会话以已确认的检查点推进，等待被取消时先核实存储是否提交」</strong>。</p>
+</section><section class="design-section" id="durable-commit-2"><h3>4.2 取消批次时等待已开始的工具和收据</h3>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/tool_batch.py#L305" rel="noopener" target="_blank">src/ruocun/tools/tool_batch.py · 第 305–319 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>15 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="305"></span><span data-line="306"></span><span data-line="307"></span><span data-line="308"></span><span data-line="309"></span><span data-line="310"></span><span data-line="311"></span><span data-line="312"></span><span data-line="313"></span><span data-line="314"></span><span data-line="315"></span><span data-line="316"></span><span data-line="317"></span><span data-line="318"></span><span data-line="319"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">if</span> not group:
+            <span class="hljs-keyword">return</span>
+        tasks = asyncio.gather(*(worker() <span class="hljs-keyword">for</span> _ in <span class="hljs-built_in">range</span>(<span class="hljs-built_in">min</span>(_MAX_CONCURRENCY, <span class="hljs-built_in">len</span>(group)))),
+                               return_exceptions=<span class="hljs-keyword">True</span>)
+        <span class="hljs-keyword">try</span>:
+            settled = <span class="hljs-keyword">await</span> asyncio.shield(tasks)
+        <span class="hljs-keyword">except</span> asyncio.CancelledError:
+            ctx.signal.set()
+            <span class="hljs-comment"># 取消后仍需等待已开始的工具及其存储回执，以便确认副作用。</span>
+            <span class="hljs-keyword">while</span> not tasks.done():
+                <span class="hljs-keyword">try</span>:
+                    <span class="hljs-keyword">await</span> asyncio.shield(tasks)
+                <span class="hljs-keyword">except</span> asyncio.CancelledError:
+                    <span class="hljs-keyword">pass</span>
+            <span class="hljs-keyword">raise</span></code></pre></div></figure>
+<p>在收到取消信号时，可以挡住尚未派发的调用，已经进入处理器的操作仍需结算。这里的 <code>gather</code> 负责等这一批执行结果，<code>shield</code> 让等待方被取消后，这批工作还能交回真实结果。程序同时发出取消信号，再等待已开始的工具完成收尾。某条调用获批失败只说明它自己没执行，其他并行调用要查各自结果。</p>
+</section></section>
+<section class="v2-topic-group" id="article-assessment">
+<header class="v2-group-heading"><span>05</span><h2>学习效果检测</h2></header><div class="design-section">
+</div><section class="design-section" id="article-assessment-1">
+<h3>5.1 为不同故障切点选恢复依据</h3>
+<p><strong>1．</strong> 周报末尾已有“已核对”。重开时，主会话 <code>append-8</code> 的账本只有 <code>started</code>，另一趟执行恰好也有名为 <code>append-8</code> 的成功结果。现在能用哪个结果补主会话？还要查什么，再决定要不要追加？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>两次操作属于不同执行范围，另一趟的回包不能配给主会话。主会话账本只能证明它登记过意图；相同文字也可能原本就有。按主会话和调用 ID 查恢复记录，再核对可识别本次追加的版本、差异或审计记录。证据仍分不清就保留未决，交由人明确决定下一步，避免重复追加。</p></div></details>
+<p><strong>2．</strong>历史只留下助手发出的两个 ID，journal 两条结果都已确认。恢复后消息用哪个 ID，按什么顺序？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>查同一作用域的 journal，用助手原先的 ID 补配对，每条结果跟着原呼叫列表顺序写入，以便模型获得结构完整的历史。不需要重新执行工具。</p></div></details>
+<p><strong>3．</strong>旧副本基于 revision 10，权威检查点已到 11。请求还是当前 owner 发出，需要检查什么？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>仍需拒绝该旧候选。owner 说明谁有资格写，revision 说明它基于哪一版，二者各挡一种冲突。随后从可信检查点重新构造合法变更。</p></div></details>
+</section><div class="design-section">
+</div></section>
+<section class="v2-topic-group" id="article-interview">
+<header class="v2-group-heading"><span>06</span><h2>模拟面试官提问</h2></header><div class="design-section">
+</div><section class="design-section" id="article-interview-1"><h3>6.1 Agent 开发实习</h3>
+<h4>独立核心题</h4>
+<p><strong>用户说文件看起来改好了，系统却报结果未确认。你会怎样解释？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>文件状态和工具回执分别保存。文件有可能已经被工具写过，但工具结果因进程中断没有确认。我会先核对原调用和差异，向用户说明事实，再提交核实结果。直接再跑容易给重复副作用留下机会。</p><p>实际判断从同一调用的 <code>started</code>、<code>result_committed</code> 和原文件状态出发。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>文件没变化怎样判断？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>查看有没有意图。仅凭文件没变化，无法确认有意图后的全部过程。</p></div></details>
+<p><strong>追问 1</strong> 如果结果已经提交呢？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>从 journal 按原 ID 补回结果，不再次执行。</p></div></details>
+<p><strong>追问 2</strong> 如果发现本次只是明确的 Edit 匹配失败呢？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>把确定拒绝反馈给模型，读取新的原文后修正参数。关联<a href="01-文件编辑可靠性-精致教材预览.html" rel="noopener" target="_blank">文件编辑</a>。</p></div></details>
+</section><section class="design-section" id="article-interview-2"><h3>6.2 Agent harness 岗位</h3>
+<h4>独立核心题</h4>
+<p><strong>怎样设计恢复，让数据库和外部副作用之间的中断可解释？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>我会先用持久化的操作身份记录意图，再调用外部执行器，拿到结果后另行提交。恢复以确定的证据为界，完成结果可以复用，意图存在但结果缺失先标未知并停住。</p><p>RuoCun 的 <code>ToolRef</code> 区分执行范围与调用 ID，journal 的已确认结果可以用来补历史配对。外部动作和 SQLite 写入分属不同原子域。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>检查点回执在取消时丢了怎么办？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>用操作 ID 和权威存储核实。回执不明时暂停继续，不能把它当作明确失败后再次覆盖。</p></div></details>
+<p><strong>追问 1</strong> 旧所有者迟到写入怎么办？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>事务内核对 owner 与代次，同时核对期望 revision，挡住旧所有者与旧快照。</p></div></details>
+<p><strong>追问 2</strong> 用户重复提交同一恢复决定会启动两次吗？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>相同决定只有一份持久记录。重复取回回执；同 ID 不同内容冲突。新 run 的派发须等继续许可提交。</p></div></details>
+</section></section>
+<section class="v2-topic-group" id="article-takeaways">
+<header class="v2-group-heading"><span>07</span><h2>这一篇带走什么</h2></header><div class="design-section">
+<p>一次工具执行从持久意图进入真实处理器，确认结果后才写回模型历史，恢复与取消都要沿这些提交点找证据。</p>
+<ul class="pilot-takeaways">
+<li>需要恢复的副作用要有稳定操作身份。已有确认结果就按原 ID 复用，只有意图时先核实，防止自动重放。</li>
+<li>用一个检查点保存相关的输入、消息和投递状态，确认后再发布。owner 校验挡旧进程，revision 校验挡旧视图。</li>
+<li>取消后仍要收取已开始动作的结果。拒绝、确定失败、结果未知分别给出证据和处理路径，让后续动作有依据。</li>
+</ul>
+<p>这一篇已经能解释“保留日志”为什么要先保存才能防止覆盖。下一篇追<a href="11-任务在跑时用户又说话.html#interactive-start" rel="noopener" target="_blank">这句话何时真正进入模型的请求</a>，会用到同一份输入记录。</p>
+</div></section>
+</article></main>
+</body>
+</html>

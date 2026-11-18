@@ -1,0 +1,625 @@
+[
+  {
+    "task": "adaptive-rejection-sampler",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 9,
+    "total": 9
+  },
+  {
+    "task": "bn-fit-modify",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 9,
+    "total": 9
+  },
+  {
+    "task": "break-filter-js-from-html",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 1,
+    "total": 1
+  },
+  {
+    "task": "build-cython-ext",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 11,
+    "total": 11
+  },
+  {
+    "task": "build-pmars",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 4,
+    "total": 4
+  },
+  {
+    "task": "build-pov-ray",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 3,
+    "total": 3
+  },
+  {
+    "task": "caffe-cifar-10",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 6,
+    "total": 6
+  },
+  {
+    "task": "cancel-async-tasks",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 6,
+    "total": 6
+  },
+  {
+    "task": "chess-best-move",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 1,
+    "total": 1
+  },
+  {
+    "task": "circuit-fibsqrt",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 3,
+    "total": 3
+  },
+  {
+    "task": "cobol-modernization",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 3,
+    "total": 3
+  },
+  {
+    "task": "code-from-image",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 2,
+    "total": 2
+  },
+  {
+    "task": "compile-compcert",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 3,
+    "total": 3
+  },
+  {
+    "task": "configure-git-webserver",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 1,
+    "total": 1
+  },
+  {
+    "task": "constraints-scheduling",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 3,
+    "total": 3
+  },
+  {
+    "task": "count-dataset-tokens",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 1,
+    "total": 1
+  },
+  {
+    "task": "crack-7z-hash",
+    "score": 0,
+    "verdict": "未通过",
+    "passed": 0,
+    "total": 2
+  },
+  {
+    "task": "custom-memory-heap-crash",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 6,
+    "total": 6
+  },
+  {
+    "task": "db-wal-recovery",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 7,
+    "total": 7
+  },
+  {
+    "task": "distribution-search",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 4,
+    "total": 4
+  },
+  {
+    "task": "dna-assembly",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 1,
+    "total": 1
+  },
+  {
+    "task": "dna-insert",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 1,
+    "total": 1
+  },
+  {
+    "task": "extract-elf",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 2,
+    "total": 2
+  },
+  {
+    "task": "extract-moves-from-video",
+    "score": 0,
+    "verdict": "未通过",
+    "passed": 0,
+    "total": 2
+  },
+  {
+    "task": "feal-differential-cryptanalysis",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 1,
+    "total": 1
+  },
+  {
+    "task": "feal-linear-cryptanalysis",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 1,
+    "total": 1
+  },
+  {
+    "task": "filter-js-from-html",
+    "score": 0,
+    "verdict": "未通过",
+    "passed": 1,
+    "total": 2
+  },
+  {
+    "task": "financial-document-processor",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 7,
+    "total": 7
+  },
+  {
+    "task": "fix-code-vulnerability",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 6,
+    "total": 6
+  },
+  {
+    "task": "fix-git",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 2,
+    "total": 2
+  },
+  {
+    "task": "fix-ocaml-gc",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 1,
+    "total": 1
+  },
+  {
+    "task": "gcode-to-text",
+    "score": 0,
+    "verdict": "未通过",
+    "passed": 1,
+    "total": 2
+  },
+  {
+    "task": "git-leak-recovery",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 5,
+    "total": 5
+  },
+  {
+    "task": "git-multibranch",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 1,
+    "total": 1
+  },
+  {
+    "task": "gpt2-codegolf",
+    "score": 0,
+    "verdict": "未通过",
+    "passed": 0,
+    "total": 1
+  },
+  {
+    "task": "headless-terminal",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 7,
+    "total": 7
+  },
+  {
+    "task": "hf-model-inference",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 4,
+    "total": 4
+  },
+  {
+    "task": "install-windows-3.11",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 4,
+    "total": 4
+  },
+  {
+    "task": "kv-store-grpc",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 7,
+    "total": 7
+  },
+  {
+    "task": "large-scale-text-editing",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 5,
+    "total": 5
+  },
+  {
+    "task": "largest-eigenval",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 3,
+    "total": 3
+  },
+  {
+    "task": "llm-inference-batching-scheduler",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 6,
+    "total": 6
+  },
+  {
+    "task": "log-summary-date-ranges",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 2,
+    "total": 2
+  },
+  {
+    "task": "mailman",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 3,
+    "total": 3
+  },
+  {
+    "task": "make-doom-for-mips",
+    "score": 0,
+    "verdict": "未通过",
+    "passed": 0,
+    "total": 3
+  },
+  {
+    "task": "make-mips-interpreter",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 3,
+    "total": 3
+  },
+  {
+    "task": "mcmc-sampling-stan",
+    "score": 0,
+    "verdict": "未通过",
+    "passed": 5,
+    "total": 6
+  },
+  {
+    "task": "merge-diff-arc-agi-task",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 5,
+    "total": 5
+  },
+  {
+    "task": "model-extraction-relu-logits",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 1,
+    "total": 1
+  },
+  {
+    "task": "modernize-scientific-stack",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 2,
+    "total": 2
+  },
+  {
+    "task": "mteb-leaderboard",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 2,
+    "total": 2
+  },
+  {
+    "task": "mteb-retrieve",
+    "score": 0,
+    "verdict": "未通过",
+    "passed": 1,
+    "total": 2
+  },
+  {
+    "task": "multi-source-data-merger",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 3,
+    "total": 3
+  },
+  {
+    "task": "nginx-request-logging",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 8,
+    "total": 8
+  },
+  {
+    "task": "openssl-selfsigned-cert",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 6,
+    "total": 6
+  },
+  {
+    "task": "overfull-hbox",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 4,
+    "total": 4
+  },
+  {
+    "task": "password-recovery",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 2,
+    "total": 2
+  },
+  {
+    "task": "path-tracing",
+    "score": 0,
+    "verdict": "未通过",
+    "passed": 0,
+    "total": 5
+  },
+  {
+    "task": "path-tracing-reverse",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 3,
+    "total": 3
+  },
+  {
+    "task": "polyglot-c-py",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 1,
+    "total": 1
+  },
+  {
+    "task": "polyglot-rust-c",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 1,
+    "total": 1
+  },
+  {
+    "task": "portfolio-optimization",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 4,
+    "total": 4
+  },
+  {
+    "task": "protein-assembly",
+    "score": 0,
+    "verdict": "未通过",
+    "passed": 0,
+    "total": 1
+  },
+  {
+    "task": "prove-plus-comm",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 4,
+    "total": 4
+  },
+  {
+    "task": "pypi-server",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 1,
+    "total": 1
+  },
+  {
+    "task": "pytorch-model-cli",
+    "score": 0,
+    "verdict": "未通过",
+    "passed": 5,
+    "total": 6
+  },
+  {
+    "task": "pytorch-model-recovery",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 5,
+    "total": 5
+  },
+  {
+    "task": "qemu-alpine-ssh",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 1,
+    "total": 1
+  },
+  {
+    "task": "qemu-startup",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 1,
+    "total": 1
+  },
+  {
+    "task": "query-optimize",
+    "score": 0,
+    "verdict": "未通过",
+    "passed": 2,
+    "total": 6
+  },
+  {
+    "task": "raman-fitting",
+    "score": 0,
+    "verdict": "未通过",
+    "passed": 1,
+    "total": 3
+  },
+  {
+    "task": "regex-chess",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 4,
+    "total": 4
+  },
+  {
+    "task": "regex-log",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 1,
+    "total": 1
+  },
+  {
+    "task": "reshard-c4-data",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 1,
+    "total": 1
+  },
+  {
+    "task": "rstan-to-pystan",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 6,
+    "total": 6
+  },
+  {
+    "task": "sam-cell-seg",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 9,
+    "total": 9
+  },
+  {
+    "task": "sanitize-git-repo",
+    "score": 0,
+    "verdict": "未通过",
+    "passed": 2,
+    "total": 3
+  },
+  {
+    "task": "schemelike-metacircular-eval",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 1,
+    "total": 1
+  },
+  {
+    "task": "sparql-university",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 3,
+    "total": 3
+  },
+  {
+    "task": "sqlite-db-truncate",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 1,
+    "total": 1
+  },
+  {
+    "task": "sqlite-with-gcov",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 3,
+    "total": 3
+  },
+  {
+    "task": "torch-pipeline-parallelism",
+    "score": 0,
+    "verdict": "未通过",
+    "passed": 2,
+    "total": 3
+  },
+  {
+    "task": "torch-tensor-parallelism",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 3,
+    "total": 3
+  },
+  {
+    "task": "train-fasttext",
+    "score": 0,
+    "verdict": "未通过",
+    "passed": 0,
+    "total": 2
+  },
+  {
+    "task": "tune-mjcf",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 4,
+    "total": 4
+  },
+  {
+    "task": "video-processing",
+    "score": 0,
+    "verdict": "未通过",
+    "passed": 4,
+    "total": 5
+  },
+  {
+    "task": "vulnerable-secret",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 3,
+    "total": 3
+  },
+  {
+    "task": "winning-avg-corewars",
+    "score": 0,
+    "verdict": "未通过",
+    "passed": 1,
+    "total": 3
+  },
+  {
+    "task": "write-compressor",
+    "score": 1,
+    "verdict": "通过",
+    "passed": 3,
+    "total": 3
+  }
+]

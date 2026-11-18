@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 647" role="img" aria-labelledby="request-title request-desc">
+  <title id="request-title">切换工作树前后，发送给模型的两次请求</title>
+  <desc id="request-desc">两次请求各自包含 tools 工具接口和 messages 消息列表。切换前的消息节选依次是 system 项目约定、user 原任务和程序以 user 角色附的 pricing 目录说明。切换成功后的下一次请求保留这些消息，其后依次增加 assistant 请求调用 EnterWorktree、tool 确认进入新工作树、程序以 user 角色追加的 discount 目录说明。假设工具已可用，期间没有历史裁剪。</desc>
+  <defs>
+    <style>
+      text { fill: #172638; font: 16px "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", system-ui, sans-serif; }
+      .heading { font-size: 22px; font-weight: 700; }
+      .section { font-weight: 700; }
+      .secondary { fill: #52647a; }
+      .code { font: 15px "Cascadia Code", Consolas, monospace; }
+      .blue { fill: #2456a6; }
+      .kept { fill: #f4f6f9; stroke: #dce3ec; }
+      .added { fill: #edf3fc; stroke: #c4d3ea; }
+    </style>
+    <rect id="message" width="382" height="56" rx="6"/>
+    <g id="prior-messages">
+      <use href="#message" class="kept"/>
+      <text x="14" y="22" class="secondary"><tspan class="code">system</tspan> · 项目约定</text>
+      <text x="14" y="44">会员价保持原样，改完核对两种价格</text>
+      <use href="#message" y="64" class="kept"/>
+      <text x="14" y="86" class="secondary"><tspan class="code">user</tspan> · 你的原任务</text>
+      <text x="14" y="108">在工作树里把普通价打九折</text>
+      <use href="#message" y="128" class="kept"/>
+      <text x="14" y="150" class="secondary"><tspan class="code">user</tspan> · 程序补的目录说明</text>
+      <text x="14" y="172" class="code">cwd = pricing</text>
+    </g>
+    <g id="tool-list">
+      <rect width="382" height="41" rx="6" fill="#fff" stroke="#dce3ec"/>
+      <text x="14" y="26"><tspan class="code">tools</tspan> <tspan class="secondary">本轮工具接口，节选</tspan> <tspan class="code">Read(path)</tspan></text>
+    </g>
+  </defs>
+
+  <rect width="840" height="647" fill="#fff"/>
+  <text x="24" y="42" class="heading">切换前的一次请求</text>
+  <text x="434" y="42" class="heading">切换成功后的下一次请求</text>
+  <path d="M412 34H426M421 29L426 34 421 39" fill="none" stroke="#52647a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <use href="#tool-list" x="24" y="62"/>
+  <use href="#tool-list" x="434" y="62"/>
+  <text x="24" y="136" class="section"><tspan class="code">messages</tspan> 消息列表</text>
+  <text x="434" y="136" class="section"><tspan class="code">messages</tspan> 消息列表</text>
+  <text x="802" y="136" text-anchor="end" class="secondary">先保留左侧三条</text>
+  <use href="#prior-messages" x="24" y="152"/>
+  <use href="#prior-messages" x="434" y="152"/>
+
+  <text x="434" y="365" class="section blue">接着新增三条消息</text>
+  <line x1="594" x2="816" y1="360" y2="360" stroke="#c4d3ea"/>
+  <g transform="translate(434 379)">
+    <use href="#message" class="added"/>
+    <text x="14" y="22" class="blue"><tspan class="code">assistant</tspan> · 模型提出调用</text>
+    <text x="14" y="44" class="code">EnterWorktree(name="discount")</text>
+    <use href="#message" y="64" class="added"/>
+    <text x="14" y="86" class="blue"><tspan class="code">tool</tspan> · 对应的工具结果</text>
+    <text x="14" y="108">工具报告已进入 <tspan class="code">discount</tspan> 工作树</text>
+    <use href="#message" y="128" class="added"/>
+    <text x="14" y="150" class="blue"><tspan class="code">user</tspan> · 程序在发请求前补的最新目录</text>
+    <text x="14" y="172" class="code blue">cwd = discount</text>
+  </g>
+
+  <line x1="24" x2="816" y1="585" y2="585" stroke="#dce3ec"/>
+  <text x="24" y="612" class="secondary">源码推演节选。假设 <tspan class="code">EnterWorktree</tspan> 已可用，期间没有历史裁剪。</text>
+  <text x="24" y="634" class="secondary"><tspan class="code">pricing</tspan> 表示原价格模块目录。<tspan class="code">discount</tspan> 表示新工作树根。</text>
+</svg>

@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>新经验怎样产生：反思证据、筛选与受控积累 · RuoCun 设计学习</title>
+<link href="assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="assets/ruocun-code.css" rel="stylesheet"/>
+<link href="assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="assets/ruocun-article.css" rel="stylesheet"/>
+<link href="assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="assets/ruocun-textbook.js"></script>
+</head>
+<body class="textbook-read">
+<a class="textbook-skip" href="#experience-learning">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#experience-learning">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航">
+<a href="课程学习地图.html" rel="noopener" target="_blank">学习地图</a>
+<a class="textbook-original" href="#article-takeaways">这一篇带走什么</a>
+</nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title">新经验怎样产生</div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc" open="">
+<summary>展开文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#learning-case"><span class="v2-toc-number">1</span><span>测试通过后又改了代码，还能把做法存成已验证经验吗？</span></a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#learning-evidence"><span class="v2-toc-number">2</span><span>候选的证据包</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#paired-evidence"><span class="v2-toc-number">2.1</span><span>从当前用户与配对工具结果提取证据</span></a></li><li><a class="v2-toc-child-link" href="#citation-screen"><span class="v2-toc-number">2.2</span><span>原文摘录与来源资格由程序检查</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#learning-source"><span class="v2-toc-number">3</span><span>验证版本与发布版本</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#validate-source-version"><span class="v2-toc-number">3.1</span><span>验证边界为每个调用 ID 留一份来源快照</span></a></li><li><a class="v2-toc-child-link" href="#memory-store-cas"><span class="v2-toc-number">3.2</span><span>发布只触及可核对的本项目自动条目</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#learning-lifecycle"><span class="v2-toc-number">4</span><span>分析预算、取消与写入确认</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#bounded-analysis"><span class="v2-toc-number">4.1</span><span>只在有证据时发有限的分析请求</span></a></li><li><a class="v2-toc-child-link" href="#learning-write-intent"><span class="v2-toc-number">4.2</span><span>先保存候选状态，再登记写入意图</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-assessment"><span class="v2-toc-number">5</span><span>学习效果检测</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#article-assessment-1"><span class="v2-toc-number">5.1</span><span>核对经验候选的证据与发布条件</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-interview"><span class="v2-toc-number">6</span><span>模拟面试官提问</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#intern-learning"><span class="v2-toc-number">6.1</span><span>Agent 开发实习</span></a></li><li><a class="v2-toc-child-link" href="#harness-learning"><span class="v2-toc-number">6.2</span><span>Agent harness 岗位</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways"><span class="v2-toc-number">7</span><span>这一篇带走什么</span></a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper course-lesson" id="experience-learning"><header class="design-hero">
+<h1>新经验怎样产生</h1><p class="article-subtitle">反思证据、筛选与受控积累</p>
+<p class="target">同一句“会员预览已修好”可能是自述，也可能背后有一组能对上的工具记录。受控积累关心的是下一次还能核对并复用什么。</p>
+</header>
+<section class="v2-topic-group" id="learning-case">
+<header class="v2-group-heading"><span>01</span><h2>测试通过后又改了代码，还能把做法存成已验证经验吗？</h2></header><div class="design-section">
+<p>用户纠正模型，“以后预览与结算分开验，预览必须走 <code>preview_total</code>”。模型读取接口文件，修改断言并执行定向测试。测试通过后，又补了一次相关文件修改。此时模型提议把这次技术做法保存成有证据的项目经验。</p>
+<figure class="reasoning-figure">
+<figcaption>源码推演 · 哪一版代码实际跑过验证？</figcaption>
+<div class="reasoning-grid">
+<section><h4>读取与第一次修改</h4><p>工具结果给出 <code>pricing/preview.py</code>，内容版本 <code>S1</code>。</p></section>
+<section><h4>定向验证</h4><p><code>Bash</code> 调用 <code>v12</code> 返回退出码 <code>0</code>，验证时记下的文件内容哈希（用来识别当时的版本）为 <code>S1</code>。</p></section>
+<section><h4>验证后的修改</h4><p>文件更新为 <code>S2</code>。候选引用的是 <code>v12</code>。</p></section>
+</div>
+</figure>
+<details class="answer-box"><summary>首读自检 · 技术做法与用户原话各能留下什么？</summary><div><p>用户纠错可以用用户原话作为来源，条件及做法仍需写具体。已验证技术做法缺当前版本证据，<code>v12</code> 对应 <code>S1</code>，不能支持 <code>S2</code>。重新核对 <code>S2</code> 并得到实际配对结果后才有相应证据。</p></div></details>
+<p>最早的错误是把 <code>v12</code> 的退出码贴到后来出现的 <code>S2</code> 上。<a href="17-经验怎样用到当前任务.html#memory-source-check" rel="noopener" target="_blank">召回篇</a>对照的是已有经验和今天的源文件。这里从另一侧接上，判断什么材料够格写成新经验。回合结束时，程序另发一次分析请求，从当前输入和工具结果里提炼可复用的做法。这一步常叫反思。分析模型给出的是候选，程序核对引用、文件版本和写入位置后才发布。</p>
+</div></section>
+<section class="v2-topic-group" id="learning-evidence">
+<header class="v2-group-heading"><span>02</span><h2>候选的证据包</h2></header><div class="design-section">
+</div><section class="design-section" id="paired-evidence"><h3>2.1 从当前用户与配对工具结果提取证据</h3>
+<p>受控路径在完成且仍有效的回合末工作。它先取最后一条真正由用户发出的消息。<a href="02-模型收到什么.html#directory-snapshot-shape" rel="noopener" target="_blank">程序生成的目录事实</a>也可能用 <code>user</code> 角色入历史，所以要识别并跳过它。用户明确说“纠正”或“以后统一”会成为候选线索。<code>Read</code>、<code>Write</code>、<code>Edit</code> 提供文件材料。验证证据沿原调用 ID 查回成功的配对结果，重复 ID 则无法唯一定位。助理的“测试通过”没有对应工具结果，不能作为这里的验证证据。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/controlled_learning.py#L181" rel="noopener" target="_blank">src/ruocun/agent/controlled_learning.py · 第 181–206 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>26 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="181"></span><span data-line="182"></span><span data-line="183"></span><span data-line="184"></span><span data-line="185"></span><span data-line="186"></span><span data-line="187"></span><span data-line="188"></span><span data-line="189"></span><span data-line="190"></span><span data-line="191"></span><span data-line="192"></span><span data-line="193"></span><span data-line="194"></span><span data-line="195"></span><span data-line="196"></span><span data-line="197"></span><span data-line="198"></span><span data-line="199"></span><span data-line="200"></span><span data-line="201"></span><span data-line="202"></span><span data-line="203"></span><span data-line="204"></span><span data-line="205"></span><span data-line="206"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        identity = message.get(<span class="hljs-string">"</span><span class="hljs-string">tool_call_id</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> message.get(<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>) != <span class="hljs-string">"</span><span class="hljs-string">tool</span><span class="hljs-string">"</span> or not <span class="hljs-built_in">isinstance</span>(identity, <span class="hljs-built_in">str</span>) or identity not in calls or identity in used:
+            <span class="hljs-keyword">continue</span>
+        used.add(identity)
+        call = calls[identity]
+        function = call.get(<span class="hljs-string">"</span><span class="hljs-string">function</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> not <span class="hljs-built_in">isinstance</span>(function, <span class="hljs-built_in">dict</span>):
+            <span class="hljs-keyword">continue</span>
+        name, arguments, text = function.get(<span class="hljs-string">"</span><span class="hljs-string">name</span><span class="hljs-string">"</span>), _arguments(call), _text(message)
+        <span class="hljs-keyword">if</span> not text or findSecrets(text):
+            <span class="hljs-keyword">continue</span>
+        item: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any] = {<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>: <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">t</span><span class="hljs-string">{</span>index<span class="hljs-string">}</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">tool_call_id</span><span class="hljs-string">"</span>: identity, <span class="hljs-string">"</span><span class="hljs-string">tool</span><span class="hljs-string">"</span>: name, <span class="hljs-string">"</span><span class="hljs-string">position</span><span class="hljs-string">"</span>: index}
+        <span class="hljs-keyword">if</span> name in {<span class="hljs-string">"</span><span class="hljs-string">Read</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">Write</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">Edit</span><span class="hljs-string">"</span>}:
+            path = arguments.get(<span class="hljs-string">"</span><span class="hljs-string">path</span><span class="hljs-string">"</span>, arguments.get(<span class="hljs-string">"</span><span class="hljs-string">file_path</span><span class="hljs-string">"</span>))
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(path, <span class="hljs-built_in">str</span>) and path and <span class="hljs-built_in">len</span>(path) &lt;= <span class="hljs-number">256</span> and not findSecrets(path):
+                item.update(kind=<span class="hljs-string">"</span><span class="hljs-string">file</span><span class="hljs-string">"</span>, source=path, text=text[:<span class="hljs-number">2400</span>])
+                evidence.append(item)
+        <span class="hljs-keyword">elif</span> name == <span class="hljs-string">"</span><span class="hljs-string">Bash</span><span class="hljs-string">"</span>:
+            command = arguments.get(<span class="hljs-string">"</span><span class="hljs-string">command</span><span class="hljs-string">"</span>)
+            <span class="hljs-keyword">if</span> not <span class="hljs-built_in">isinstance</span>(command, <span class="hljs-built_in">str</span>) or <span class="hljs-built_in">len</span>(command) &gt; <span class="hljs-number">1024</span> or findSecrets(command):
+                <span class="hljs-keyword">continue</span>
+            <span class="hljs-keyword">if</span> registered := _BACKGROUND.match(text):
+                background[registered[<span class="hljs-number">1</span>]] = command
+            <span class="hljs-keyword">if</span> _validation_command(command) and _successful(text):
+                item.update(kind=<span class="hljs-string">"</span><span class="hljs-string">validation</span><span class="hljs-string">"</span>, command=command, text=text[-<span class="hljs-number">3000</span>:])
+                evidence.append(item)</code></pre></div></figure>
+<p>这里 <code>identity</code> 查回原 <code>Bash</code> 调用的命令，程序要求受支持的验证命令形状及成功输出。后台 <code>BashOutput</code> 还要能用运行 ID 连回原命令，且结果已退出并确认成功。<code>Read</code> 里的源码纵然包含测试字符串，也只能作为文件材料。线索规则是保守启发，表达含糊或命令形状不在识别范围时可能跳过，技术意义也要由具体断言说明。</p>
+</section><section class="design-section" id="citation-screen"><h3>2.2 原文摘录与来源资格由程序检查</h3>
+<p>有候选线索时，模型收到用户原文、工具证据与少量已有记忆摘要，输出提议的分类、标题、要点、适用条件、动作和引用。引用写成 <code>{"id":"t4","quote":"…"}</code>，这里的 <code>t4</code> 是证据包中的身份，仍能回到实际工具调用。程序要求每份候选引用 1 至 3 条，每个摘录是对应证据里的连续原文，并检查字段长度和疑似秘密。模型只负责提议，不能自行指定作用域、锁定或置信度。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/controlled_learning.py#L306" rel="noopener" target="_blank">src/ruocun/agent/controlled_learning.py · 第 306–330 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>25 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="306"></span><span data-line="307"></span><span data-line="308"></span><span data-line="309"></span><span data-line="310"></span><span data-line="311"></span><span data-line="312"></span><span data-line="313"></span><span data-line="314"></span><span data-line="315"></span><span data-line="316"></span><span data-line="317"></span><span data-line="318"></span><span data-line="319"></span><span data-line="320"></span><span data-line="321"></span><span data-line="322"></span><span data-line="323"></span><span data-line="324"></span><span data-line="325"></span><span data-line="326"></span><span data-line="327"></span><span data-line="328"></span><span data-line="329"></span><span data-line="330"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    references = value.get(<span class="hljs-string">"</span><span class="hljs-string">evidence</span><span class="hljs-string">"</span>)
+    <span class="hljs-keyword">if</span> not <span class="hljs-built_in">isinstance</span>(references, <span class="hljs-built_in">list</span>) or not <span class="hljs-number">1</span> &lt;= <span class="hljs-built_in">len</span>(references) &lt;= <span class="hljs-number">3</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">None</span>
+    by_id = {item[<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>]: item <span class="hljs-keyword">for</span> item in evidence}
+    cited: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any]] = []
+    <span class="hljs-keyword">for</span> reference in references:
+        <span class="hljs-keyword">if</span> not <span class="hljs-built_in">isinstance</span>(reference, <span class="hljs-built_in">dict</span>) or <span class="hljs-built_in">set</span>(reference) != {<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">quote</span><span class="hljs-string">"</span>}:
+            <span class="hljs-keyword">return</span> <span class="hljs-keyword">None</span>
+        <span class="hljs-keyword">if</span> not <span class="hljs-built_in">isinstance</span>(reference.get(<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>), <span class="hljs-built_in">str</span>):
+            <span class="hljs-keyword">return</span> <span class="hljs-keyword">None</span>
+        item, quote = by_id.get(reference[<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>]), reference.get(<span class="hljs-string">"</span><span class="hljs-string">quote</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> (item is <span class="hljs-keyword">None</span> or not <span class="hljs-built_in">isinstance</span>(quote, <span class="hljs-built_in">str</span>) or not <span class="hljs-number">8</span> &lt;= <span class="hljs-built_in">len</span>(quote.strip()) &lt;= <span class="hljs-number">240</span>
+                or quote not in item[<span class="hljs-string">"</span><span class="hljs-string">text</span><span class="hljs-string">"</span>] or findSecrets(quote)):
+            <span class="hljs-keyword">return</span> <span class="hljs-keyword">None</span>
+        cited.append({<span class="hljs-string">"</span><span class="hljs-string">evidence</span><span class="hljs-string">"</span>: item, <span class="hljs-string">"</span><span class="hljs-string">quote</span><span class="hljs-string">"</span>: quote})
+    category = value[<span class="hljs-string">"</span><span class="hljs-string">category</span><span class="hljs-string">"</span>]
+    user_cited = <span class="hljs-built_in">any</span>(item[<span class="hljs-string">"</span><span class="hljs-string">evidence</span><span class="hljs-string">"</span>][<span class="hljs-string">"</span><span class="hljs-string">kind</span><span class="hljs-string">"</span>] == <span class="hljs-string">"</span><span class="hljs-string">user</span><span class="hljs-string">"</span> and item[<span class="hljs-string">"</span><span class="hljs-string">evidence</span><span class="hljs-string">"</span>].get(<span class="hljs-string">"</span><span class="hljs-string">cue</span><span class="hljs-string">"</span>) <span class="hljs-keyword">for</span> item in cited)
+    validation_cited = <span class="hljs-built_in">any</span>(item[<span class="hljs-string">"</span><span class="hljs-string">evidence</span><span class="hljs-string">"</span>][<span class="hljs-string">"</span><span class="hljs-string">kind</span><span class="hljs-string">"</span>] == <span class="hljs-string">"</span><span class="hljs-string">validation</span><span class="hljs-string">"</span> <span class="hljs-keyword">for</span> item in cited)
+    source = value.get(<span class="hljs-string">"</span><span class="hljs-string">source</span><span class="hljs-string">"</span>)
+    source_hash = <span class="hljs-keyword">None</span>
+    validation_snapshot: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">str</span>]] = {}
+    <span class="hljs-keyword">if</span> category == <span class="hljs-string">"</span><span class="hljs-string">user_correction</span><span class="hljs-string">"</span> or category == <span class="hljs-string">"</span><span class="hljs-string">project_convention</span><span class="hljs-string">"</span> and user_cited:
+        <span class="hljs-keyword">if</span> not user_cited or source not in {<span class="hljs-keyword">None</span>, <span class="hljs-string">"</span><span class="hljs-string">user_stated</span><span class="hljs-string">"</span>}:
+            <span class="hljs-keyword">return</span> <span class="hljs-keyword">None</span>
+        source = <span class="hljs-string">"</span><span class="hljs-string">user_stated</span><span class="hljs-string">"</span></code></pre></div></figure>
+<p>引用当前用户纠正的原话时，来源记为 <code>user_stated</code>，稳定项目约定也可以走这个来源。技术做法必须同时引用文件与成功验证，绑定当前项目中可核对的实际文件。引用的成功检查不能早于有关文件材料和已观察到的编辑。文件证据创建候选的资格，待办、临时进度和无条件的成功宣称则没有这个用途。</p>
+</section></section>
+<section class="v2-topic-group" id="learning-source">
+<header class="v2-group-heading"><span>03</span><h2>验证版本与发布版本</h2></header><div class="design-section">
+</div><section class="design-section" id="validate-source-version"><h3>3.1 验证边界为每个调用 ID 留一份来源快照</h3>
+<p>若等分析模型回答后才首次计算文件哈希，本例会把 <code>S2</code> 错配给 <code>v12</code>。RuoCun 在工具结果保存的观察边界捕获当下文件的内容哈希，按验证调用 ID 只记一次。即便没有捕获到可用文件，也保留空快照，后来重读同一条会话时不能补成当前版本。它观察此前已有工具证据的项目内常规文件，规模受至多 16 个文件、单文件 256 KiB 等限制。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/controlled_learning.py#L261" rel="noopener" target="_blank">src/ruocun/agent/controlled_learning.py · 第 261–283 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>23 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="261"></span><span data-line="262"></span><span data-line="263"></span><span data-line="264"></span><span data-line="265"></span><span data-line="266"></span><span data-line="267"></span><span data-line="268"></span><span data-line="269"></span><span data-line="270"></span><span data-line="271"></span><span data-line="272"></span><span data-line="273"></span><span data-line="274"></span><span data-line="275"></span><span data-line="276"></span><span data-line="277"></span><span data-line="278"></span><span data-line="279"></span><span data-line="280"></span><span data-line="281"></span><span data-line="282"></span><span data-line="283"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    evidence = _evidence(messages)
+    <span class="hljs-keyword">for</span> check in evidence:
+        identity = check.get(<span class="hljs-string">"</span><span class="hljs-string">tool_call_id</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> check[<span class="hljs-string">"</span><span class="hljs-string">kind</span><span class="hljs-string">"</span>] != <span class="hljs-string">"</span><span class="hljs-string">validation</span><span class="hljs-string">"</span> or not <span class="hljs-built_in">isinstance</span>(identity, <span class="hljs-built_in">str</span>) or identity in snapshots:
+            <span class="hljs-keyword">continue</span>
+        observed: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">str</span>] = {}
+        <span class="hljs-keyword">for</span> item in evidence:
+            <span class="hljs-keyword">if</span> item[<span class="hljs-string">"</span><span class="hljs-string">kind</span><span class="hljs-string">"</span>] != <span class="hljs-string">"</span><span class="hljs-string">file</span><span class="hljs-string">"</span> or item[<span class="hljs-string">"</span><span class="hljs-string">position</span><span class="hljs-string">"</span>] &gt; check[<span class="hljs-string">"</span><span class="hljs-string">position</span><span class="hljs-string">"</span>]:
+                <span class="hljs-keyword">continue</span>
+            relative = _relative_source(cwd, item[<span class="hljs-string">"</span><span class="hljs-string">source</span><span class="hljs-string">"</span>])
+            <span class="hljs-keyword">if</span> relative is <span class="hljs-keyword">None</span> or relative in observed:
+                <span class="hljs-keyword">continue</span>
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(observed) &gt;= MAX_SOURCE_FILES:
+                <span class="hljs-keyword">break</span>
+            <span class="hljs-keyword">try</span>:
+                <span class="hljs-keyword">with</span> (cwd / relative).open(<span class="hljs-string">"</span><span class="hljs-string">rb</span><span class="hljs-string">"</span>) <span class="hljs-keyword">as</span> stream:
+                    raw = stream.read(MAX_SOURCE_BYTES + <span class="hljs-number">1</span>)
+            <span class="hljs-keyword">except</span> OSError:
+                <span class="hljs-keyword">continue</span>
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(raw) &gt; MAX_SOURCE_BYTES:
+                <span class="hljs-keyword">continue</span>
+            observed[relative] = contentHash(raw.decode(<span class="hljs-string">"</span><span class="hljs-string">utf-8</span><span class="hljs-string">"</span>, errors=<span class="hljs-string">"</span><span class="hljs-string">replace</span><span class="hljs-string">"</span>))
+        snapshots.setdefault(identity, observed)</code></pre></div></figure>
+<p>筛选时既检查证据顺序，也要求当前读到的文件哈希与至少一个被引用验证的快照匹配。现在改变开场里的一个时间点。编辑发生得更晚，候选通过初筛之后才动文件，也没有产生新的会话工具回包。用下图判断，单靠回看聊天记录，能不能发现这次变化？</p>
+<figure class="reasoning-figure">
+<figcaption>源码推演 · 验证和候选都显示 S1，但此时磁盘上是什么？</figcaption>
+<div class="reasoning-grid">
+<section><h4>验证 v12</h4><p>成功回包，捕获到 <code>pricing/preview.py → S1</code>。</p></section>
+<section><h4>候选通过初筛</h4><p>磁盘还是 <code>S1</code>，候选保存 <code>source_hash=S1</code>，引用 <code>v12</code>。</p></section>
+<section data-outcome="failure"><h4>即将发布</h4><p>文件被外部编辑成 <code>S2</code>，对话里的 <code>v12</code> 仍指向 <code>S1</code>。</p></section>
+</div>
+</figure>
+<details class="answer-box"><summary>核对候选还能否发布</summary><div><p>不能将它发布为当前已验证做法。对话记录确实保留了成功凭据，可它的文件身份是 <code>S1</code>。只有在发布前读取当前文件，才有机会发现已变成 <code>S2</code>。</p></div></details>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/controlled_learning.py#L437" rel="noopener" target="_blank">src/ruocun/agent/controlled_learning.py · 第 437–453 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>17 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="437"></span><span data-line="438"></span><span data-line="439"></span><span data-line="440"></span><span data-line="441"></span><span data-line="442"></span><span data-line="443"></span><span data-line="444"></span><span data-line="445"></span><span data-line="446"></span><span data-line="447"></span><span data-line="448"></span><span data-line="449"></span><span data-line="450"></span><span data-line="451"></span><span data-line="452"></span><span data-line="453"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">for</span> record, memory in <span class="hljs-built_in">zip</span>(records, memories, strict=<span class="hljs-keyword">True</span>):
+        <span class="hljs-keyword">if</span> signal is not <span class="hljs-keyword">None</span> and signal.is_set():
+            <span class="hljs-keyword">raise</span> InterruptedError(<span class="hljs-string">"</span><span class="hljs-string">受控经验写入已取消。</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> (not <span class="hljs-built_in">isinstance</span>(record, <span class="hljs-built_in">dict</span>) or record.get(<span class="hljs-string">"</span><span class="hljs-string">memory</span><span class="hljs-string">"</span>) != memory or not <span class="hljs-built_in">isinstance</span>(memory, <span class="hljs-built_in">dict</span>)
+                or memory.get(<span class="hljs-string">"</span><span class="hljs-string">type</span><span class="hljs-string">"</span>) != <span class="hljs-string">"</span><span class="hljs-string">semantic</span><span class="hljs-string">"</span> or memory.get(<span class="hljs-string">"</span><span class="hljs-string">importance</span><span class="hljs-string">"</span>) != <span class="hljs-number">5</span>
+                or not <span class="hljs-built_in">isinstance</span>(memory.get(<span class="hljs-string">"</span><span class="hljs-string">text</span><span class="hljs-string">"</span>), <span class="hljs-built_in">str</span>) or not memory[<span class="hljs-string">"</span><span class="hljs-string">text</span><span class="hljs-string">"</span>].startswith(_MARKER)
+                or <span class="hljs-built_in">len</span>(memory[<span class="hljs-string">"</span><span class="hljs-string">text</span><span class="hljs-string">"</span>]) &gt; MAX_RECORD_CHARS or findSecrets(<span class="hljs-built_in">str</span>(memory))):
+            <span class="hljs-keyword">continue</span>
+        source = memory.get(<span class="hljs-string">"</span><span class="hljs-string">source</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> source != <span class="hljs-string">"</span><span class="hljs-string">user_stated</span><span class="hljs-string">"</span>:
+            <span class="hljs-keyword">if</span> (not <span class="hljs-built_in">isinstance</span>(source, <span class="hljs-built_in">str</span>) or _relative_source(store.cwd, source) != source
+                    or not record.get(<span class="hljs-string">"</span><span class="hljs-string">source_hash</span><span class="hljs-string">"</span>) or <span class="hljs-keyword">await</span> hashMemorySource(store.cwd, source) != record[<span class="hljs-string">"</span><span class="hljs-string">source_hash</span><span class="hljs-string">"</span>]
+                    or not <span class="hljs-built_in">any</span>(snapshot.get(source) == record[<span class="hljs-string">"</span><span class="hljs-string">source_hash</span><span class="hljs-string">"</span>]
+                               <span class="hljs-keyword">for</span> snapshot in record.get(<span class="hljs-string">"</span><span class="hljs-string">validation_sources</span><span class="hljs-string">"</span>, {}).values())):
+                <span class="hljs-keyword">continue</span>
+        <span class="hljs-keyword">elif</span> record.get(<span class="hljs-string">"</span><span class="hljs-string">source_hash</span><span class="hljs-string">"</span>) is not <span class="hljs-keyword">None</span>:
+            <span class="hljs-keyword">continue</span></code></pre></div></figure>
+<p>发布循环把磁盘哈希与候选的 <code>source_hash</code> 对照，还要确认其中一份实际验证快照也包含同一哈希。少了任一份便走 <code>continue</code>。<strong>「保留验证当时的文件身份，发布时重新核对同一版本」</strong>。这需要保存验证快照并重新读取来源文件。未能捕获快照的技术做法会少积累一些，哈希对得上也仍要核对实际断言覆盖什么。</p>
+</section><section class="design-section" id="memory-store-cas"><h3>3.2 发布只触及可核对的本项目自动条目</h3>
+<p>候选文本写入时带适用条件、做法和原文证据，保存为本项目的 <code>semantic</code> 记录。同名的普通条目、锁定记录或只读兼容记录会挡住自动覆盖。只有同时符合名称、标题和本地自动条目条件，才可能更新并保留创建时间和原使用计数。最后更新前还要比对准备写入时看到的旧版本。若那条记忆在这期间有人改过，就让这次写入停下。<a href="10-工具可能已经执行.html#durable-commit" rel="noopener" target="_blank">会话检查点</a>也靠版本比对阻止旧结果覆盖新输入，此处保护的是单条记忆。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/controlled_learning.py#L457" rel="noopener" target="_blank">src/ruocun/agent/controlled_learning.py · 第 457–473 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>17 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="457"></span><span data-line="458"></span><span data-line="459"></span><span data-line="460"></span><span data-line="461"></span><span data-line="462"></span><span data-line="463"></span><span data-line="464"></span><span data-line="465"></span><span data-line="466"></span><span data-line="467"></span><span data-line="468"></span><span data-line="469"></span><span data-line="470"></span><span data-line="471"></span><span data-line="472"></span><span data-line="473"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">if</span> <span class="hljs-built_in">any</span>(entry.memory.text == memory[<span class="hljs-string">"</span><span class="hljs-string">text</span><span class="hljs-string">"</span>] <span class="hljs-keyword">for</span> entry in entries):
+            <span class="hljs-keyword">continue</span>
+        name = <span class="hljs-string">"</span><span class="hljs-string">auto-</span><span class="hljs-string">"</span> + slug(title)
+        matches = [entry <span class="hljs-keyword">for</span> entry in entries <span class="hljs-keyword">if</span> entry.memory.name == name
+                   or entry.memory.title and slug(entry.memory.title) == slug(title)]
+        expected = <span class="hljs-built_in">next</span>((entry <span class="hljs-keyword">for</span> entry in matches <span class="hljs-keyword">if</span> _existing_auto(entry) and entry.memory.name == name
+                         and (entry.memory.title or <span class="hljs-string">"</span><span class="hljs-string">"</span>).strip().casefold() == title.strip().casefold()), <span class="hljs-keyword">None</span>)
+        <span class="hljs-keyword">if</span> matches and (expected is <span class="hljs-keyword">None</span> or <span class="hljs-built_in">len</span>(matches) != <span class="hljs-number">1</span>):
+            <span class="hljs-keyword">continue</span>
+        candidate = newMemory(name=name, title=title, text=memory[<span class="hljs-string">"</span><span class="hljs-string">text</span><span class="hljs-string">"</span>], <span class="hljs-built_in">type</span>=<span class="hljs-string">"</span><span class="hljs-string">semantic</span><span class="hljs-string">"</span>, today=today,
+                              importance=<span class="hljs-number">5</span>, source=source, sourceHash=record.get(<span class="hljs-string">"</span><span class="hljs-string">source_hash</span><span class="hljs-string">"</span>))
+        <span class="hljs-keyword">if</span> expected is not <span class="hljs-keyword">None</span>:
+            candidate = replace(candidate, created=expected.memory.created, uses=expected.memory.uses)
+        <span class="hljs-keyword">if</span> <span class="hljs-keyword">await</span> store.publishExpected(<span class="hljs-string">"</span><span class="hljs-string">project</span><span class="hljs-string">"</span>, candidate, expected, preserveOriginal=expected is not <span class="hljs-keyword">None</span>, signal=signal):
+            added += <span class="hljs-built_in">int</span>(expected is <span class="hljs-keyword">None</span>)
+            merged += <span class="hljs-built_in">int</span>(expected is not <span class="hljs-keyword">None</span>)
+            entries = <span class="hljs-keyword">await</span> store.load()</code></pre></div></figure>
+</section></section>
+<section class="v2-topic-group" id="learning-lifecycle">
+<header class="v2-group-heading"><span>04</span><h2>分析预算、取消与写入确认</h2></header><div class="design-section">
+</div><section class="design-section" id="bounded-analysis"><h3>4.1 只在有证据时发有限的分析请求</h3>
+<p>受控积累是独立选项，源码里的 CLI 默认 <code>off</code>。显式启用并符合交互条件时，单次启动至多安排 6 次分析。一次分析最多 12000 字符的提示与证据包，输出上限 1024 token，并关闭重试和工具，最多接纳 2 条记录，每条正文不超过 1800 字符。超长、疑似秘密和无法解析的候选被筛掉。附加请求用量记入模型账，受控分析未拿到用量或分析失败会暂停该启动后续自动学习，普通任务仍可继续。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/reflection_runtime.py#L137" rel="noopener" target="_blank">src/ruocun/agent/reflection_runtime.py · 第 137–158 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>22 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="137"></span><span data-line="138"></span><span data-line="139"></span><span data-line="140"></span><span data-line="141"></span><span data-line="142"></span><span data-line="143"></span><span data-line="144"></span><span data-line="145"></span><span data-line="146"></span><span data-line="147"></span><span data-line="148"></span><span data-line="149"></span><span data-line="150"></span><span data-line="151"></span><span data-line="152"></span><span data-line="153"></span><span data-line="154"></span><span data-line="155"></span><span data-line="156"></span><span data-line="157"></span><span data-line="158"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>.controlled:
+            messages = copy.deepcopy(<span class="hljs-built_in">self</span>.session.messages)
+            reason = (<span class="hljs-string">"</span><span class="hljs-string">analysis_failed</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>.controlled_budget.get(<span class="hljs-string">"</span><span class="hljs-string">halted</span><span class="hljs-string">"</span>) <span class="hljs-keyword">else</span>
+                      <span class="hljs-string">"</span><span class="hljs-string">analysis_limit</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>.controlled_budget.get(<span class="hljs-string">"</span><span class="hljs-string">analyses</span><span class="hljs-string">"</span>, <span class="hljs-number">0</span>) &gt;= <span class="hljs-number">6</span> <span class="hljs-keyword">else</span>
+                      <span class="hljs-string">"</span><span class="hljs-string">no_learning_evidence</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> not hasLearningEvidence(messages) <span class="hljs-keyword">else</span> <span class="hljs-keyword">None</span>)
+            <span class="hljs-keyword">if</span> reason is not <span class="hljs-keyword">None</span>:
+                state.update(<span class="hljs-built_in">id</span>=identity, phase=<span class="hljs-string">"</span><span class="hljs-string">skipped</span><span class="hljs-string">"</span>, controlled=<span class="hljs-keyword">True</span>, reason=reason)
+                <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.conversation.set_reflection_state(<span class="hljs-built_in">self</span>.session, state)
+                <span class="hljs-keyword">if</span> reason == <span class="hljs-string">"</span><span class="hljs-string">analysis_limit</span><span class="hljs-string">"</span> and not <span class="hljs-built_in">self</span>.limit_noticed:
+                    <span class="hljs-built_in">self</span>.notice(<span class="hljs-string">"</span><span class="hljs-string">本次启动已达到6次自动学习分析上限；已有记忆仍可读取，手动记忆工具仍可使用。</span><span class="hljs-string">"</span>)
+                    <span class="hljs-built_in">self</span>.limit_noticed = <span class="hljs-keyword">True</span>
+                <span class="hljs-keyword">return</span>
+            state.update(<span class="hljs-built_in">id</span>=identity, phase=<span class="hljs-string">"</span><span class="hljs-string">analyzing</span><span class="hljs-string">"</span>, controlled=<span class="hljs-keyword">True</span>)
+            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.conversation.set_reflection_state(<span class="hljs-built_in">self</span>.session, state)
+            <span class="hljs-built_in">self</span>.controlled_budget[<span class="hljs-string">"</span><span class="hljs-string">analyses</span><span class="hljs-string">"</span>] = <span class="hljs-built_in">self</span>.controlled_budget.get(<span class="hljs-string">"</span><span class="hljs-string">analyses</span><span class="hljs-string">"</span>, <span class="hljs-number">0</span>) + <span class="hljs-number">1</span>
+            <span class="hljs-built_in">self</span>.analysis_cancelled = cancelled <span class="hljs-keyword">if</span> cancelled is not <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> <span class="hljs-keyword">lambda</span>: <span class="hljs-keyword">False</span>
+            <span class="hljs-built_in">self</span>.identity = identity
+            <span class="hljs-built_in">self</span>.task = asyncio.create_task(<span class="hljs-built_in">self</span>.analyze(messages), name=<span class="hljs-string">"</span><span class="hljs-string">ruocun-controlled-learning</span><span class="hljs-string">"</span>)
+            <span class="hljs-comment"># 普通 /exit 会触发退出取消，先在当前配对边界收尾，</span>
+            <span class="hljs-comment"># 让已完成的经验有机会保存。</span>
+            <span class="hljs-keyword">await</span> asyncio.wait({<span class="hljs-built_in">self</span>.task})
+            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.drain()</code></pre></div></figure>
+<p>代码在独立任务中运行分析，原回合在工具结果已配对的边界等待。沿用<a href="11-任务在跑时用户又说话.html#interactive-generation" rel="noopener" target="_blank">回合代次</a>来判定返回的结果还归谁。例如分析属于第 12 代，在用户暂停而使第 12 代失效后才返回，就不能写到第 13 代里。取消信号也检查退出与原回合中断，走到写入前再核一次。这样可以在分析时放开工具锁，又能在写入前阻止迟到结果。</p>
+</section><section class="design-section" id="learning-write-intent"><h3>4.2 先保存候选状态，再登记写入意图</h3>
+<p><code>ready</code> 只登记已备好的候选。真正动记忆文件时，再按<a href="10-工具可能已经执行.html#durable-journal" rel="noopener" target="_blank">执行前意图、执行后收据</a>做两次记录。这次操作的类型叫 <code>ReflectMemory</code>，拿到可靠结果才可转 <code>applied</code>。已有可信收据就从收据继续，效果未确认就留在未决状态。<strong>「能重算候选，与能重放一次记忆写入是两件事」</strong>。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/reflection_runtime.py#L94" rel="noopener" target="_blank">src/ruocun/agent/reflection_runtime.py · 第 94–120 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>27 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="94"></span><span data-line="95"></span><span data-line="96"></span><span data-line="97"></span><span data-line="98"></span><span data-line="99"></span><span data-line="100"></span><span data-line="101"></span><span data-line="102"></span><span data-line="103"></span><span data-line="104"></span><span data-line="105"></span><span data-line="106"></span><span data-line="107"></span><span data-line="108"></span><span data-line="109"></span><span data-line="110"></span><span data-line="111"></span><span data-line="112"></span><span data-line="113"></span><span data-line="114"></span><span data-line="115"></span><span data-line="116"></span><span data-line="117"></span><span data-line="118"></span><span data-line="119"></span><span data-line="120"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> <span class="hljs-built_in">self</span>.conversation.agent_tool_batches:
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>.controlled and <span class="hljs-built_in">self</span>.analysis_cancelled():
+                state.pop(<span class="hljs-string">"</span><span class="hljs-string">result</span><span class="hljs-string">"</span>, <span class="hljs-keyword">None</span>)
+                state.update(phase=<span class="hljs-string">"</span><span class="hljs-string">skipped</span><span class="hljs-string">"</span>, reason=<span class="hljs-string">"</span><span class="hljs-string">cancelled_controlled_learning</span><span class="hljs-string">"</span>)
+                <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.conversation.set_reflection_state(<span class="hljs-built_in">self</span>.session, state)
+                <span class="hljs-keyword">return</span>
+            <span class="hljs-keyword">try</span>:
+                cached = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.conversation.scoped_intent(
+                    ref, <span class="hljs-string">"</span><span class="hljs-string">ReflectMemory</span><span class="hljs-string">"</span>, args, <span class="hljs-keyword">True</span>, agent_run=RunRef(<span class="hljs-string">"</span><span class="hljs-string">reflect</span><span class="hljs-string">"</span>, identity),
+                    approval_ref=<span class="hljs-string">"</span><span class="hljs-string">controlled-memory-learning-enabled</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>.controlled <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">reflect-memory-enabled</span><span class="hljs-string">"</span>)
+                <span class="hljs-keyword">if</span> cached is <span class="hljs-keyword">None</span>:
+                    <span class="hljs-comment"># 修改任何记忆文件前，先取得执行意图的持久化确认。</span>
+                    applied = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.apply(result)
+                    <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.conversation.scoped_result(ref, json.dumps(applied, ensure_ascii=<span class="hljs-keyword">False</span>))
+                <span class="hljs-keyword">else</span>:
+                    applied = json.loads(cached) <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(cached, <span class="hljs-built_in">str</span>) <span class="hljs-keyword">else</span> cached
+                quiet = (<span class="hljs-built_in">self</span>.controlled or <span class="hljs-built_in">bool</span>(result.get(<span class="hljs-string">"</span><span class="hljs-string">onTrack</span><span class="hljs-string">"</span>, <span class="hljs-keyword">True</span>))) and not (applied.get(<span class="hljs-string">"</span><span class="hljs-string">added</span><span class="hljs-string">"</span>) or applied.get(<span class="hljs-string">"</span><span class="hljs-string">merged</span><span class="hljs-string">"</span>))
+                cadence = applyOutcome(state.get(<span class="hljs-string">"</span><span class="hljs-string">cadence</span><span class="hljs-string">"</span>, initCadence()), quiet, <span class="hljs-built_in">self</span>.maximum)
+                advice = <span class="hljs-keyword">None</span> <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>.controlled <span class="hljs-keyword">else</span> result.get(<span class="hljs-string">"</span><span class="hljs-string">advisory</span><span class="hljs-string">"</span>)
+                <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.conversation.set_reflection_state(
+                    <span class="hljs-built_in">self</span>.session, {<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>: identity, <span class="hljs-string">"</span><span class="hljs-string">phase</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">applied</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">cadence</span><span class="hljs-string">"</span>: cadence},
+                    advisories=[<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">[反思]</span><span class="hljs-string">\n</span><span class="hljs-string">{</span>advice<span class="hljs-string">}</span><span class="hljs-string">"</span>] <span class="hljs-keyword">if</span> advice <span class="hljs-keyword">else</span> ())
+            <span class="hljs-keyword">except</span> BaseException:
+                <span class="hljs-comment"># 前面的部分文件可能已经提交，保留这次执行的意图记录。</span>
+                <span class="hljs-comment"># 停止写入，避免用重试或新 ID 覆盖未确认的结果。</span>
+                <span class="hljs-built_in">self</span>.stopped = <span class="hljs-built_in">self</span>.conversation.blocked = <span class="hljs-keyword">True</span>
+                <span class="hljs-keyword">raise</span></code></pre></div></figure>
+<p>这些关口证明经验候选可以由可追溯证据产生并受控保存。它们无法由一次顺利发布给出实际收益。观察同类任务在可比条件下是否少犯旧错、额外请求耗费多少、人工核对省了多少，才能回答自动积累值不值得开。</p>
+</section></section>
+<section class="v2-topic-group" id="article-assessment">
+<header class="v2-group-heading"><span>05</span><h2>学习效果检测</h2></header><div class="design-section">
+</div><section class="design-section" id="article-assessment-1">
+<h3>5.1 核对经验候选的证据与发布条件</h3>
+<p><strong>1．</strong>读流程 · 文件从 S1 变 S2，又变回 S1，但测试之后已有相关 Edit 记录，旧检查够吗？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>程序还检查证据中编辑与验证的相对位置。被引用验证早于已观察的相关编辑时，文件最终字节相同也不能用来跳过这一条件。找最后编辑后的实际验证。</p></div></details>
+<p><strong>2．</strong> 测试 <code>v21</code> 返回 0，当时没有捕获到被测文件的版本。随后文件被重新生成，Read 现在取得了它的内容哈希。有人要把这个哈希补给 v21，再保存为已验证经验。哪步缺证据，怎样补？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>v21 的成功回包能证明那次检查退出正常，缺的是验证当时对应哪版文件。今天的哈希不能倒填。确认当前来源和测试确实针对目标，在当前版本重新验证，取得新的调用、配对回包及观察到的版本，再考虑发布经验。</p></div></details>
+</section><div class="design-section">
+</div></section>
+<section class="v2-topic-group" id="article-interview">
+<header class="v2-group-heading"><span>06</span><h2>模拟面试官提问</h2></header><div class="design-section">
+</div><section class="design-section" id="intern-learning"><h3>6.1 Agent 开发实习</h3>
+<h4>独立核心题</h4>
+<p><strong>自动记忆为什么不把每次任务的总结都存起来？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>“能复用的经验要写出适用条件、具体动作和证据。任务过程往往只是临时进度。我们只给明确纠错、稳定约定和已验证做法一次候选机会。”例如用户纠错引用原话，技术做法还要引用文件和实际回包。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>如何判断一次验证确实支持这条经验？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>“我会先找调用和回包配对，再查断言与来源版本。”</p></div></details>
+<p><strong>追问 1</strong> 助理写“已通过”够吗？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>它没有配对的工具证据。</p></div></details>
+<p><strong>追问 2</strong> 实际命令通过后改过文件呢？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>检查对应旧文件，需要最后修改后的证据。</p></div></details>
+<p><strong>追问 3</strong> 源文件未变能证明普遍正确吗？</p>
+<details class="answer-box"><summary>展开追问 3 回答</summary><div><p>它支持本条件下的观察，扩大条件需要另查。</p></div></details>
+</section><section class="design-section" id="harness-learning"><h3>6.2 Agent harness 岗位</h3>
+<h4>独立核心题</h4>
+<p><strong>为什么让程序保存分析候选和写入意图两类状态？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>“分析只产生数据。动记忆库才产生持久副作用，所以要另登记执行意图和结果。崩溃后需要判断从未动过、已确知结果，还是可能动过但无确认。”代码用 <code>ready</code> 与 <code>scoped_intent</code> 表达这两个阶段。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>分析迟到或中途退出怎么安排？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>“把学习绑定到原工作代次，醒来和进写锁前都核对取消。可提交的结果还得过有明确身份的意图和收据。”</p></div></details>
+<p><strong>追问 1</strong> 分析完成时原代次已失效呢？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>丢弃未应用结果。</p></div></details>
+<p><strong>追问 2</strong> 开始改文件后中断呢？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>保留未决意图进入恢复。</p></div></details>
+<p><strong>追问 3</strong> 结果已确认但界面没显示呢？</p>
+<details class="answer-box"><summary>展开追问 3 回答</summary><div><p>使用可信收据续接确认后的步骤。</p></div></details>
+</section></section>
+<section class="v2-topic-group" id="article-takeaways">
+<header class="v2-group-heading"><span>07</span><h2>这一篇带走什么</h2></header><div class="design-section">
+<p>受控积累从当前用户和真实工具证据提出经验，筛选来源、适用条件与版本后，沿独立的写入意图和收据发布到本项目。</p>
+<ul class="pilot-takeaways"><li>需要学习运行经验时，引用已配对的命令和结果，把文件版本记录在验证边界，发布前再核对。</li><li>允许自动写入时，把来源、字符和次数限制放在程序关口，已有普通条目和锁定内容保留主权。</li><li>把分析完成、持久写入确认与实际提效分开判断。写入不明时保留意图，质量与成本收益用可比任务观测。</li></ul>
+<p>反思从这次任务的具体证据提炼经验。项目也可以预先写好一套固定流程，等任务需要时再交给模型。<a href="19-流程怎样按任务加载.html#skill-case" rel="noopener" target="_blank">下一篇</a>从看见流程名称和拿到完整步骤的时间差讲起。</p>
+</div></section>
+</article></main>
+</body>
+</html>

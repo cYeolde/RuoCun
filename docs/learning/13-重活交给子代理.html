@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>重活交给子代理：上下文、能力、消息与工作树隔离 · RuoCun 设计学习</title>
+<link href="assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="assets/ruocun-code.css" rel="stylesheet"/>
+<link href="assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="assets/ruocun-article.css" rel="stylesheet"/>
+<link href="assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="assets/ruocun-textbook.js"></script>
+</head>
+<body class="textbook-read">
+<a class="textbook-skip" href="#subagents">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#subagents">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航">
+<a href="课程学习地图.html" rel="noopener" target="_blank">学习地图</a>
+<a class="textbook-original" href="#article-takeaways">这一篇带走什么</a>
+</nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title">重活交给子代理</div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc" open="">
+<summary>展开文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#isolation-first"><span class="v2-toc-number">1</span><span>约好在独立目录检查，建不出来还能继续吗？</span></a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#separate-session"><span class="v2-toc-number">2</span><span>独立会话、读取状态与角色能力</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#delegate-spec"><span class="v2-toc-number">2.1</span><span>用明确交接材料替代整段调查历史</span></a></li><li><a class="v2-toc-child-link" href="#independent-tool-context"><span class="v2-toc-number">2.2</span><span>读过文件的记录和待办各自建立</span></a></li><li><a class="v2-toc-child-link" href="#lifecycle-admission"><span class="v2-toc-number">2.3</span><span>装配角色资源，确认启动上下文</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#fork-context"><span class="v2-toc-number">3</span><span>Fork 的父历史快照与工具配对</span></a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#filesystem-isolation"><span class="v2-toc-number">4</span><span>工作树创建与成果保留</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#verify-before-dispatch"><span class="v2-toc-number">4.1</span><span>只有核实目录才能派发</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#message-and-handoff"><span class="v2-toc-number">5</span><span>中途通信、完成报告与前后台交接</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#message-kinds"><span class="v2-toc-number">5.1</span><span>普通进度只更新，需决定的事项进入交付队列</span></a></li><li><a class="v2-toc-child-link" href="#foreground-transfer"><span class="v2-toc-number">5.2</span><span>等到配对边界才换接手者</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#continuation"><span class="v2-toc-number">6</span><span>失联后的显式继续</span></a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-assessment"><span class="v2-toc-number">7</span><span>学习效果检测</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#article-assessment-1"><span class="v2-toc-number">7.1</span><span>判断状态继承、隔离与父子通信</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-interview"><span class="v2-toc-number">8</span><span>模拟面试官提问</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#intern-interview"><span class="v2-toc-number">8.1</span><span>Agent 开发实习</span></a></li><li><a class="v2-toc-child-link" href="#harness-interview"><span class="v2-toc-number">8.2</span><span>Agent harness 岗位</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways"><span class="v2-toc-number">9</span><span>这一篇带走什么</span></a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper course-lesson" id="subagents"><header class="design-hero">
+<h1>重活交给子代理</h1><p class="article-subtitle">上下文、能力、消息与工作树隔离</p>
+<p class="target">用一次价格实现调查和独立复核，看清任务、状态、目录和执行权怎样从父代理交给子代理。</p>
+</header>
+<section class="v2-topic-group" id="isolation-first">
+<header class="v2-group-heading"><span>01</span><h2>约好在独立目录检查，建不出来还能继续吗？</h2></header><div class="design-section">
+<p>上一章用<a href="12-长任务怎样有序推进.html#wait-targets" rel="noopener" target="_blank">任务 ID 追到一次真实运行</a>。这次后台结果来自另一个自己会问模型、用工具的执行者，也就是子代理。主代理先派一个子代理找折扣入口，再派另一个试改并复核。父目录 <code>/shop</code> 的 <code>pricing.py</code> 刚调到 90，还未提交。复核员要求 <code>isolation="worktree"</code>，即由 Git 基线 100 在另一个目录展开工作文件。它一启动就调用 <code>Read({"path":"pricing.py"})</code>，对照两个目录：会读到哪个价格，后续 Edit 会落到哪？</p>
+<figure class="reasoning-figure">
+<figcaption>源码推演 · 任务使用相同相对路径，执行目录不同</figcaption>
+<div class="reasoning-grid">
+<section><h4>工作树成功创建</h4><p>复核员的 <code>cwd</code> 指向新工作树 <code>/review</code>，其中基线为 100。</p></section>
+<section data-outcome="failure"><h4>反例 · 假如创建失败仍退回父目录</h4><p>即使给复核员新会话，<code>cwd</code> 仍是 <code>/shop</code>，其中有父代理未提交的 90。</p></section>
+</div>
+</figure>
+<details class="answer-box"><summary>首读自检 · 两次 Read 分别指向哪个文件？哪个试改会动到父任务正在写的文件？</summary><div><p>工作树成功时读的是 <code>/review/pricing.py</code>，值为 100，试改写向新树。退回时读的是 <code>/shop/pricing.py</code>，值为 90，试改会碰父文件。父目录未提交的 90 需要另行提供给复核员，才可能在隔离目录复核该版本。</p></div></details>
+<p>右边是有问题的替代做法。RuoCun 碰到确认的创建失败，会在父会话回报“子代理未派发”。创建结果未确认时则保留现场。独立模型历史能避免把两趟调查混在一起，隔离试改还须核实真实目录。</p>
+</div></section>
+<section class="v2-topic-group" id="separate-session">
+<header class="v2-group-heading"><span>02</span><h2>独立会话、读取状态与角色能力</h2></header><div class="design-section">
+</div><section class="design-section" id="delegate-spec"><h3>2.1 用明确交接材料替代整段调查历史</h3>
+<p>定位员的输入可以很短：“定位会员折扣的生效条件，返回入口、实现、关键用例位置和一处未核实的假设。”假设它读了十份文件，父代理只需接回能验证的报告。下表是子代理可能形成的报告结构。让主会话根据路径判断应读哪里，比让主会话先接收十次全文 Read 更省窗口。</p>
+<div aria-label="示意报告 · 定位员应交出可核对的线索" class="table-scroll" role="region" tabindex="0"><table>
+<caption>示意报告 · 定位员应交出可核对的线索</caption>
+<thead><tr><th scope="col">材料</th><th scope="col">示意内容</th><th scope="col">父代理如何消费</th></tr></thead>
+<tbody><tr><td>入口与实现</td><td><code>checkout.py</code> 调用 <code>pricing.py</code></td><td>打开对应实现确认条件分支</td></tr><tr><td>覆盖范围</td><td>现有用例只覆盖普通会员</td><td>找出资格边界还缺哪组输入</td></tr><tr><td>未决问题</td><td>过期会员策略待确认</td><td>父代理查需求或补充指令</td></tr></tbody>
+</table></div>
+<p>普通派发创建新的 Session，构造子角色的 system，加入本次任务文字，以及该角色配置的初始提示、已经载入的预置技能正文。默认取父执行相关的目录和项目材料，用子角色的工具集合；模型可按请求覆盖、角色配置或继承路径选定。父历史如果需要整个接着用，存在下节的 Fork。</p>
+</section><section class="design-section" id="independent-tool-context"><h3>2.2 读过文件的记录和待办各自建立</h3>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/run_agent.py#L312" rel="noopener" target="_blank">src/ruocun/agent/run_agent.py · 第 312–324 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>13 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="312"></span><span data-line="313"></span><span data-line="314"></span><span data-line="315"></span><span data-line="316"></span><span data-line="317"></span><span data-line="318"></span><span data-line="319"></span><span data-line="320"></span><span data-line="321"></span><span data-line="322"></span><span data-line="323"></span><span data-line="324"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        child.messages = copy.deepcopy(initial_messages)
+    permit = permissions.forAgent(working, child, mode)
+    child_ctx = replace(parent_ctx,
+                        workspaceRoot=<span class="hljs-built_in">str</span>(workspace), cwd=<span class="hljs-built_in">str</span>(working), signal=child_signal,
+                        createWorktree=<span class="hljs-keyword">None</span>, activeWorktree=<span class="hljs-keyword">None</span>,
+                        readFiles=<span class="hljs-built_in">set</span>(), readMeta={}, pendingUnverifiedWrites=<span class="hljs-built_in">set</span>(), todoWriteRequired=<span class="hljs-keyword">None</span>,
+                        currentImageData=<span class="hljs-keyword">None</span>, todos=[], skills=copy.deepcopy(parent_ctx.skills),
+                        adaptSkill=<span class="hljs-keyword">None</span>, onFileAccessed=<span class="hljs-keyword">None</span>, onSkillsInstalled=<span class="hljs-keyword">None</span>, notifyUser=<span class="hljs-keyword">None</span>,
+                        toolHooks=<span class="hljs-keyword">None</span>, agentHookRuntime=<span class="hljs-keyword">None</span>, agentMcpRuntime=<span class="hljs-keyword">None</span>,
+                        subagentDepth=parent_ctx.subagentDepth + <span class="hljs-number">1</span>, runAgent=<span class="hljs-keyword">None</span>, forkToolSnapshot=<span class="hljs-keyword">None</span>,
+                        launchAgent=<span class="hljs-keyword">None</span>, agentRunsInBackground=<span class="hljs-keyword">None</span>, taskManager=<span class="hljs-keyword">None</span>,
+                        sendToTask=<span class="hljs-keyword">None</span>, resumeAgent=<span class="hljs-keyword">None</span>, messageParent=<span class="hljs-keyword">None</span>,
+                        archiveRead=<span class="hljs-keyword">None</span>,</code></pre></div></figure>
+<p>这段代码在创建子会话后构造新的 ToolContext。父代理读过 <code>pricing.py</code>，<a href="01-文件编辑可靠性-精致教材预览.html#read-baseline" rel="noopener" target="_blank">那次读取的文件版本</a>只登记在父执行；子代理的 <code>readFiles</code> 和 <code>readMeta</code> 从空开始，待办、未核实写入也各自维护。复用父记录会让子代理凭另一趟的读取证据判断自己的编辑条件，文件可能早已变化。<strong>「共享磁盘时，每趟执行仍要建立自己的读取基线」</strong>。工作树条件另管写到哪个目录。</p>
+<p>工具表按角色的允许和拒绝名单过滤。后台任务还有允许工具名单，计划模式再滤掉写入、执行及 MCP 工具，父级为 plan 时子级仍为 plan。普通子代理的工具表和分派入口限制再开子任务，工具处理器也检查深度。提示词写“只做定位”可以减少误判，工具表和执行边界给这句话提供实际约束。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/run_agent.py#L74" rel="noopener" target="_blank">src/ruocun/agent/run_agent.py · 第 74–85 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>12 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="74"></span><span data-line="75"></span><span data-line="76"></span><span data-line="77"></span><span data-line="78"></span><span data-line="79"></span><span data-line="80"></span><span data-line="81"></span><span data-line="82"></span><span data-line="83"></span><span data-line="84"></span><span data-line="85"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">buildAgentRegistry</span>(
+    registry: ToolRegistry, definition: AgentDefinition, *, plan: <span class="hljs-built_in">bool</span> = <span class="hljs-keyword">False</span>, is_async: <span class="hljs-built_in">bool</span> = <span class="hljs-keyword">False</span>,
+) -&gt; ToolRegistry:
+    denied = _DISALLOWED | ({<span class="hljs-string">"</span><span class="hljs-string">EnterPlanMode</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">ExitPlanMode</span><span class="hljs-string">"</span>} <span class="hljs-keyword">if</span> plan <span class="hljs-keyword">else</span> <span class="hljs-built_in">set</span>())
+    allowed = definition.tools
+    memory_tools = _MEMORY_TOOLS <span class="hljs-keyword">if</span> definition.memory <span class="hljs-keyword">else</span> <span class="hljs-built_in">frozenset</span>()
+    <span class="hljs-keyword">return</span> registry.filtered(<span class="hljs-keyword">lambda</span> tool: tool.name not in denied
+                             and (not is_async or tool.name in _BACKGROUND_TOOLS)
+                             and (tool.name in memory_tools or (tool.name not in definition.disallowed_tools
+                                  and (allowed is <span class="hljs-keyword">None</span> or allowed == (<span class="hljs-string">"</span><span class="hljs-string">*</span><span class="hljs-string">"</span>,) or tool.name in allowed)))
+                             and (not plan or (tool.capability not in {<span class="hljs-string">"</span><span class="hljs-string">write</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">exec</span><span class="hljs-string">"</span>}
+                                              and not tool.name.startswith(<span class="hljs-string">"</span><span class="hljs-string">mcp__</span><span class="hljs-string">"</span>))))</code></pre></div></figure>
+</section><section class="design-section" id="lifecycle-admission"><h3>2.3 装配角色资源，确认启动上下文</h3>
+<p>有些工具由独立的服务程序通过 MCP 提供。例如复核角色可以有自己的文档查询连接。装配只连接该角色声明且配置存在的服务，连接跟着这次执行打开和关闭。换后台接手者时，重建连接后还要核对之前保存的工具定义和可见集合。定义已变时拒绝交接，避免复核员途中拿到意思不同的同名工具。</p>
+<p>第 8 篇已经见过工具调用前可运行的 Hook。子执行也有自己的事件时点。通过准入后可以触发 <code>SubagentStart</code>；若该规则附加了信息，先把它写入子会话的 system 消息并保存，保存未确认会停止第一次模型请求。正常收尾走 <code>SubagentStop</code>，结果未确认时保留现场。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/agent_hooks.py#L40" rel="noopener" target="_blank">src/ruocun/agent/agent_hooks.py · 第 40–49 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>10 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="40"></span><span data-line="41"></span><span data-line="42"></span><span data-line="43"></span><span data-line="44"></span><span data-line="45"></span><span data-line="46"></span><span data-line="47"></span><span data-line="48"></span><span data-line="49"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    context = _context(<span class="hljs-string">"</span><span class="hljs-string">SubagentStart</span><span class="hljs-string">"</span>, cwd, run.task_id, agent_type)
+    outcome = <span class="hljs-keyword">await</span> runJournaledHooks(runtime, <span class="hljs-string">"</span><span class="hljs-string">SubagentStart</span><span class="hljs-string">"</span>, run.run_id, context, signal, journal)
+    <span class="hljs-keyword">if</span> outcome.additional_context and not signal.is_set():
+        message = {<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">system</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">[hook 注入的上下文]</span><span class="hljs-string">\n</span><span class="hljs-string">"</span> + runtime.redacted(outcome.additional_context)}
+        session.messages.append(message)
+        <span class="hljs-keyword">try</span>:
+            <span class="hljs-keyword">await</span> journal.save(session)
+        <span class="hljs-keyword">except</span> Exception <span class="hljs-keyword">as</span> error:
+            session.messages.pop()
+            <span class="hljs-keyword">raise</span> HookOutcomeUnknown(<span class="hljs-string">"</span><span class="hljs-string">SubagentStart 的上下文保存未确认，未派发子代理模型。</span><span class="hljs-string">"</span>) <span class="hljs-keyword">from</span> error</code></pre></div></figure>
+<p>专属连接怎样重建见<a href="20-远程能力怎样接入.html" rel="noopener" target="_blank">MCP 接入</a>，生命周期回执及其他事件见<a href="21-执行前后怎样插入规则.html" rel="noopener" target="_blank">Hooks 执行规则</a>。</p>
+</section></section>
+<section class="v2-topic-group" id="fork-context">
+<header class="v2-group-heading"><span>03</span><h2>Fork 的父历史快照与工具配对</h2></header><div class="design-section">
+<p>普通派发只给子会话一份新任务。若定位讨论已经积累必要背景，可以用 <code>fork=true</code>，即按父模型这一轮实际拿到的配置和对话生成子会话快照。它承接父模型和权限模式，复制合适的历史，并使用<a href="04-工具调用怎样落地.html#tool-definition" rel="noopener" target="_blank">发出请求时冻结的工具定义和激活状态</a>。参数试图另行覆盖 <code>model</code>、<code>mode</code> 或显式隔离方式时会被拒绝。子任务说明追加在末尾，告诉模型这次要做哪件事。</p>
+<div aria-label="示意 · 子代理第一次请求发出时手里有什么" class="table-scroll" role="region" tabindex="0"><table>
+<caption>示意 · 子代理第一次请求发出时手里有什么</caption>
+<thead><tr><th scope="col">候选记录</th><th scope="col">当前能看到的回包</th></tr></thead>
+<tbody><tr><td>父历史中的 <code>assistant</code> 请求 Read <code>r1</code></td><td><code>role=tool</code>，<code>tool_call_id=r1</code></td></tr><tr><td>父历史末尾 <code>assistant</code> 请求 Agent <code>a2</code></td><td><code>a2</code> 还在执行，父会话尚未收到对应 <code>role=tool</code></td></tr><tr><td>要追加给子任务的 <code>user</code> 消息</td><td>说明本次只复核会员折扣，可附带待执行调用的占位文字</td></tr></tbody>
+</table></div>
+<p>若把父历史照原样复制，子代理第一次请求就带上一个欠回包的 <code>a2</code>。但 <code>a2</code> 必须等子代理执行后才有结果，靠等父会话先补齐，双方会互相等待。只留这条助手消息也无法获得合法配对。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/fork_agent.py#L39" rel="noopener" target="_blank">src/ruocun/agent/fork_agent.py · 第 39–45 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>7 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="39"></span><span data-line="40"></span><span data-line="41"></span><span data-line="42"></span><span data-line="43"></span><span data-line="44"></span><span data-line="45"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">forkRequestMessages</span>(parent_messages: Sequence[ChatMessage], task: <span class="hljs-built_in">str</span>) -&gt; <span class="hljs-built_in">list</span>[ChatMessage]:
+    directive = <span class="hljs-string">"</span><span class="hljs-string">[fork 任务] </span><span class="hljs-string">"</span> + task
+    messages = buildForkContextMessages(parent_messages, directive)
+    <span class="hljs-comment"># 占位信息作为用户文本保留。只有工具消息可以与助手的工具调用配对。</span>
+    paired_ids = {message.get(<span class="hljs-string">"</span><span class="hljs-string">tool_call_id</span><span class="hljs-string">"</span>) <span class="hljs-keyword">for</span> message in messages <span class="hljs-keyword">if</span> message.get(<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>) == <span class="hljs-string">"</span><span class="hljs-string">tool</span><span class="hljs-string">"</span>}
+    <span class="hljs-keyword">return</span> [message <span class="hljs-keyword">for</span> message in messages <span class="hljs-keyword">if</span> message.get(<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>) != <span class="hljs-string">"</span><span class="hljs-string">assistant</span><span class="hljs-string">"</span>
+            or <span class="hljs-built_in">all</span>(call.get(<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>) in paired_ids <span class="hljs-keyword">for</span> call in message.get(<span class="hljs-string">"</span><span class="hljs-string">tool_calls</span><span class="hljs-string">"</span>) or ())]</code></pre></div></figure>
+<p>代入两项调用，<code>paired_ids</code> 里只有 <code>r1</code>。它的助手消息整条保留，<code>a2</code> 所在的助手消息整条过滤。最后留下 <code>r1</code> 与它的工具结果，再接子任务的 <code>user</code> 消息。占位文字给模型解释为什么没看到回包，协议配对仍由 <code>role=tool</code> 判断。<strong>「Fork 可以继承已配对的工具历史，触发自身且欠回包的助手消息要先让开」</strong>。若该助手消息还含其他调用，这条未完全配对的消息也不会分拆复制。新子会话核对其可见前缀与选中的父历史来源一致，方便原文溯源。工具配对的要求同时决定长会话能从哪里切，见<a href="14-上下文放不下怎么办.html" rel="noopener" target="_blank">完整工具组与压缩切点</a>。</p>
+</div></section>
+<section class="v2-topic-group" id="filesystem-isolation">
+<header class="v2-group-heading"><span>04</span><h2>工作树创建与成果保留</h2></header><div class="design-section">
+</div><section class="design-section" id="verify-before-dispatch"><h3>4.1 只有核实目录才能派发</h3>
+<p>当复核需要写入隔离目录时，工作树以 Git 基线创建自己的文件副本。父目录未提交的改动不在该工作树的起始版本中。若希望独立复核某份变更，任务要给出可核对的提交或其他已确认的材料。<code>remote</code> 当前也在同一台机器的 Git 工作树中执行。工作树的承诺是按指定目录隔开工作文件，其主机和系统沙箱约束另有来源。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/run_agent.py#L427" rel="noopener" target="_blank">src/ruocun/agent/run_agent.py · 第 427–442 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>16 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="427"></span><span data-line="428"></span><span data-line="429"></span><span data-line="430"></span><span data-line="431"></span><span data-line="432"></span><span data-line="433"></span><span data-line="434"></span><span data-line="435"></span><span data-line="436"></span><span data-line="437"></span><span data-line="438"></span><span data-line="439"></span><span data-line="440"></span><span data-line="441"></span><span data-line="442"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    isolation = task.isolation or definition.isolation
+    tree = <span class="hljs-keyword">None</span>
+    <span class="hljs-keyword">if</span> isolation is not <span class="hljs-keyword">None</span>:
+        <span class="hljs-keyword">try</span>:
+            tree = <span class="hljs-keyword">await</span> openAgentWorktree(parent_ctx, isolation)
+        <span class="hljs-keyword">except</span> GitBoundaryError <span class="hljs-keyword">as</span> error:
+            <span class="hljs-keyword">raise</span> AgentFailure(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">隔离工作树未创建，子代理未派发。</span><span class="hljs-string">{</span>error<span class="hljs-string">}</span><span class="hljs-string">"</span>) <span class="hljs-keyword">from</span> error
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">if</span> parent_ctx.signal.is_set():
+            <span class="hljs-keyword">raise</span> AgentFailure(<span class="hljs-string">"</span><span class="hljs-string">父会话已取消，未派发子代理。</span><span class="hljs-string">"</span>)
+        prepared = prepareAgentRun(
+            parent, parent_ctx, registry, permissions, options, task, definition, env=env,
+            project_instructions=project_instructions, user_root=user_root, is_async=is_async,
+            signal=threading.Event() <span class="hljs-keyword">if</span> is_async <span class="hljs-keyword">else</span> <span class="hljs-keyword">None</span>, cwd=Path(tree.root) <span class="hljs-keyword">if</span> tree is not <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> <span class="hljs-keyword">None</span>,
+            initial_messages=messages, exact_tools=exact_tools,
+        )</code></pre></div></figure>
+<p>比如 Git 找不到有效基线，直接创建失败可转成工具错误，父代理可检查仓库条件后重新提交。若 <code>git worktree add</code> 已经调用、随后 Git 登记或 HEAD 身份无法确认，工作树模块抛出未知写入异常，保留现场供核实。<strong>「要求隔离的任务要等实际目录核实后才派发」</strong>。切回原目录虽然能得到一份报告，但它已经无法回答用户要求的隔离复核问题。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/worktree.py#L276" rel="noopener" target="_blank">src/ruocun/agent/worktree.py · 第 276–286 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>11 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="276"></span><span data-line="277"></span><span data-line="278"></span><span data-line="279"></span><span data-line="280"></span><span data-line="281"></span><span data-line="282"></span><span data-line="283"></span><span data-line="284"></span><span data-line="285"></span><span data-line="286"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    git.run(repo, [<span class="hljs-string">"</span><span class="hljs-string">worktree</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">add</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">-b</span><span class="hljs-string">"</span>, branch, <span class="hljs-string">"</span><span class="hljs-string">--</span><span class="hljs-string">"</span>, <span class="hljs-built_in">str</span>(root), base], mutation=<span class="hljs-keyword">True</span>)
+    <span class="hljs-keyword">try</span>:
+        admin = _git_dir(git, root, <span class="hljs-string">"</span><span class="hljs-string">--absolute-git-dir</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> admin.parent != common / <span class="hljs-string">"</span><span class="hljs-string">worktrees</span><span class="hljs-string">"</span> or not _registered(git, repo, root, branch, base):
+            <span class="hljs-keyword">raise</span> GitBoundaryError(<span class="hljs-string">"</span><span class="hljs-string">Git 未登记预期的 worktree 身份。</span><span class="hljs-string">"</span>)
+        created = Worktree(<span class="hljs-built_in">str</span>(root), branch, repo, top, common, admin, base, directory_identity(root), directory_identity(admin), git)
+        <span class="hljs-keyword">if</span> created._checked_head() != base:
+            <span class="hljs-keyword">raise</span> GitBoundaryError(<span class="hljs-string">"</span><span class="hljs-string">创建后的 worktree HEAD 不是预期基线。</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">return</span> created
+    <span class="hljs-keyword">except</span> (GitBoundaryError, OSError, UnicodeError) <span class="hljs-keyword">as</span> exc:
+        <span class="hljs-keyword">raise</span> GitMutationUnknown(<span class="hljs-string">"</span><span class="hljs-string">Git 创建已调用，无法确认 worktree 身份。保留现场供检查。</span><span class="hljs-string">"</span>) <span class="hljs-keyword">from</span> exc</code></pre></div></figure>
+<p>完成后，清理前先释放子代理 MCP 连接使用的工作目录。干净且核实属于本次执行的工作树可以清理。有改动或提交时保留分支与目录，报告支持主代理后续检查和合并。失败分支的输出也可能指向保留的目录，此时先分辨做到了哪一步。</p>
+</section></section>
+<section class="v2-topic-group" id="message-and-handoff">
+<header class="v2-group-heading"><span>05</span><h2>中途通信、完成报告与前后台交接</h2></header><div class="design-section">
+</div><section class="design-section" id="message-kinds"><h3>5.1 普通进度只更新，需决定的事项进入交付队列</h3>
+<p>定位员在后台发现过期会员规则不明确，可以用 <code>MessageParent</code> 发 <code>kind="attention"</code>，请父代理在安全边界处理。“已找到定价入口”之类的进度用 <code>kind="progress"</code>，它更新进度，无需唤醒等候中的父代理。结束事件另行发布。消息的身份来自运行和工具调用，旧 run 已停止时拒收迟到消息。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/message_parent.py#L24" rel="noopener" target="_blank">src/ruocun/tools/message_parent.py · 第 24–35 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>12 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="24"></span><span data-line="25"></span><span data-line="26"></span><span data-line="27"></span><span data-line="28"></span><span data-line="29"></span><span data-line="30"></span><span data-line="31"></span><span data-line="32"></span><span data-line="33"></span><span data-line="34"></span><span data-line="35"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">_handler</span>(args: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any], ctx: ToolContext) -&gt; <span class="hljs-built_in">str</span>:
+    report = ctx.messageParent
+    <span class="hljs-keyword">if</span> report is <span class="hljs-keyword">None</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"</span><span class="hljs-string">你不是后台子代理(无父任务通道):你的结论会在完成时直接返回父代理,无需中途发送。</span><span class="hljs-string">"</span>
+    kind = args.get(<span class="hljs-string">"</span><span class="hljs-string">kind</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">attention</span><span class="hljs-string">"</span>)
+    english = ctx.lang == <span class="hljs-string">"</span><span class="hljs-string">en</span><span class="hljs-string">"</span>
+    <span class="hljs-keyword">if</span> not <span class="hljs-keyword">await</span> report(args[<span class="hljs-string">"</span><span class="hljs-string">message</span><span class="hljs-string">"</span>], kind):
+        <span class="hljs-keyword">return</span> (<span class="hljs-string">"</span><span class="hljs-string">The original background run is no longer active; message not sent.</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> english <span class="hljs-keyword">else</span>
+                <span class="hljs-string">"</span><span class="hljs-string">原后台运行已不再活动，消息未发送。</span><span class="hljs-string">"</span>)
+    <span class="hljs-keyword">if</span> kind == <span class="hljs-string">"</span><span class="hljs-string">progress</span><span class="hljs-string">"</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"</span><span class="hljs-string">Progress updated without waking the parent.</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> english <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">进度已更新,不触发父代理续跑。</span><span class="hljs-string">"</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-string">"</span><span class="hljs-string">Sent to parent for handling at a safe boundary.</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> english <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">已发送给父代理(它在安全边界处理)。</span><span class="hljs-string">"</span></code></pre></div></figure>
+<p>父代理查到了确认条件，可用 <code>TaskSend</code> 对活跃任务追加“过期会员按普通价处理”。管理器确认这是正在执行的非 manual 任务，按发送工具的身份持久化收件箱。同一发送身份重到且内容相同时可确认，内容发生变化则拒绝。子代理在后续模型边界把待处理消息保存到自己的历史，再继续请求模型。如果子代理已结束，向原运行追加中途消息会失败，需要按工具支持的明确后续执行流程处理。结束报告由执行器结算，可能是完成输出、失败伴随部分输出、取消或结果未知。拿到报告后仍要根据原任务核验。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/tasks.py#L397" rel="noopener" target="_blank">src/ruocun/agent/tasks.py · 第 397–417 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>21 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="397"></span><span data-line="398"></span><span data-line="399"></span><span data-line="400"></span><span data-line="401"></span><span data-line="402"></span><span data-line="403"></span><span data-line="404"></span><span data-line="405"></span><span data-line="406"></span><span data-line="407"></span><span data-line="408"></span><span data-line="409"></span><span data-line="410"></span><span data-line="411"></span><span data-line="412"></span><span data-line="413"></span><span data-line="414"></span><span data-line="415"></span><span data-line="416"></span><span data-line="417"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">send</span>(<span class="hljs-built_in">self</span>, task_id: <span class="hljs-built_in">str</span>, message: <span class="hljs-built_in">str</span>) -&gt; <span class="hljs-built_in">bool</span>:
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> <span class="hljs-built_in">self</span>._lock:
+            task = <span class="hljs-built_in">self</span>._tasks.get(task_id)
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>._closed or task is <span class="hljs-keyword">None</span> or task.kind == <span class="hljs-string">"</span><span class="hljs-string">manual</span><span class="hljs-string">"</span> or task.status != <span class="hljs-string">"</span><span class="hljs-string">running</span><span class="hljs-string">"</span>:
+                <span class="hljs-keyword">return</span> <span class="hljs-keyword">False</span>
+            background = <span class="hljs-built_in">self</span>._runs.get(task.runId)
+            foreground = <span class="hljs-built_in">self</span>._foreground.get(task.runId)
+            <span class="hljs-keyword">if</span> not ((background is not <span class="hljs-keyword">None</span> and background.executor is not <span class="hljs-keyword">None</span> and not background.prepared.ctx.signal.is_set())
+                    or (foreground is not <span class="hljs-keyword">None</span> and not foreground.signal.is_set())):
+                <span class="hljs-keyword">return</span> <span class="hljs-keyword">False</span>
+            record = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._task_record(task)
+            sender = asdict(<span class="hljs-built_in">self</span>.conversation.current_tool_ref())
+            inbox = record.snapshot.get(<span class="hljs-string">"</span><span class="hljs-string">task_inbox</span><span class="hljs-string">"</span>, [])
+            safe = <span class="hljs-built_in">self</span>.conversation.redact(message)
+            existing = <span class="hljs-built_in">next</span>((entry <span class="hljs-keyword">for</span> entry in inbox <span class="hljs-keyword">if</span> entry[<span class="hljs-string">"</span><span class="hljs-string">sender</span><span class="hljs-string">"</span>] == sender), <span class="hljs-keyword">None</span>)
+            <span class="hljs-keyword">if</span> existing is not <span class="hljs-keyword">None</span>:
+                <span class="hljs-keyword">if</span> existing[<span class="hljs-string">"</span><span class="hljs-string">message</span><span class="hljs-string">"</span>] != safe:
+                    <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">"</span><span class="hljs-string">同一 TaskSend 身份的追加指令发生变化。</span><span class="hljs-string">"</span>)
+                <span class="hljs-keyword">return</span> <span class="hljs-keyword">True</span>
+            updated = replace(record, snapshot={**record.snapshot, <span class="hljs-string">"</span><span class="hljs-string">task_inbox</span><span class="hljs-string">"</span>: [*inbox, {<span class="hljs-string">"</span><span class="hljs-string">sender</span><span class="hljs-string">"</span>: sender, <span class="hljs-string">"</span><span class="hljs-string">message</span><span class="hljs-string">"</span>: safe}]})
+            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._persist_task(updated)</code></pre></div></figure>
+</section><section class="design-section" id="foreground-transfer"><h3>5.2 等到配对边界才换接手者</h3>
+<p>第 7 篇的<a href="07-命令运行很久.html#shell-handoff" rel="noopener" target="_blank">Shell 转后台</a>交接的是同一个活进程的控制。模型循环的交接则从一份已保存的进度接着跑。前台先到消息配齐的边界保存并停止，再由后台执行拿着旧执行来源、剩余轮次和输出起点启动，主会话接到后台任务 ID 后可等待它。目录无法重新核实，或新接手者恢复的 MCP 工具定义发生变化，就停止交接。这样同一项工具不会因为两边同时继续而被执行两遍。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/run_agent.py#L527" rel="noopener" target="_blank">src/ruocun/agent/run_agent.py · 第 527–538 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>12 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="527"></span><span data-line="528"></span><span data-line="529"></span><span data-line="530"></span><span data-line="531"></span><span data-line="532"></span><span data-line="533"></span><span data-line="534"></span><span data-line="535"></span><span data-line="536"></span><span data-line="537"></span><span data-line="538"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">boundary</span>() -&gt; <span class="hljs-keyword">None</span>:
+            <span class="hljs-keyword">if</span> foreground is not <span class="hljs-keyword">None</span> and not conversation.blocked and foreground.handoff_requested():
+                <span class="hljs-keyword">if</span> tree is not <span class="hljs-keyword">None</span>:
+                    <span class="hljs-keyword">try</span>:
+                        <span class="hljs-keyword">await</span> asyncio.to_thread(tree.verify)
+                    <span class="hljs-keyword">except</span> GitBoundaryError <span class="hljs-keyword">as</span> error:
+                        conversation.blocked = <span class="hljs-keyword">True</span>
+                        <span class="hljs-keyword">raise</span> UnknownToolOutcome(<span class="hljs-string">"</span><span class="hljs-string">原 remote 隔离工作树身份无法核实，已停止并保留现场。</span><span class="hljs-string">"</span>) <span class="hljs-keyword">from</span> error
+                <span class="hljs-keyword">await</span> journal.handoff_boundary()
+                <span class="hljs-keyword">if</span> foreground.claim_handoff():
+                    <span class="hljs-keyword">return</span>
+            <span class="hljs-keyword">await</span> journal.model_boundary()</code></pre></div></figure>
+</section></section>
+<section class="v2-topic-group" id="continuation">
+<header class="v2-group-heading"><span>06</span><h2>失联后的显式继续</h2></header><div class="design-section">
+<p>假如复核员失联，旧运行成为 <code>interrupted</code>。人可以在核对未决工具和附件后明确给出继续指令。系统核实原模型、角色定义与版本、工作目录、消息、权限和预算，Fork 额外需要父上下文及精确工具等材料。恢复申请先提交许可，再为同一任务登记新的 run。新执行器核对决策、身份和持久化的运行回执后才启动。相同恢复许可重到时，到已有运行查状态。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/session/recovery.py#L177" rel="noopener" target="_blank">src/ruocun/session/recovery.py · 第 177–193 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>17 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="177"></span><span data-line="178"></span><span data-line="179"></span><span data-line="180"></span><span data-line="181"></span><span data-line="182"></span><span data-line="183"></span><span data-line="184"></span><span data-line="185"></span><span data-line="186"></span><span data-line="187"></span><span data-line="188"></span><span data-line="189"></span><span data-line="190"></span><span data-line="191"></span><span data-line="192"></span><span data-line="193"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">if</span> continuation is not <span class="hljs-keyword">None</span> and not receipt.replayed:
+            <span class="hljs-comment"># 继续执行的许可要先提交到数据库，再派发新的运行。</span>
+            <span class="hljs-comment"># 派发后即便取消或结果未知，也用原身份核查，避免同一许可启动两次。</span>
+            <span class="hljs-built_in">self</span>.conversation.blocked = <span class="hljs-keyword">True</span>
+            <span class="hljs-keyword">assert</span> <span class="hljs-built_in">self</span>.continue_agent is not <span class="hljs-keyword">None</span>
+            result = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.continue_agent(continuation)
+            <span class="hljs-keyword">if</span> result.run_ref != continuation.new_run or result.kind != continuation.previous.kind:
+                <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">'</span><span class="hljs-string">继续执行器返回身份不符，保留已授权未知执行，禁止重试。</span><span class="hljs-string">'</span>)
+            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.conversation.publish_background(result, <span class="hljs-keyword">None</span>)
+        <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.background.bind()
+        <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.conversation.refresh_recovery(<span class="hljs-built_in">self</span>.session)
+        <span class="hljs-keyword">if</span> continuation is not <span class="hljs-keyword">None</span> and not receipt.replayed and <span class="hljs-built_in">self</span>.activate_continuation is not <span class="hljs-keyword">None</span>:
+            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.activate_continuation(continuation.new_run)
+        <span class="hljs-keyword">if</span> action == <span class="hljs-string">'</span><span class="hljs-string">continue</span><span class="hljs-string">'</span>:
+            continued = <span class="hljs-built_in">next</span>((run <span class="hljs-keyword">for</span> run in (<span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.conversation.background_view()).runs <span class="hljs-keyword">if</span> run.run_ref == next_ref), <span class="hljs-keyword">None</span>)
+            <span class="hljs-keyword">if</span> continued is <span class="hljs-keyword">None</span> or continued.status == <span class="hljs-string">'</span><span class="hljs-string">unknown</span><span class="hljs-string">'</span>:
+                <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">'</span><span class="hljs-string">继续许可已保存但执行结果未确认；同ID不会再次启动，保留现场。</span><span class="hljs-string">'</span>)</code></pre></div></figure>
+<p>如果旧复核员可能已经提交改动，但本地没有拿到结果，要先凭现有 Git 记录、文件和未决操作证据判断发生了什么。<strong>「继续一项任务要登记新运行，旧副作用留在原运行核实」</strong>。这使“继续收集证据”仍可执行，而已经可能发生的写入保留清晰来源。参见<a href="10-工具可能已经执行.html" rel="noopener" target="_blank">副作用意图、结果确认与恢复</a>。</p>
+</div></section>
+<section class="v2-topic-group" id="article-assessment">
+<header class="v2-group-heading"><span>07</span><h2>学习效果检测</h2></header><div class="design-section">
+</div><section class="design-section" id="article-assessment-1">
+<h3>7.1 判断状态继承、隔离与父子通信</h3>
+<p><strong>1．</strong>父代理已读过 pricing.py。定位员可直接依赖这次读取做 Edit 吗？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>子执行的读取基线从空开始。即使 Fork 历史含那条 Read，子执行自己的 ToolContext 依然重新建立。应按实际工具契约重新读目标，并检查角色是否具备写权限。</p></div></details>
+<p><strong>2．</strong>Fork 的最后一条父调用尚未返回，子历史能保留完整该条调用吗？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>缺回执的助手调用消息会从请求副本中滤除。占位文字属于用户消息，不能充当工具回执。较早完整配对的组继续提供背景。</p></div></details>
+<p><strong>3．</strong>后台子代理要请父代理选择产品条件，应该用哪个消息种类？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p><code>attention</code> 会请父代理在安全边界处理。<code>progress</code> 适合汇报已完成搜索等非阻塞进展；需要等待具体决定时，父方的补充走 TaskSend。</p></div></details>
+<p><strong>4．</strong> 主目录尚未提交的新阈值是 5，Git 基线为 3。复核员在确认创建的独立工作树里运行测试，回报退出码 0，但报告没有注明所读阈值。能把结果交付为“新阈值已验证”吗？请指定一次最小的补查。</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>工作树按 Git 基线创建。现有结果只确认复核员那份工作树上的测试退出成功。先请它读回实际测试目录里的阈值并核对版本。若仍为 3，需把拟验的变更明确带到复核目录，确认是 5 后重跑针对新阈值的断言。</p></div></details>
+</section><div class="design-section">
+</div></section>
+<section class="v2-topic-group" id="article-interview">
+<header class="v2-group-heading"><span>08</span><h2>模拟面试官提问</h2></header><div class="design-section">
+</div><section class="design-section" id="intern-interview"><h3>8.1 Agent 开发实习</h3>
+<h4>独立核心题</h4>
+<p><strong>为什么用子代理来定位一段陌生代码？任务应怎样写？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>我会让子代理把探索过程留在自己的会话里，父代理只收结论、文件位置和未核实项。任务给清楚要查的入口、可用操作和报告格式，这样父代理拿着报告就能立刻核查。</p><p>普通子代理每次建立 Session 和工具状态。角色表约束可用能力，父程序再根据报告判断是否已达到用户要求。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>怎样安排一次独立复核？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>我先确定复核要看的版本和可执行的检查，再给独立会话提供明确报告目标。</p></div></details>
+<p><strong>追问 1</strong> 如果复核员为确认问题需要试写文件呢？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>明确派发工作树隔离，提供可核对基线和允许动的范围。</p></div></details>
+<p><strong>追问 2</strong> 如果父代理的变更尚未提交呢？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>新工作树从 Git 基线出发，要明确提供实际待复核材料，拿错误版本的检查结果没有说服力。</p></div></details>
+</section><section class="design-section" id="harness-interview"><h3>8.2 Agent harness 岗位</h3>
+<h4>独立核心题</h4>
+<p><strong>前台子执行转后台时怎样避免两方同时执行工具？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>请求转后台先登记，前台跑到配对边界保存，领取交接后停下。新执行拿着来源检查点、剩余轮次和目录身份重建资源，确认新的后台运行后才能继续。</p><p>前台安全边界、后台运行登记以及 MCP 重绑定分别约束了历史、执行权和工具现场。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>子代理失联时为什么不能直接执行它最后的调用？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>最后的副作用也许已经发生。我会先查该执行的原记录，再用基于证据的显式恢复许可开启新 run。</p></div></details>
+<p><strong>追问 1</strong> 如果缺其中一份历史附件或原角色版本呢？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>先补齐或核实材料。继续入口会检查旧执行所需现场，避免当前默认配置覆盖旧约束。</p></div></details>
+<p><strong>追问 2</strong> 如果新许可提交后反馈中断，同一指令又发了一次呢？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>用决策身份查原回执和已登记新 run；不为同一许可再启动一次。</p></div></details>
+</section></section>
+<section class="v2-topic-group" id="article-takeaways">
+<header class="v2-group-heading"><span>09</span><h2>这一篇带走什么</h2></header><div class="design-section">
+<p>子代理在独立会话和实际能力边界内处理分派工作，父代理通过可追踪的报告、中途消息和必要的交接接回结果。</p>
+<ul class="pilot-takeaways">
+<li>适合委派的调查要提前定义可核查的报告。让中间搜索留在子会话，父会话沿关键位置验证。</li>
+<li>分开看状态隔离和目录隔离。历史、读取基线和工具表由子执行建立，承诺工作树隔离时先验证 Git 登记和实际工作路径。</li>
+<li>换执行者前，先在安全边界保存并移交控制权。需要重新连接专属服务时核对定义与可见能力。</li>
+<li>失联后先核旧副作用，再以显式决策登记新的继续运行。让旧证据和新运行分别有身份。</li>
+</ul>
+<p>Fork 挑的是子代理可以继承的完整历史。下一篇用同一个调用与回包约束<a href="14-上下文放不下怎么办.html#cut-through-read" rel="noopener" target="_blank">检查父会话的压缩切点</a>，决定哪几条必须一起留在请求中。</p>
+</div></section>
+</article></main>
+</body>
+</html>

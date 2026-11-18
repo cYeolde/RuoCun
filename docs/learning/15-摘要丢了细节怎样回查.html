@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>摘要丢了细节怎样回查：原文身份、来源与分页 · RuoCun 设计学习</title>
+<link href="assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="assets/ruocun-code.css" rel="stylesheet"/>
+<link href="assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="assets/ruocun-article.css" rel="stylesheet"/>
+<link href="assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="assets/ruocun-textbook.js"></script>
+</head>
+<body class="textbook-read">
+<a class="textbook-skip" href="#archive-retrieval">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#archive-retrieval">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航">
+<a href="课程学习地图.html" rel="noopener" target="_blank">学习地图</a>
+<a class="textbook-original" href="#article-takeaways">这一篇带走什么</a>
+</nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title">摘要丢了细节怎样回查</div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc" open="">
+<summary>展开文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#same-text-different-evidence"><span class="v2-toc-number">1</span><span>同一句“检查通过”，能证明会员用例跑过吗？</span></a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#raw-message-identity"><span class="v2-toc-number">2</span><span>原文身份、版本与当前投影</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#raw-sequence"><span class="v2-toc-number">2.1</span><span>两条正文相同的消息分别占一个原文序号</span></a></li><li><a class="v2-toc-child-link" href="#projection-rewrite"><span class="v2-toc-number">2.2</span><span>摘要与裁剪保存原文来源</span></a></li><li><a class="v2-toc-child-link" href="#clear-and-branch"><span class="v2-toc-number">2.3</span><span>回退改投影，分支复制可达来源</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#authorized-paged-read"><span class="v2-toc-number">3</span><span>ArchiveRead 的执行范围与分页</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#bound-reader"><span class="v2-toc-number">3.1</span><span>调用只传归档 ID，范围由执行器绑定</span></a></li><li><a class="v2-toc-child-link" href="#character-pagination"><span class="v2-toc-number">3.2</span><span>沿 next_offset 读完需要的证据</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-assessment"><span class="v2-toc-number">4</span><span>学习效果检测</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#article-assessment-1"><span class="v2-toc-number">4.1</span><span>判断归档身份、授权与分页结果</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-interview"><span class="v2-toc-number">5</span><span>模拟面试官提问</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#intern-interview"><span class="v2-toc-number">5.1</span><span>Agent 开发实习</span></a></li><li><a class="v2-toc-child-link" href="#harness-interview"><span class="v2-toc-number">5.2</span><span>Agent harness 岗位</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways"><span class="v2-toc-number">6</span><span>这一篇带走什么</span></a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper course-lesson" id="archive-retrieval"><header class="design-hero">
+<h1>摘要丢了细节怎样回查</h1><p class="article-subtitle">原文身份、来源与分页</p>
+<p class="target">从一句含糊的摘要追到两次“检查通过”，用原文来源确定哪条能支持会员折扣。</p>
+</header>
+<section class="v2-topic-group" id="same-text-different-evidence">
+<header class="v2-group-heading"><span>01</span><h2>同一句“检查通过”，能证明会员用例跑过吗？</h2></header><div class="design-section">
+<p>沿用上篇<a href="14-上下文放不下怎么办.html#summary-checkpoint-contrast" rel="noopener" target="_blank">确认保存的新摘要和归档 ID</a>。摘要“会员日志已保留，检查通过”附有 <code>[原文归档:summary-demo-2]</code>，但当前要回答的是：会员过期时是否按普通价计算？旧历史里有两条正文相同的结果，一条来自冒烟检查，也就是先验证基本功能可运行，另一条来自会员专项用例。若归档只按正文合并两条“检查通过”，留下的调用可能恰好无法回答这次问题。</p>
+<div aria-label="源码推演 · 找到应与会员调用配对的回执" class="table-scroll" role="region" tabindex="0"><table>
+<caption>源码推演 · 找到应与会员调用配对的回执</caption>
+<thead><tr><th scope="col">原文位次</th><th scope="col">调用</th><th scope="col">回执正文</th><th scope="col">回执配对 ID</th></tr></thead>
+<tbody><tr><td>先保存</td><td>冒烟检查</td><td>检查通过</td><td><code>r-smoke</code></td></tr><tr><td>后保存</td><td>会员用例</td><td>检查通过</td><td><code>r-member</code></td></tr></tbody>
+</table></div>
+<details class="answer-box"><summary>首读自检 · 两条回执都写通过，你会找哪一条，还要核对什么？</summary><div><p>找 <code>r-member</code>。还需要找到对应的调用参数或实际检查内容，确认覆盖“过期会员”。用相同文字合并两条回执会破坏这种核证能力。</p></div></details>
+</div></section>
+<section class="v2-topic-group" id="raw-message-identity">
+<header class="v2-group-heading"><span>02</span><h2>原文身份、版本与当前投影</h2></header><div class="design-section">
+</div><section class="design-section" id="raw-sequence"><h3>2.1 两条正文相同的消息分别占一个原文序号</h3>
+<p>新投影只带了压缩后的材料，归档仍保留已接纳并脱敏的历史消息、必要的协议字段及附件引用。这里有三种编号：<code>tool_call_id</code> 找到原来的调用，<code>raw_seq</code> 找到原始消息在本会话、执行范围内的位置，<code>summary-demo-2</code> 则是查这份派生记录的入口。一条消息首次进入存储时，<code>raw_seq</code> 按该执行范围的追加顺序增长，初始版本为 1。<code>r-smoke</code> 和 <code>r-member</code> 的回包各占一个位置。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/session/archive.py#L145" rel="noopener" target="_blank">src/ruocun/session/archive.py · 第 145–164 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>20 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="145"></span><span data-line="146"></span><span data-line="147"></span><span data-line="148"></span><span data-line="149"></span><span data-line="150"></span><span data-line="151"></span><span data-line="152"></span><span data-line="153"></span><span data-line="154"></span><span data-line="155"></span><span data-line="156"></span><span data-line="157"></span><span data-line="158"></span><span data-line="159"></span><span data-line="160"></span><span data-line="161"></span><span data-line="162"></span><span data-line="163"></span><span data-line="164"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">for</span> position, message in <span class="hljs-built_in">enumerate</span>(messages):
+        previous = record(con, scope, refs[position], sources=<span class="hljs-keyword">False</span>) <span class="hljs-keyword">if</span> position &lt; <span class="hljs-built_in">len</span>(refs) <span class="hljs-keyword">else</span> <span class="hljs-keyword">None</span>
+        <span class="hljs-keyword">if</span> previous is not <span class="hljs-keyword">None</span>:
+            <span class="hljs-keyword">if</span> previous[<span class="hljs-string">"</span><span class="hljs-string">message</span><span class="hljs-string">"</span>] == message:
+                <span class="hljs-keyword">continue</span>
+            left = {k: v <span class="hljs-keyword">for</span> k, v in previous[<span class="hljs-string">"</span><span class="hljs-string">message</span><span class="hljs-string">"</span>].items() <span class="hljs-keyword">if</span> k not in _METADATA}
+            right = {k: v <span class="hljs-keyword">for</span> k, v in message.items() <span class="hljs-keyword">if</span> k not in _METADATA}
+            <span class="hljs-keyword">if</span> left != right:
+                <span class="hljs-keyword">raise</span> StoreError(<span class="hljs-string">"</span><span class="hljs-string">历史正文变更缺少明确来源映射，原归档保留。</span><span class="hljs-string">"</span>)
+            <span class="hljs-keyword">if</span> previous[<span class="hljs-string">"</span><span class="hljs-string">kind</span><span class="hljs-string">"</span>] != <span class="hljs-string">"</span><span class="hljs-string">raw</span><span class="hljs-string">"</span>:
+                <span class="hljs-keyword">raise</span> StoreError(<span class="hljs-string">"</span><span class="hljs-string">派生消息元数据更新需要明确改写。</span><span class="hljs-string">"</span>)
+            sequence, version = previous[<span class="hljs-string">"</span><span class="hljs-string">raw_seq</span><span class="hljs-string">"</span>], previous[<span class="hljs-string">"</span><span class="hljs-string">version</span><span class="hljs-string">"</span>] + <span class="hljs-number">1</span>
+        <span class="hljs-keyword">else</span>:
+            sequence, version = state[<span class="hljs-string">"</span><span class="hljs-string">next_raw_seq</span><span class="hljs-string">"</span>], <span class="hljs-number">1</span>
+            state[<span class="hljs-string">"</span><span class="hljs-string">next_raw_seq</span><span class="hljs-string">"</span>] += <span class="hljs-number">1</span>
+        identity = <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">{</span>namespace<span class="hljs-string">}</span><span class="hljs-string">-r</span><span class="hljs-string">{</span>sequence<span class="hljs-string">}</span><span class="hljs-string">v</span><span class="hljs-string">{</span>version<span class="hljs-string">}</span><span class="hljs-string">"</span>
+        value = {<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>: identity, <span class="hljs-string">"</span><span class="hljs-string">kind</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">raw</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">raw_seq</span><span class="hljs-string">"</span>: sequence, <span class="hljs-string">"</span><span class="hljs-string">version</span><span class="hljs-string">"</span>: version,
+                 <span class="hljs-string">"</span><span class="hljs-string">message</span><span class="hljs-string">"</span>: copy.deepcopy(message), <span class="hljs-string">"</span><span class="hljs-string">created_at</span><span class="hljs-string">"</span>: time_ns() // <span class="hljs-number">1_000_000</span>,
+                 <span class="hljs-string">"</span><span class="hljs-string">origin_session</span><span class="hljs-string">"</span>: previous.get(<span class="hljs-string">"</span><span class="hljs-string">origin_session</span><span class="hljs-string">"</span>, session) <span class="hljs-keyword">if</span> previous <span class="hljs-keyword">else</span> session,
+                 <span class="hljs-string">"</span><span class="hljs-string">origin_scope</span><span class="hljs-string">"</span>: previous.get(<span class="hljs-string">"</span><span class="hljs-string">origin_scope</span><span class="hljs-string">"</span>, scope) <span class="hljs-keyword">if</span> previous <span class="hljs-keyword">else</span> scope}</code></pre></div></figure>
+<p>已有位置再次保存相同消息时复用原引用。若现有原文只更新受控元数据，例如图片投递标记，就在同一 <code>raw_seq</code> 写下一版本，并记录 <code>previous</code>。所以台账中会同时出现“不同原文”和“同一原文的新版本”。把上一节两条回执设成 4 和 8。如果序号 8 从 <code>v1</code> 变成 <code>v2</code>，回查仍应有 4、8 两个位置。哈希核对各条记录内容，内容的相似与否不决定归属。</p>
+<p><strong>「历史证据按原文身份去重，正文相同仍可来自不同操作」</strong>。将来用证据核对一趟运行时，也能沿保留的配对 ID 找回操作缘由。</p>
+</section><section class="design-section" id="projection-rewrite"><h3>2.2 摘要与裁剪保存原文来源</h3>
+<p>第 14 篇的提交校验已经保证了摘要和引用一起发布。那条引用为什么能帮助回查，还要看 <code>sources</code>。摘要是由旧消息生成的派生记录。程序用它实际读入的旧消息位置，查到原文或更早的派生记录 ID，再把这些 ID 存为来源。摘要文字怎样措辞都不会改变这份来源清单。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/session/archive.py#L253" rel="noopener" target="_blank">src/ruocun/session/archive.py · 第 253–267 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>15 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="253"></span><span data-line="254"></span><span data-line="255"></span><span data-line="256"></span><span data-line="257"></span><span data-line="258"></span><span data-line="259"></span><span data-line="260"></span><span data-line="261"></span><span data-line="262"></span><span data-line="263"></span><span data-line="264"></span><span data-line="265"></span><span data-line="266"></span><span data-line="267"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">for</span> position, source in <span class="hljs-built_in">enumerate</span>(rewrite.mapping):
+            <span class="hljs-keyword">if</span> source is not <span class="hljs-keyword">None</span>:
+                <span class="hljs-keyword">if</span> <span class="hljs-built_in">type</span>(source) is not <span class="hljs-built_in">int</span> or not <span class="hljs-number">0</span> &lt;= source &lt; <span class="hljs-built_in">len</span>(refs) or expected[source] != messages[position]:
+                    <span class="hljs-keyword">raise</span> StoreError(<span class="hljs-string">"</span><span class="hljs-string">归档保留来源与候选消息不一致。</span><span class="hljs-string">"</span>)
+                updated.append(refs[source])
+            <span class="hljs-keyword">elif</span> position in derived:
+                item = derived[position]
+                <span class="hljs-keyword">if</span> item.kind not in {<span class="hljs-string">"</span><span class="hljs-string">summary</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">prune</span><span class="hljs-string">"</span>} or not item.source_indices or <span class="hljs-built_in">any</span>(
+                        <span class="hljs-built_in">type</span>(i) is not <span class="hljs-built_in">int</span> or not <span class="hljs-number">0</span> &lt;= i &lt; <span class="hljs-built_in">len</span>(refs) <span class="hljs-keyword">for</span> i in item.source_indices):
+                    <span class="hljs-keyword">raise</span> StoreError(<span class="hljs-string">"</span><span class="hljs-string">派生来源范围无效。</span><span class="hljs-string">"</span>)
+                value = {<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>: item.id, <span class="hljs-string">"</span><span class="hljs-string">kind</span><span class="hljs-string">"</span>: item.kind, <span class="hljs-string">"</span><span class="hljs-string">sources</span><span class="hljs-string">"</span>: [refs[i] <span class="hljs-keyword">for</span> i in item.source_indices],
+                         <span class="hljs-string">"</span><span class="hljs-string">message</span><span class="hljs-string">"</span>: copy.deepcopy(messages[position]), <span class="hljs-string">"</span><span class="hljs-string">reason</span><span class="hljs-string">"</span>: item.reason,
+                         <span class="hljs-string">"</span><span class="hljs-string">created_at</span><span class="hljs-string">"</span>: time_ns() // <span class="hljs-number">1_000_000</span>, <span class="hljs-string">"</span><span class="hljs-string">policy_version</span><span class="hljs-string">"</span>: <span class="hljs-number">1</span>}
+                _insert(con, scope, value, state[<span class="hljs-string">"</span><span class="hljs-string">index</span><span class="hljs-string">"</span>])
+                updated.append(item.id)</code></pre></div></figure>
+<p>示例的 <code>summary-demo-2</code> 来自第二次压缩。假设原始会话有系统约定 <code>raw_seq=1</code>，冒烟和会员回执分别为序号 <code>4</code>、<code>8</code>。第一次摘要后，系统约定仍在当前投影，第二次摘要会再读一次它。顺着两条来源路线数，应该返回几条原文？</p>
+<figure class="reasoning-figure" id="summary-lineage-paths">
+<figcaption>源码推演 · 摘要 2 指出的两条来源路线</figcaption>
+<div class="reasoning-grid">
+<section><h4>路线 A · 直接来自原文</h4><p>摘要 2 → <code>seq=1</code> 首条 system。</p></section>
+<section><h4>路线 B · 经由旧摘要</h4><p>摘要 2 → 摘要 1 → <code>seq=1</code> 首条 system、<code>seq=4</code> 冒烟、<code>seq=8</code> 会员。</p></section>
+</div>
+</figure>
+<p>数到四次访问，但只对应三条原文。只查直接来源会漏掉序号 4 和 8，沿路直接拼文本又会重复序号 1。代码递归展开所有路线，以原会话、原执行范围和原文序号组成键，保留每个键可达的最高版本。这样序号 4 与 8 虽然都写“检查通过”，仍会各保留一条。沿所有路线能到达的完整集合叫来源闭包。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/session/archive.py#L350" rel="noopener" target="_blank">src/ruocun/session/archive.py · 第 350–368 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>19 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="350"></span><span data-line="351"></span><span data-line="352"></span><span data-line="353"></span><span data-line="354"></span><span data-line="355"></span><span data-line="356"></span><span data-line="357"></span><span data-line="358"></span><span data-line="359"></span><span data-line="360"></span><span data-line="361"></span><span data-line="362"></span><span data-line="363"></span><span data-line="364"></span><span data-line="365"></span><span data-line="366"></span><span data-line="367"></span><span data-line="368"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    originals: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">tuple</span>[Any, ...], <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any]] = {}
+    <span class="hljs-keyword">def</span> <span class="hljs-title">expand</span>(source: <span class="hljs-built_in">str</span>, trail: <span class="hljs-built_in">frozenset</span>[<span class="hljs-built_in">str</span>] = <span class="hljs-built_in">frozenset</span>()) -&gt; <span class="hljs-keyword">None</span>:
+        <span class="hljs-keyword">if</span> source in trail or source not in index:
+            <span class="hljs-keyword">raise</span> StoreError(<span class="hljs-string">"</span><span class="hljs-string">归档来源循环，停止读取。</span><span class="hljs-string">"</span>)
+        saved = index[source]
+        <span class="hljs-keyword">if</span> saved[<span class="hljs-string">"</span><span class="hljs-string">kind</span><span class="hljs-string">"</span>] == <span class="hljs-string">"</span><span class="hljs-string">raw</span><span class="hljs-string">"</span>:
+            key = (saved.get(<span class="hljs-string">"</span><span class="hljs-string">origin_session</span><span class="hljs-string">"</span>), saved.get(<span class="hljs-string">"</span><span class="hljs-string">origin_scope</span><span class="hljs-string">"</span>, scope), saved[<span class="hljs-string">"</span><span class="hljs-string">raw_seq</span><span class="hljs-string">"</span>])
+            <span class="hljs-keyword">if</span> key not in originals or saved[<span class="hljs-string">"</span><span class="hljs-string">version</span><span class="hljs-string">"</span>] &gt; originals[key][<span class="hljs-string">"</span><span class="hljs-string">version</span><span class="hljs-string">"</span>]:
+                originals[key] = saved
+        <span class="hljs-keyword">else</span>:
+            <span class="hljs-keyword">for</span> child in saved.get(<span class="hljs-string">"</span><span class="hljs-string">sources</span><span class="hljs-string">"</span>, []):
+                expand(child, trail | {source})
+    <span class="hljs-keyword">if</span> value[<span class="hljs-string">"</span><span class="hljs-string">kind</span><span class="hljs-string">"</span>] in {<span class="hljs-string">"</span><span class="hljs-string">summary</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">prune</span><span class="hljs-string">"</span>}:
+        expand(identity)
+        <span class="hljs-comment"># 当前模型上下文里，最近保留的 Hook 可能排在较早产生的摘要之前。</span>
+        <span class="hljs-comment"># 导入分支时按原文序号读取，并保留原有 raw_seq。</span>
+        <span class="hljs-comment"># 新消息从导入后的最大序号继续分配。</span>
+        parts = <span class="hljs-built_in">sorted</span>(originals.values(), key=<span class="hljs-keyword">lambda</span> item: item[<span class="hljs-string">"</span><span class="hljs-string">raw_seq</span><span class="hljs-string">"</span>])
+        total = <span class="hljs-number">2</span> + <span class="hljs-built_in">max</span>(<span class="hljs-number">0</span>, <span class="hljs-built_in">len</span>(parts) - <span class="hljs-number">1</span>) + <span class="hljs-built_in">sum</span>(item[<span class="hljs-string">"</span><span class="hljs-string">display_length</span><span class="hljs-string">"</span>] <span class="hljs-keyword">for</span> item in parts)</code></pre></div></figure>
+<p>存来源关系可以避免每次摘要都复制旧正文，读回时要多做展开、版本合并和校验工作。遇到循环或引用缺失会停止，避免把半段材料交给模型当完整证据。</p>
+</section><section class="design-section" id="clear-and-branch"><h3>2.3 回退改投影，分支复制可达来源</h3>
+<p>清空、回退会改变当前历史投影，并登记操作边界供复盘。原来已保存的证据仍属于原会话。新建分支时，只从选中的投影引用出发，复制能到达的原文、派生记录、先前版本及必要附件引用。这样即便后来删除源会话，分支能回查自己带入的材料。已从来源投影移除、且没有任何保留引用能到达的片段不会跟过去。旧运行的权限和副作用也不会因数段文字被复制而重新生效。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/session/archive.py#L468" rel="noopener" target="_blank">src/ruocun/session/archive.py · 第 468–484 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>17 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="468"></span><span data-line="469"></span><span data-line="470"></span><span data-line="471"></span><span data-line="472"></span><span data-line="473"></span><span data-line="474"></span><span data-line="475"></span><span data-line="476"></span><span data-line="477"></span><span data-line="478"></span><span data-line="479"></span><span data-line="480"></span><span data-line="481"></span><span data-line="482"></span><span data-line="483"></span><span data-line="484"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    refs = projection(con, scope)[<span class="hljs-string">"</span><span class="hljs-string">lineage</span><span class="hljs-string">"</span>]
+    <span class="hljs-keyword">if</span> indices is not <span class="hljs-keyword">None</span>:
+        <span class="hljs-keyword">if</span> <span class="hljs-built_in">any</span>(<span class="hljs-built_in">type</span>(i) is not <span class="hljs-built_in">int</span> or not <span class="hljs-number">0</span> &lt;= i &lt; <span class="hljs-built_in">len</span>(refs) <span class="hljs-keyword">for</span> i in indices) or <span class="hljs-built_in">tuple</span>(<span class="hljs-built_in">sorted</span>(<span class="hljs-built_in">set</span>(indices))) != indices:
+            <span class="hljs-keyword">raise</span> StoreError(<span class="hljs-string">"</span><span class="hljs-string">继承投影位置无效或未按原顺序排列。</span><span class="hljs-string">"</span>)
+        refs = [refs[i] <span class="hljs-keyword">for</span> i in indices]
+    kept: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any]] = {}
+    <span class="hljs-keyword">def</span> <span class="hljs-title">visit</span>(identity: <span class="hljs-built_in">str</span>) -&gt; <span class="hljs-keyword">None</span>:
+        value = record(con, scope, identity)
+        <span class="hljs-keyword">if</span> identity in kept:
+            <span class="hljs-keyword">return</span>
+        <span class="hljs-keyword">for</span> source in value.get(<span class="hljs-string">"</span><span class="hljs-string">sources</span><span class="hljs-string">"</span>, []):
+            visit(source)
+        <span class="hljs-keyword">if</span> value.get(<span class="hljs-string">"</span><span class="hljs-string">previous</span><span class="hljs-string">"</span>):
+            visit(value[<span class="hljs-string">"</span><span class="hljs-string">previous</span><span class="hljs-string">"</span>])
+        kept[identity] = value
+    <span class="hljs-keyword">for</span> identity in refs:
+        visit(identity)</code></pre></div></figure>
+</section></section>
+<section class="v2-topic-group" id="authorized-paged-read">
+<header class="v2-group-heading"><span>03</span><h2>ArchiveRead 的执行范围与分页</h2></header><div class="design-section">
+</div><section class="design-section" id="bound-reader"><h3>3.1 调用只传归档 ID，范围由执行器绑定</h3>
+<p>从新摘要末尾的 <code>[原文归档:…]</code> 拿到 ID 后，<code>ArchiveRead</code> 接收必填字符串 <code>id</code>、可选的非负整数 <code>offset</code> 和取值 1–16,000 的整数 <code>limit</code>。省略时分别从 0 开始、读 4,096 个字符。工具验证 ID 的字符形式和取消状态，再向 <code>ctx.archiveRead</code> 请求一页。存储层仍会在绑定会话的当前执行范围按合法身份查询。接口没有可由模型设置的会话或范围参数。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/archive_read.py#L14" rel="noopener" target="_blank">src/ruocun/tools/archive_read.py · 第 14–26 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>13 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="14"></span><span data-line="15"></span><span data-line="16"></span><span data-line="17"></span><span data-line="18"></span><span data-line="19"></span><span data-line="20"></span><span data-line="21"></span><span data-line="22"></span><span data-line="23"></span><span data-line="24"></span><span data-line="25"></span><span data-line="26"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">read</span>(args: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any], ctx: ToolContext) -&gt; <span class="hljs-built_in">str</span>:
+        <span class="hljs-keyword">if</span> ctx.archiveRead is <span class="hljs-keyword">None</span>:
+            <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">"</span><span class="hljs-string">当前执行范围未绑定归档读取权限。</span><span class="hljs-string">"</span>)
+        identity = args[<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>]
+        <span class="hljs-keyword">if</span> not <span class="hljs-built_in">isinstance</span>(identity, <span class="hljs-built_in">str</span>) or re.fullmatch(<span class="hljs-string">r</span><span class="hljs-string">"</span><span class="hljs-string">[A-Za-z0-9][A-Za-z0-9:_-]</span><span class="hljs-string">{</span><span class="hljs-string">0,255}</span><span class="hljs-string">"</span>, identity) is <span class="hljs-keyword">None</span>:
+            <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">"</span><span class="hljs-string">归档 ID 无效，不能指定文件路径或其它会话。</span><span class="hljs-string">"</span>)
+        offset, limit = args.get(<span class="hljs-string">"</span><span class="hljs-string">offset</span><span class="hljs-string">"</span>, <span class="hljs-number">0</span>), args.get(<span class="hljs-string">"</span><span class="hljs-string">limit</span><span class="hljs-string">"</span>, <span class="hljs-number">4096</span>)
+        <span class="hljs-keyword">if</span> <span class="hljs-built_in">type</span>(offset) is not <span class="hljs-built_in">int</span> or offset &lt; <span class="hljs-number">0</span> or <span class="hljs-built_in">type</span>(limit) is not <span class="hljs-built_in">int</span> or not <span class="hljs-number">1</span> &lt;= limit &lt;= <span class="hljs-number">16000</span>:
+            <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">"</span><span class="hljs-string">归档分页要求 offset &gt;= 0，limit 为 1–16000。</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> ctx.signal.is_set():
+            <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">"</span><span class="hljs-string">归档读取已取消。</span><span class="hljs-string">"</span>)
+        result = <span class="hljs-keyword">await</span> ctx.archiveRead(identity, offset, limit)
+        <span class="hljs-keyword">return</span> json.dumps(result, ensure_ascii=<span class="hljs-keyword">False</span>)</code></pre></div></figure>
+<p>主会话绑定其存储的 <code>main</code> 范围。子代理先清除从父上下文复制来的读取回调，再用自己的入口绑定当前 <code>run</code>。第 13 篇的<a href="13-重活交给子代理.html#fork-context" rel="noopener" target="_blank">Fork</a>只能带入实际继承的历史及能沿来源找到的归档。其他执行中的 ID 即使格式正确，在当前入口也找不到那条记录。<strong>「归档 ID 负责定位，读取入口决定它在哪个范围有效」</strong>。旧日志里有文件名、链接或命令时，读回文字不会替当前工具授权。</p>
+</section><section class="design-section" id="character-pagination"><h3>3.2 沿 next_offset 读完需要的证据</h3>
+<p>回查派生 ID 后，<code>text</code> 是来源展开后的 JSON 文本切片，偏移按字符计算。先读第 1 页，看 <code>text</code> 停在哪，以及下次请求应填哪个 <code>offset</code>。示意原文只摆两条工具回包，真正核证时还应查同组调用。</p>
+<figure class="reasoning-figure" id="archive-page-join">
+<figcaption>源码推演 · 第一页停在一条回执中间</figcaption>
+<section><h4>请求第 1 页</h4><p><code>{"id":"summary-demo-2","offset":0,"limit":64}</code></p>
+<figure class="ruocun-code" data-language="json">
+<figcaption class="ruocun-code-caption"><span>JSON</span><span>8 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span><span data-line="2"></span><span data-line="3"></span><span data-line="4"></span><span data-line="5"></span><span data-line="6"></span><span data-line="7"></span><span data-line="8"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-json">{
+  <span class="hljs-attr">"id"</span>: <span class="hljs-string">"summary-demo-2"</span>,
+  <span class="hljs-attr">"scope"</span>: <span class="hljs-string">"main"</span>,
+  <span class="hljs-attr">"kind"</span>: <span class="hljs-string">"summary"</span>,
+  <span class="hljs-attr">"text"</span>: <span class="hljs-string">"[{\"content\":\"检查通过\",\"role\":\"tool\",\"tool_call_id\":\"r-smoke\"},{\"con"</span>,
+  <span class="hljs-attr">"total"</span>: <span class="hljs-number">118</span>,
+  <span class="hljs-attr">"next_offset"</span>: <span class="hljs-number">64</span>
+}</code></pre></div></figure></section>
+</figure>
+<p>目前能认出哪次检查？要找会员专项的那次回执，请写出下一次 <code>ArchiveRead</code> 的归档 ID、起点和页长。沿用本例每页 64 个字符。</p>
+<details class="answer-box"><summary>核对下一次请求，查看第 2 页</summary><div><p>第一页能认出 <code>r-smoke</code>。第二条只露出开头，继续用原 ID，从回包给的 <code>next_offset</code> 接着读。</p><p><code>{"id":"summary-demo-2","offset":64,"limit":64}</code></p>
+<figure class="ruocun-code" data-language="json">
+<figcaption class="ruocun-code-caption"><span>JSON</span><span>8 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span><span data-line="2"></span><span data-line="3"></span><span data-line="4"></span><span data-line="5"></span><span data-line="6"></span><span data-line="7"></span><span data-line="8"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-json">{
+  <span class="hljs-attr">"id"</span>: <span class="hljs-string">"summary-demo-2"</span>,
+  <span class="hljs-attr">"scope"</span>: <span class="hljs-string">"main"</span>,
+  <span class="hljs-attr">"kind"</span>: <span class="hljs-string">"summary"</span>,
+  <span class="hljs-attr">"text"</span>: <span class="hljs-string">"tent\":\"检查通过\",\"role\":\"tool\",\"tool_call_id\":\"r-member\"}]"</span>,
+  <span class="hljs-attr">"total"</span>: <span class="hljs-number">118</span>,
+  <span class="hljs-attr">"next_offset"</span>: <span class="hljs-keyword">null</span>
+}</code></pre></div></figure>
+</div></details>
+<p>第一份回包的外层是有效 JSON，内含的 <code>text</code> 只是文本切片。读取方若需要结构体，拼齐同一归档 ID 的所有 <code>text</code> 后再解析。例子里第二页的 <code>next_offset</code> 为 <code>null</code>。拼接两页，就能得到两条完整回执。若当前问题只需要一份证据，找到它后即可停，避免再把整段历史塞进上下文。回包展示会以提示替换图片负载，可结合附件引用核对。已遗失的旧原文无法靠整理摘要重新生成。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/session/archive.py#L392" rel="noopener" target="_blank">src/ruocun/session/archive.py · 第 392–401 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>10 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="392"></span><span data-line="393"></span><span data-line="394"></span><span data-line="395"></span><span data-line="396"></span><span data-line="397"></span><span data-line="398"></span><span data-line="399"></span><span data-line="400"></span><span data-line="401"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">else</span>:
+        full_text = canonical(_display(value.get(<span class="hljs-string">"</span><span class="hljs-string">message</span><span class="hljs-string">"</span>, value)))
+        total = <span class="hljs-built_in">len</span>(full_text)
+        text = full_text[offset:offset + limit]
+    end = <span class="hljs-built_in">min</span>(total, offset + limit)
+    <span class="hljs-keyword">return</span> {<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>: identity, <span class="hljs-string">"</span><span class="hljs-string">scope</span><span class="hljs-string">"</span>: scope, <span class="hljs-string">"</span><span class="hljs-string">kind</span><span class="hljs-string">"</span>: value[<span class="hljs-string">"</span><span class="hljs-string">kind</span><span class="hljs-string">"</span>], <span class="hljs-string">"</span><span class="hljs-string">text</span><span class="hljs-string">"</span>: text,
+            <span class="hljs-string">"</span><span class="hljs-string">total</span><span class="hljs-string">"</span>: total, <span class="hljs-string">"</span><span class="hljs-string">next_offset</span><span class="hljs-string">"</span>: end <span class="hljs-keyword">if</span> end &lt; total <span class="hljs-keyword">else</span> <span class="hljs-keyword">None</span>,
+            <span class="hljs-string">"</span><span class="hljs-string">digest</span><span class="hljs-string">"</span>: value[<span class="hljs-string">"</span><span class="hljs-string">digest</span><span class="hljs-string">"</span>], <span class="hljs-string">"</span><span class="hljs-string">source_count</span><span class="hljs-string">"</span>: <span class="hljs-built_in">len</span>(value.get(<span class="hljs-string">"</span><span class="hljs-string">sources</span><span class="hljs-string">"</span>, [])),
+            <span class="hljs-string">"</span><span class="hljs-string">derived_message</span><span class="hljs-string">"</span>: canonical(_display(value[<span class="hljs-string">"</span><span class="hljs-string">message</span><span class="hljs-string">"</span>]))[:<span class="hljs-number">512</span>] <span class="hljs-keyword">if</span> value[<span class="hljs-string">"</span><span class="hljs-string">kind</span><span class="hljs-string">"</span>] in {<span class="hljs-string">"</span><span class="hljs-string">summary</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">prune</span><span class="hljs-string">"</span>} <span class="hljs-keyword">else</span> <span class="hljs-keyword">None</span>,
+            <span class="hljs-string">"</span><span class="hljs-string">attachments</span><span class="hljs-string">"</span>: attachment_refs(con, [item[<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>] <span class="hljs-keyword">for</span> item in originals.values()] <span class="hljs-keyword">if</span> originals <span class="hljs-keyword">else</span> [identity], scope)}</code></pre></div></figure>
+<p>实际还会返回记录摘要指纹 <code>digest</code>、直接来源数 <code>source_count</code>、派生预览 <code>derived_message</code> 与 <code>attachments</code>。派生记录以索引长度走过不与本页相交的原文，只读取本页所需正文。展开身份仍有开销，分页主要限制回包和正文读取量。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/session/archive.py#L373" rel="noopener" target="_blank">src/ruocun/session/archive.py · 第 373–389 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>17 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="373"></span><span data-line="374"></span><span data-line="375"></span><span data-line="376"></span><span data-line="377"></span><span data-line="378"></span><span data-line="379"></span><span data-line="380"></span><span data-line="381"></span><span data-line="382"></span><span data-line="383"></span><span data-line="384"></span><span data-line="385"></span><span data-line="386"></span><span data-line="387"></span><span data-line="388"></span><span data-line="389"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            end = cursor + <span class="hljs-built_in">len</span>(text)
+            <span class="hljs-keyword">if</span> end &gt; offset and cursor &lt; offset + limit:
+                text_parts.append(text[<span class="hljs-built_in">max</span>(<span class="hljs-number">0</span>, offset-cursor):<span class="hljs-built_in">max</span>(<span class="hljs-number">0</span>, offset+limit-cursor)])
+            cursor = end
+        take(<span class="hljs-string">"</span><span class="hljs-string">[</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">for</span> position, saved in <span class="hljs-built_in">enumerate</span>(parts):
+            <span class="hljs-keyword">if</span> position:
+                take(<span class="hljs-string">"</span><span class="hljs-string">,</span><span class="hljs-string">"</span>)
+            length = saved[<span class="hljs-string">"</span><span class="hljs-string">display_length</span><span class="hljs-string">"</span>]
+            <span class="hljs-keyword">if</span> cursor + length &gt; offset and cursor &lt; offset + limit:
+                original = record(con, scope, saved[<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>], sources=<span class="hljs-keyword">False</span>)
+                fragment = canonical(_display(original[<span class="hljs-string">"</span><span class="hljs-string">message</span><span class="hljs-string">"</span>]))
+                <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(fragment) != length:
+                    <span class="hljs-keyword">raise</span> StoreError(<span class="hljs-string">"</span><span class="hljs-string">归档分页索引与原文不一致。</span><span class="hljs-string">"</span>)
+                take(fragment)
+            <span class="hljs-keyword">else</span>:
+                cursor += length</code></pre></div></figure>
+</section></section>
+<section class="v2-topic-group" id="article-assessment">
+<header class="v2-group-heading"><span>04</span><h2>学习效果检测</h2></header><div class="design-section">
+</div><section class="design-section" id="article-assessment-1">
+<h3>4.1 判断归档身份、授权与分页结果</h3>
+<p><strong>1．</strong>同一回复文字被两次保存为不同原文。其中第二条更新了图片投递标记。展开摘要应保留几条？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>两条。第二条的元数据变化在同一原文序号上增加版本。展开时在可达记录中取该序号的最高版本，保留第一次真实产生的原文。</p></div></details>
+<p><strong>2．</strong>原范围有摘要 S1，后来 S2 同时引用 S1 和 S1 已使用过的某条原文。为什么不会重复展示那条原文？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>展开递归跟随派生来源，到叶子时按原会话、原范围、原文序号合并，再按序号排列。重复路径与真正的两次历史发生有不同身份。</p></div></details>
+<p><strong>3．</strong>子代理拿到了父会话的合法归档 ID，为什么还是读不到？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>工具只收 ID，具体查询范围来自子执行自己的已绑定读入口。只有被真实继承并复制进该范围的来源可以找到，获知 ID 本身不扩大范围。</p></div></details>
+<p><strong>4．</strong> 同一页里看到了 <code>r-smoke</code>，另一条“检查通过”刚露出开头。当前回包给 <code>id=report-2</code>、<code>next_offset=96</code>，你要核实会员专项。第一条通过能交差吗？写出下一次请求，再指出拿到第二条回包后还要核对哪条调用。</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>只能确认第一页出现了冒烟检查的回执。用相同范围继续发 <code>ArchiveRead({"id":"report-2","offset":96})</code>，按后续回包给的偏移查完所需证据。找到专项回执后，用它自己的调用 ID 查到原命令和断言范围，再决定是否覆盖会员专项。</p></div></details>
+</section><div class="design-section">
+</div></section>
+<section class="v2-topic-group" id="article-interview">
+<header class="v2-group-heading"><span>05</span><h2>模拟面试官提问</h2></header><div class="design-section">
+</div><section class="design-section" id="intern-interview"><h3>5.1 Agent 开发实习</h3>
+<h4>独立核心题</h4>
+<p><strong>摘要写“测试通过”，还要如何核实才可以交付？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>我会定位该摘要的归档引用，按需回查对应的调用和回包，确认测试名称、实际输入和结果覆盖用户要求。若结果缺了条件，继续补能够验证该条件的证据。</p><p>摘要适合续接方向，归档适合核对原始依据。版本和来源身份帮助定位正确的一趟执行。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>怎样把归档页用在真实任务里？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>我先看当前目标缺的是哪条可核实信息，再从摘要或裁剪标记取 ID，逐页读取。</p></div></details>
+<p><strong>追问 1</strong> 一页中有两个“通过”时怎样选？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>进一步检查工具配对 ID 和调用参数，找到验证了目标条件的一趟。</p></div></details>
+<p><strong>追问 2</strong> 读到一半已明确要查的记录时怎么办？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>如果证据够用就停止回查。如果需要机器解析整个 JSON，则沿偏移拼齐，再验证消息关系。</p></div></details>
+</section><section class="design-section" id="harness-interview"><h3>5.2 Agent harness 岗位</h3>
+<h4>独立核心题</h4>
+<p><strong>怎样让多轮压缩后的摘要仍可审计？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>我会给原始消息稳定身份，派生摘要和裁剪记录保留对实际来源的引用。在一次提交中登记新投影和这些来源。读取时递归展开，按原文身份合并可达版本并恢复原序。</p><p>按正文哈希去重会丢掉真正的重复动作。哈希适合校验记录完整性，来源身份能说明它来自哪一次。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>会话分支和子代理如何读取继承历史？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>分支复制当前投影能到达的来源闭包，读取入口绑定到该执行自己的会话与范围。</p></div></details>
+<p><strong>追问 1</strong> 源会话删除后会怎样？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>已经复制的闭包和附件仍为分支保存可回查的材料。</p></div></details>
+<p><strong>追问 2</strong> 如果目标范围的记录包含原父任务的一条写入指令呢？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>只把它作为过去的证据，当前是否能执行依然走当前授权和工具派发。</p></div></details>
+</section></section>
+<section class="v2-topic-group" id="article-takeaways">
+<header class="v2-group-heading"><span>06</span><h2>这一篇带走什么</h2></header><div class="design-section">
+<p>模型在短投影上继续工作，需要历史细节时再沿提交过的派生来源，在当前范围内分页查回原文。</p>
+<ul class="pilot-takeaways">
+<li>为真实消息分配原文序号和版本，用原会话、范围与原文序号判断身份。重复文字和元数据更新分别处理。</li>
+<li>派生记录保留真实来源，并随检查点一起提交。分支想独立回查，就复制实际可达的来源闭包。</li>
+<li>读取入口绑定执行范围，归档 ID 只做定位。对长证据按页消费，返回的偏移和原文配对信息足够继续核对。</li>
+</ul>
+<p>归档按原文身份追到历史证据。下一篇看另一件事：即使没查任何归档，同样的 system、工具定义和历史出现在两次<a href="16-前缀缓存怎样配合请求.html#which-prefix-moved" rel="noopener" target="_blank">实际外发请求的开头</a>，模型服务也有机会复用此前的计算。</p>
+</div></section>
+</article></main>
+</body>
+</html>

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>命令运行很久：前后台交接、输出回查与取消确认 · RuoCun 设计学习</title>
+<link href="assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="assets/ruocun-code.css" rel="stylesheet"/>
+<link href="assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="assets/ruocun-article.css" rel="stylesheet"/>
+<link href="assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="assets/ruocun-textbook.js"></script>
+</head>
+<body class="textbook-read">
+<a class="textbook-skip" href="#shell-lifecycle">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#shell-lifecycle">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航">
+<a href="课程学习地图.html" rel="noopener" target="_blank">学习地图</a>
+<a class="textbook-original" href="#article-takeaways">这一篇带走什么</a>
+</nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title">命令运行很久</div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc" open="">
+<summary>展开文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#shell-start"><span class="v2-toc-number">1</span><span>看见第一条日志，就可以说检查通过了吗？</span></a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#shell-foreground"><span class="v2-toc-number">2</span><span>前台执行与结果</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#shell-foreground-1"><span class="v2-toc-number">2.1</span><span>执行计划确定命令的真实运行条件</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#shell-handoff"><span class="v2-toc-number">3</span><span>前后台交接</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#shell-handoff-1"><span class="v2-toc-number">3.1</span><span>先保存后台决定，再交出原 run</span></a></li><li><a class="v2-toc-child-link" href="#shell-handoff-2"><span class="v2-toc-number">3.2</span><span>重启后用原材料接回日志和控制</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#shell-logs"><span class="v2-toc-number">4</span><span>输出窗口与日志回查</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#shell-logs-1"><span class="v2-toc-number">4.1</span><span>用输出游标取新内容，再按位置找完整日志</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#shell-cancel"><span class="v2-toc-number">5</span><span>取消请求与退出确认</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#shell-cancel-1"><span class="v2-toc-number">5.1</span><span>取消进入 canceling，收据确认后进入终态</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-assessment"><span class="v2-toc-number">6</span><span>学习效果检测</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#article-assessment-1"><span class="v2-toc-number">6.1</span><span>按日志和收据判断结论</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-interview"><span class="v2-toc-number">7</span><span>模拟面试官提问</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#article-interview-1"><span class="v2-toc-number">7.1</span><span>Agent 开发实习</span></a></li><li><a class="v2-toc-child-link" href="#article-interview-2"><span class="v2-toc-number">7.2</span><span>Agent harness 岗位</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways"><span class="v2-toc-number">8</span><span>这一篇带走什么</span></a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper course-lesson" id="shell-lifecycle"><header class="design-hero">
+<h1>命令运行很久</h1><p class="article-subtitle">前后台交接、输出回查与取消确认</p>
+<p class="target">沿一次价格检查追踪命令的身份、日志和终态，判断什么时候该等，什么时候可以验收。</p>
+</header>
+<section class="v2-topic-group" id="shell-start">
+<header class="v2-group-heading"><span>01</span><h2>看见第一条日志，就可以说检查通过了吗？</h2></header><div class="design-section">
+<p><a href="01-文件编辑可靠性-精致教材预览.html#price-task" rel="noopener" target="_blank">上一章用一次很短的试算核对了两个价格</a>。假设现在要跑范围更大的 <code>check_pricing.py</code>，它先检查普通商品，最后才检查退款边界。模型调用 <code>Bash</code> 开始检查。程序把启动的进程、它的日志及退出状态登记成一次运行，也就是一个 run。下面用绑定了可恢复 Shell 后端的 Windows 会话追这次运行。</p>
+<figure class="ruocun-code" data-language="json">
+<figcaption class="ruocun-code-caption"><span>JSON</span><span>1 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-json">{<span class="hljs-attr">"command"</span>:<span class="hljs-string">"python -u check_pricing.py"</span>,<span class="hljs-attr">"description"</span>:<span class="hljs-string">"检查定价和退款规则"</span>}</code></pre></div></figure>
+<figure class="reasoning-figure" id="shell-run-evidence">
+<figcaption>源码推演 · 转后台时手头已有的两条记录</figcaption>
+<div class="reasoning-grid">
+<section><h4>前台看到的 stdout</h4><p><code>standard price: PASS</code><br/>还没收到退出码。</p></section>
+<section><h4>后台回执</h4><p>这次执行的 ID 是 <code>run-price-7</code>。<br/>查询新增输出的接口为 <code>BashOutput(id)</code>。</p></section>
+</div>
+</figure>
+<details class="answer-box"><summary>下一次调用该填什么？目前能确认整个检查通过吗？</summary><div>
+<p>查询用 <code>BashOutput({"id":"run-price-7"})</code>。第一条 <code>PASS</code> 只覆盖普通商品，原命令还没有退出。继续沿同一个 ID 等终态，才知道退款检查和这次命令的最终结果。</p>
+</div></details>
+<p>继续沿该 ID 查询。假设下一次拿到下面的工具回包节选，现在才知道这次检查最终失败。</p>
+<figure class="ruocun-code" data-language="text">
+<figcaption class="ruocun-code-caption"><span>输出</span><span>4 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span><span data-line="2"></span><span data-line="3"></span><span data-line="4"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-text">状态:exited
+[stderr]
+refund: FAIL
+[exit 1]</code></pre></div></figure>
+<p>第一次 <code>Bash</code> 和后来每次 <code>BashOutput</code> 都是独立工具调用，各有调用 ID，按<a href="01-一次任务怎样跑完.html#pairing-in-program" rel="noopener" target="_blank">第一篇的规则</a>同回包配对。查询参数中的 <code>run-price-7</code> 则始终指向同一次命令执行。只留下聊天里的半截日志，后续就失去了查这份运行的位置。再跑一次会生成新的 run；如果两份执行同时写报告，已经无法单靠报告内容判断是哪一次产生的。</p>
+</div></section>
+<section class="v2-topic-group" id="shell-foreground">
+<header class="v2-group-heading"><span>02</span><h2>前台执行与结果</h2></header><div class="design-section">
+</div><section class="design-section" id="shell-foreground-1"><h3>2.1 执行计划确定命令的真实运行条件</h3>
+<p><code>command</code> 是实际传给 Shell 的命令，<code>description</code> 为审计提供语义说明。<code>background</code> 省略时按前台运行。处理器先取当前 <code>ctx.cwd</code>，缺省用 <code>workspaceRoot</code>，再构造执行计划并应用沙箱决策。工具名叫 Bash，Windows 默认实际用 cmd，非 Windows 的默认执行器是 <code>/bin/sh</code>。显式调用其他解释器时，计划与裁决要看实际方言。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/exec_shell.py#L146" rel="noopener" target="_blank">src/ruocun/tools/exec_shell.py · 第 146–159 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>14 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="146"></span><span data-line="147"></span><span data-line="148"></span><span data-line="149"></span><span data-line="150"></span><span data-line="151"></span><span data-line="152"></span><span data-line="153"></span><span data-line="154"></span><span data-line="155"></span><span data-line="156"></span><span data-line="157"></span><span data-line="158"></span><span data-line="159"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    plan = ctx.getShellPlan(command, cwd) <span class="hljs-keyword">if</span> ctx.getShellPlan is not <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> buildShellPlan(command, cwd, analyze=<span class="hljs-keyword">False</span>)
+    plan = <span class="hljs-keyword">await</span> prepareSandboxPlan(plan, ctx, args.get(<span class="hljs-string">"</span><span class="hljs-string">additionalWriteDirectories</span><span class="hljs-string">"</span>))
+    <span class="hljs-keyword">if</span> plan.sandbox is not <span class="hljs-keyword">None</span> and args.get(<span class="hljs-string">"</span><span class="hljs-string">dangerouslyDisableSandbox</span><span class="hljs-string">"</span>) is <span class="hljs-keyword">True</span>:
+        <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">"</span><span class="hljs-string">Windows 沙箱已开启，不能整次绕过；请请求本次额外可写目录。</span><span class="hljs-string">"</span>)
+    <span class="hljs-comment"># 单次绕过仅限前台命令，后台继续按既定执行边界运行。</span>
+    disable_sandbox = not background and args.get(<span class="hljs-string">"</span><span class="hljs-string">dangerouslyDisableSandbox</span><span class="hljs-string">"</span>) is <span class="hljs-keyword">True</span>
+    <span class="hljs-keyword">try</span>:
+        execution_plan = sandboxExecutionPlan(plan, disable_sandbox)
+    <span class="hljs-keyword">except</span> SandboxUnavailable <span class="hljs-keyword">as</span> error:
+        <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-built_in">str</span>(error)) <span class="hljs-keyword">from</span> error
+    <span class="hljs-keyword">if</span> background and ctx.managedShell is <span class="hljs-keyword">None</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"</span><span class="hljs-string">首版不支持 background=true；命令未执行。请使用前台执行。</span><span class="hljs-string">"</span>
+    <span class="hljs-keyword">if</span> background and os.name != <span class="hljs-string">"</span><span class="hljs-string">nt</span><span class="hljs-string">"</span>:
+        <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">"</span><span class="hljs-string">当前环境未提供可恢复Shell执行后端，命令未执行。</span><span class="hljs-string">"</span>)</code></pre></div></figure>
+<p>在绑定受管后端的 Windows 会话，执行交给 <code>managedShell.execute</code>。前台有实时 stdout（常规输出）和 stderr（诊断输出），输出回调发生异常时只关闭回调并记录提示，执行器仍继续收取结果。在普通前台后端里，等待者被取消时先设执行信号，再等待由原命令和它启动的子进程组成的进程树退出。前台回包最后包含两路输出、退出码或中断状态及耗时。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/exec_shell.py#L190" rel="noopener" target="_blank">src/ruocun/tools/exec_shell.py · 第 190–199 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>10 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="190"></span><span data-line="191"></span><span data-line="192"></span><span data-line="193"></span><span data-line="194"></span><span data-line="195"></span><span data-line="196"></span><span data-line="197"></span><span data-line="198"></span><span data-line="199"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">try</span>:
+            result = <span class="hljs-keyword">await</span> asyncio.shield(execution)
+        <span class="hljs-keyword">except</span> asyncio.CancelledError:
+            execution_signal.set()
+            <span class="hljs-keyword">await</span> execution  <span class="hljs-comment"># 等待真正的进程树退出后，再结束本地等待。</span>
+            <span class="hljs-keyword">raise</span>
+        <span class="hljs-keyword">except</span> FileNotFoundError <span class="hljs-keyword">as</span> error:
+            <span class="hljs-keyword">if</span> execution_plan is plan:
+                <span class="hljs-keyword">raise</span>
+            <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">"</span><span class="hljs-string">沙箱启动文件或工作目录不可用，命令未执行。</span><span class="hljs-string">"</span>) <span class="hljs-keyword">from</span> error</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/exec_shell.py#L206" rel="noopener" target="_blank">src/ruocun/tools/exec_shell.py · 第 206–216 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>11 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="206"></span><span data-line="207"></span><span data-line="208"></span><span data-line="209"></span><span data-line="210"></span><span data-line="211"></span><span data-line="212"></span><span data-line="213"></span><span data-line="214"></span><span data-line="215"></span><span data-line="216"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    parts: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>] = []
+    <span class="hljs-keyword">if</span> observer_error is not <span class="hljs-keyword">None</span>:
+        parts.append(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">[实时输出不可用（</span><span class="hljs-string">{</span>observer_error<span class="hljs-string">}</span><span class="hljs-string">）；完整工具结果保留如下]</span><span class="hljs-string">"</span>)
+    <span class="hljs-keyword">if</span> backup_notice:
+        parts.append(backup_notice)
+    <span class="hljs-keyword">if</span> result.stdout.strip():
+        parts.append(result.stdout.rstrip())
+    <span class="hljs-keyword">if</span> result.stderr.strip():
+        parts.append(<span class="hljs-string">"</span><span class="hljs-string">[stderr]</span><span class="hljs-string">\n</span><span class="hljs-string">"</span> + result.stderr.rstrip())
+    status = <span class="hljs-string">"</span><span class="hljs-string">已中断</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> result.aborted <span class="hljs-keyword">else</span> <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">exit </span><span class="hljs-string">{</span>result.code<span class="hljs-string">}</span><span class="hljs-string">"</span>
+    parts.append(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">[</span><span class="hljs-string">{</span>status<span class="hljs-string">}</span><span class="hljs-string">,运行 </span><span class="hljs-string">{</span><span class="hljs-built_in">round</span>(result.elapsedMs / <span class="hljs-number">1000</span>)<span class="hljs-string">}</span><span class="hljs-string">s]</span><span class="hljs-string">"</span>)</code></pre></div></figure>
+<p>第一条 <code>PASS</code> 可以给用户看，最终判定还要看退出码及这次检查覆盖的内容。即使实时界面失去更新，也可以等工具的最终回包。从这里可以带走一个约束，<strong>「实时输出负责观察，退出收据才负责确认命令的终态」</strong>。</p>
+</section></section>
+<section class="v2-topic-group" id="shell-handoff">
+<header class="v2-group-heading"><span>03</span><h2>前后台交接</h2></header><div class="design-section">
+</div><section class="design-section" id="shell-handoff-1"><h3>3.1 先保存后台决定，再交出原 run</h3>
+<p>前台时，原来的 Bash 调用继续等命令结果。转到后台后，命令继续运行，模型可以拿到 run ID 等通知或查询。可以从一开始请求 <code>background: true</code>，也可以由终端把正在前台的执行转过去。前者对新 run 做交接，后者取当前前台的 run，交接期间排斥另一条前台取消路径。两条路都保留原执行器、输出文件和控制身份。后端缺失时，显式的后台请求会得到命令未执行的反馈。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/managed_shell.py#L570" rel="noopener" target="_blank">src/ruocun/tools/managed_shell.py · 第 570–590 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>21 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="570"></span><span data-line="571"></span><span data-line="572"></span><span data-line="573"></span><span data-line="574"></span><span data-line="575"></span><span data-line="576"></span><span data-line="577"></span><span data-line="578"></span><span data-line="579"></span><span data-line="580"></span><span data-line="581"></span><span data-line="582"></span><span data-line="583"></span><span data-line="584"></span><span data-line="585"></span><span data-line="586"></span><span data-line="587"></span><span data-line="588"></span><span data-line="589"></span><span data-line="590"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">detach</span>(<span class="hljs-built_in">self</span>, run_id: <span class="hljs-built_in">str</span>) -&gt; <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any]:
+        entry = <span class="hljs-built_in">self</span>._runs[run_id]
+        receipt = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._port(<span class="hljs-built_in">self</span>._terminal, entry)
+        <span class="hljs-keyword">if</span> receipt is not <span class="hljs-keyword">None</span>:
+            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._accept_terminal(entry, receipt)
+            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._commit(entry, detached=<span class="hljs-keyword">True</span>, detach_requested=<span class="hljs-keyword">True</span>)
+            <span class="hljs-keyword">return</span> {<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>: run_id, <span class="hljs-string">"</span><span class="hljs-string">status</span><span class="hljs-string">"</span>: entry.record.status, <span class="hljs-string">"</span><span class="hljs-string">detached</span><span class="hljs-string">"</span>: <span class="hljs-keyword">True</span>}
+        <span class="hljs-comment"># 先持久保存转后台的决定，再交出前台取消责任。</span>
+        <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._commit(entry, detach_requested=<span class="hljs-keyword">True</span>)
+        <span class="hljs-keyword">try</span>:
+            result = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._rpc(entry, <span class="hljs-string">"</span><span class="hljs-string">detach</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">except</span> (OSError, ValueError, RuntimeError):
+            receipt = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._port(<span class="hljs-built_in">self</span>._terminal, entry)
+            <span class="hljs-keyword">if</span> receipt is <span class="hljs-keyword">None</span>:
+                <span class="hljs-keyword">raise</span>
+            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._accept_terminal(entry, receipt)
+            result = {<span class="hljs-string">"</span><span class="hljs-string">detached</span><span class="hljs-string">"</span>: <span class="hljs-keyword">True</span>}
+        <span class="hljs-keyword">if</span> result.get(<span class="hljs-string">"</span><span class="hljs-string">detached</span><span class="hljs-string">"</span>) is not <span class="hljs-keyword">True</span>:
+            <span class="hljs-keyword">raise</span> RuntimeError(<span class="hljs-string">"</span><span class="hljs-string">runner未确认保留许可。</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._commit(entry, detached=<span class="hljs-keyword">True</span>)
+        <span class="hljs-keyword">return</span> {<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>: run_id, <span class="hljs-string">"</span><span class="hljs-string">status</span><span class="hljs-string">"</span>: entry.record.status, <span class="hljs-string">"</span><span class="hljs-string">detached</span><span class="hljs-string">"</span>: <span class="hljs-keyword">True</span>}</code></pre></div></figure>
+<p>设想界面一收到“转后台”的按键就解除前台责任，而后台的执行器还没确认接手。这时控制器退出，重开只记得界面请求过交接，无法证明这次命令是继续运行还是已经退出。对照上面的代码，<code>run-price-7</code> 尚在运行时，管理器先保存 <code>detach_requested</code>，再等原 runner 确认保留，才提交 <code>detached=True</code>。这多了两处状态落盘和一次往返，让重开时能分辨“已提出交接”和“交接已确认”。若原命令恰好退出，交接前或通信失败后都可用原运行的终态收据接回结果。收到后台回执以后，管理器还能将完成事件交给后台运行系统。需要让出回合等待具体事件时，见<a href="12-长任务怎样有序推进.html" rel="noopener" target="_blank">待办、任务与等待</a>。</p>
+</section><section class="design-section" id="shell-handoff-2"><h3>3.2 重启后用原材料接回日志和控制</h3>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/managed_shell.py#L788" rel="noopener" target="_blank">src/ruocun/tools/managed_shell.py · 第 788–804 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>17 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="788"></span><span data-line="789"></span><span data-line="790"></span><span data-line="791"></span><span data-line="792"></span><span data-line="793"></span><span data-line="794"></span><span data-line="795"></span><span data-line="796"></span><span data-line="797"></span><span data-line="798"></span><span data-line="799"></span><span data-line="800"></span><span data-line="801"></span><span data-line="802"></span><span data-line="803"></span><span data-line="804"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">                verify_private_file(directory / <span class="hljs-string">"</span><span class="hljs-string">capability</span><span class="hljs-string">"</span>)
+                capability = (directory / <span class="hljs-string">"</span><span class="hljs-string">capability</span><span class="hljs-string">"</span>).read_bytes()
+                manifest = read_signed(directory / <span class="hljs-string">"</span><span class="hljs-string">manifest.json</span><span class="hljs-string">"</span>, capability)
+                validate_manifest(manifest, session_id=<span class="hljs-built_in">self</span>.session_id, run_id=record.run_ref.run_id,
+                                  task_id=record.run_ref.task_id, launch_id=record.snapshot[<span class="hljs-string">"</span><span class="hljs-string">launch_id</span><span class="hljs-string">"</span>],
+                                  plan_digest=record.snapshot[<span class="hljs-string">"</span><span class="hljs-string">plan_digest</span><span class="hljs-string">"</span>])
+                entry = _Run(record, manifest, capability)
+                <span class="hljs-built_in">self</span>._runs[record.run_ref.run_id] = entry
+                <span class="hljs-keyword">if</span> record.status == <span class="hljs-string">"</span><span class="hljs-string">failed-before-grant</span><span class="hljs-string">"</span>:
+                    <span class="hljs-keyword">continue</span>
+                receipt = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._port(<span class="hljs-built_in">self</span>._terminal, entry)
+                <span class="hljs-keyword">if</span> receipt is not <span class="hljs-keyword">None</span>:
+                    <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._accept_terminal(entry, receipt, recover=<span class="hljs-keyword">True</span>)
+                    <span class="hljs-keyword">continue</span>
+                state = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._connect(entry, adopt=<span class="hljs-keyword">True</span>)
+                <span class="hljs-keyword">if</span> not state.get(<span class="hljs-string">"</span><span class="hljs-string">started</span><span class="hljs-string">"</span>):
+                    <span class="hljs-keyword">raise</span> RuntimeError(<span class="hljs-string">"</span><span class="hljs-string">runner未完成启动认领，恢复不重发start。</span><span class="hljs-string">"</span>)</code></pre></div></figure>
+<p>会话加载按已保存的运行目录、签名清单和 run 身份核对恢复材料，还会核对 runner 控制租约的代次。能验证终态就导入终态，能接管仍在运行的后台 runner 就接到原 run。恢复发现 runner 未完成启动认领时不会补发启动。非终态材料缺失或身份核对失败时，状态保留为 <code>unknown</code>，原日志和现场仍可供后续定位。<strong>「恢复运行要找回原身份，重新启动会得到另一次执行」</strong>。</p>
+</section></section>
+<section class="v2-topic-group" id="shell-logs">
+<header class="v2-group-heading"><span>04</span><h2>输出窗口与日志回查</h2></header><div class="design-section">
+</div><section class="design-section" id="shell-logs-1"><h3>4.1 用输出游标取新内容，再按位置找完整日志</h3>
+<p><code>BashOutput</code> 接收后台工具返回的 <code>id</code>，管理器分别维护标准输出和标准错误的读取游标，终端实时显示用另一组游标。这样终端先看到一行，工具查询还可以收取那行。模型连续查询同一个 running run 且没有非空新增时，处理器有 30 秒的提示节流，引导等待完成通知。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/managed_shell.py#L465" rel="noopener" target="_blank">src/ruocun/tools/managed_shell.py · 第 465–486 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>22 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="465"></span><span data-line="466"></span><span data-line="467"></span><span data-line="468"></span><span data-line="469"></span><span data-line="470"></span><span data-line="471"></span><span data-line="472"></span><span data-line="473"></span><span data-line="474"></span><span data-line="475"></span><span data-line="476"></span><span data-line="477"></span><span data-line="478"></span><span data-line="479"></span><span data-line="480"></span><span data-line="481"></span><span data-line="482"></span><span data-line="483"></span><span data-line="484"></span><span data-line="485"></span><span data-line="486"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">_poll</span>(<span class="hljs-built_in">self</span>, run_id: <span class="hljs-built_in">str</span>, *, incremental: <span class="hljs-built_in">bool</span> = <span class="hljs-keyword">False</span>) -&gt; <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any]:
+        entry = <span class="hljs-built_in">self</span>._runs.get(run_id)
+        <span class="hljs-keyword">if</span> entry is <span class="hljs-keyword">None</span>:
+            <span class="hljs-keyword">return</span> {<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>: run_id, <span class="hljs-string">"</span><span class="hljs-string">status</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">not-found</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">stdout</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">stderr</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">"</span>}
+        <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._refresh(entry)
+        stdout = stderr = <span class="hljs-string">"</span><span class="hljs-string">"</span>
+        read = <span class="hljs-built_in">self</span>._read_text <span class="hljs-keyword">if</span> incremental <span class="hljs-keyword">else</span> <span class="hljs-built_in">self</span>._read_window
+        <span class="hljs-keyword">if</span> (entry.directory / <span class="hljs-string">"</span><span class="hljs-string">stdout.txt</span><span class="hljs-string">"</span>).exists():
+            stdout, next_stdout = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._port(read, entry, <span class="hljs-string">"</span><span class="hljs-string">stdout.txt</span><span class="hljs-string">"</span>, entry.ui_stdout <span class="hljs-keyword">if</span> incremental <span class="hljs-keyword">else</span> entry.stdout_cursor)
+            <span class="hljs-keyword">if</span> incremental:
+                entry.ui_stdout = next_stdout
+            <span class="hljs-keyword">else</span>:
+                entry.stdout_cursor = next_stdout
+        <span class="hljs-keyword">if</span> (entry.directory / <span class="hljs-string">"</span><span class="hljs-string">stderr.txt</span><span class="hljs-string">"</span>).exists():
+            stderr, next_stderr = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._port(read, entry, <span class="hljs-string">"</span><span class="hljs-string">stderr.txt</span><span class="hljs-string">"</span>, entry.ui_stderr <span class="hljs-keyword">if</span> incremental <span class="hljs-keyword">else</span> entry.stderr_cursor)
+            <span class="hljs-keyword">if</span> incremental:
+                entry.ui_stderr = next_stderr
+            <span class="hljs-keyword">else</span>:
+                entry.stderr_cursor = next_stderr
+        <span class="hljs-keyword">return</span> {<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>: run_id, <span class="hljs-string">"</span><span class="hljs-string">status</span><span class="hljs-string">"</span>: entry.record.status, <span class="hljs-string">"</span><span class="hljs-string">stdout</span><span class="hljs-string">"</span>: stdout, <span class="hljs-string">"</span><span class="hljs-string">stderr</span><span class="hljs-string">"</span>: stderr,
+                <span class="hljs-string">"</span><span class="hljs-string">exitCode</span><span class="hljs-string">"</span>: entry.record.snapshot.get(<span class="hljs-string">"</span><span class="hljs-string">code</span><span class="hljs-string">"</span>), <span class="hljs-string">"</span><span class="hljs-string">runnerDir</span><span class="hljs-string">"</span>: <span class="hljs-built_in">str</span>(entry.directory),
+                <span class="hljs-string">"</span><span class="hljs-string">stdout_cursor</span><span class="hljs-string">"</span>: entry.stdout_cursor, <span class="hljs-string">"</span><span class="hljs-string">stderr_cursor</span><span class="hljs-string">"</span>: entry.stderr_cursor}</code></pre></div></figure>
+<p>某次查询可能遇到 35,000 个 UTF-16 单位的新增 stdout。模型侧窗口超过 20,000 个单位时返回首 12,000 和末 8,000 个单位的预览，边界避开拆开代理对，再附日志目录。退款失败细节若在中间，应该按回包给的目录和 <code>stdout.txt</code> 或 <code>stderr.txt</code> 回查相应位置。问一次 <code>BashOutput</code> 就推进游标，下一次调用只从新位置读。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/exec_shell.py#L87" rel="noopener" target="_blank">src/ruocun/tools/exec_shell.py · 第 87–103 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>17 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="87"></span><span data-line="88"></span><span data-line="89"></span><span data-line="90"></span><span data-line="91"></span><span data-line="92"></span><span data-line="93"></span><span data-line="94"></span><span data-line="95"></span><span data-line="96"></span><span data-line="97"></span><span data-line="98"></span><span data-line="99"></span><span data-line="100"></span><span data-line="101"></span><span data-line="102"></span><span data-line="103"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">_spill_output</span>(content: <span class="hljs-built_in">str</span>, cwd: <span class="hljs-built_in">str</span>, *, workspace_only: <span class="hljs-built_in">bool</span> = <span class="hljs-keyword">False</span>, policy: SandboxPolicy | <span class="hljs-keyword">None</span> = <span class="hljs-keyword">None</span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(content) &lt;= <span class="hljs-number">16000</span>:
+        <span class="hljs-keyword">return</span> content
+    pointer = <span class="hljs-string">"</span><span class="hljs-string">"</span>
+    <span class="hljs-keyword">try</span>:
+        path = Path(cwd) / <span class="hljs-string">"</span><span class="hljs-string">.ruocun</span><span class="hljs-string">"</span> / <span class="hljs-string">"</span><span class="hljs-string">spill</span><span class="hljs-string">"</span> / (uuid.uuid4().hex + <span class="hljs-string">"</span><span class="hljs-string">.txt</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> ((not workspace_only or not classifyPath(cwd, <span class="hljs-built_in">str</span>(path)).external)
+                and (policy is <span class="hljs-keyword">None</span> or policy.allowsWrite(<span class="hljs-built_in">str</span>(path.absolute())))):
+            path.parent.mkdir(parents=<span class="hljs-keyword">True</span>, exist_ok=<span class="hljs-keyword">True</span>)
+            path.write_text(content, encoding=<span class="hljs-string">"</span><span class="hljs-string">utf-8</span><span class="hljs-string">"</span>)
+            pointer = <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">\n</span><span class="hljs-string">[完整输出 </span><span class="hljs-string">{</span><span class="hljs-built_in">len</span>(content)<span class="hljs-string">}</span><span class="hljs-string"> 字符已落盘:</span><span class="hljs-string">{</span>path<span class="hljs-string">}</span><span class="hljs-string">；需要完整内容时用Read读取]</span><span class="hljs-string">"</span>
+    <span class="hljs-keyword">except</span> OSError:
+        <span class="hljs-keyword">pass</span>
+    <span class="hljs-keyword">return</span> (
+        content[:<span class="hljs-number">9600</span>] + <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">\n</span><span class="hljs-string">…(已省略中间 </span><span class="hljs-string">{</span><span class="hljs-built_in">len</span>(content) - <span class="hljs-number">16000</span><span class="hljs-string">}</span><span class="hljs-string"> 字符,共 </span><span class="hljs-string">{</span><span class="hljs-built_in">len</span>(content)<span class="hljs-string">}</span><span class="hljs-string"> 字符)…</span><span class="hljs-string">\n</span><span class="hljs-string">"</span>
+        + content[-<span class="hljs-number">6400</span>:] + pointer
+    )</code></pre></div></figure>
+<p>前台最终文本还有自己的长度限制。例如汇总内容为 20,000 个 Python 字符，<code>_spill_output</code> 留前 9,600、后 6,400，省去中间 4,000；写入经过检查且成功时，附上 <code>.ruocun/spill/</code> 下的完整汇总文本路径。这里的“完整”指这层收到的文本。受管前台收集也有自己的上限，超出时要以 runner 的两份原日志为准。回包出现何种路径，决定 <code>Read</code> 或 <code>Grep</code> 下一步要查哪里。</p>
+</section></section>
+<section class="v2-topic-group" id="shell-cancel">
+<header class="v2-group-heading"><span>05</span><h2>取消请求与退出确认</h2></header><div class="design-section">
+</div><section class="design-section" id="shell-cancel-1"><h3>5.1 取消进入 canceling，收据确认后进入终态</h3>
+<p>如果退款测试持续卡住，已知 run ID 可以交给 <code>KillShell</code> 请求终止。控制器先查当前终态及控制材料；已核对身份的运行可以收到取消，材料无法核对时保留现场，避免用一个可能已被替换的进程身份盲目干预。</p>
+<figure class="reasoning-figure" id="shell-cancel-evidence">
+<figcaption>源码推演 · 请求停止以后，两次查询可能拿到的证据</figcaption>
+<div class="reasoning-grid">
+<section><h4>刚登记取消</h4><p><code>cancel_requested=True</code><br/>状态为 <code>canceling</code>，未收到终态收据。</p></section>
+<section><h4>原运行的收据随后确认</h4><p>收据身份仍为 <code>run-price-7</code>。<br/>终态为 <code>failed</code>，退出码 <code>1</code>。</p></section>
+</div>
+</figure>
+<details class="answer-box"><summary>在哪一次可以确认运行结束？能说明是取消使它结束的吗？</summary><div><p>第二次才有同一 run 的可信终态。收据表明检查失败退出，程序可能在取消到达之前已经失败结束。第一次只证明系统已登记取消意愿。</p></div></details>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/managed_shell.py#L663" rel="noopener" target="_blank">src/ruocun/tools/managed_shell.py · 第 663–679 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>17 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="663"></span><span data-line="664"></span><span data-line="665"></span><span data-line="666"></span><span data-line="667"></span><span data-line="668"></span><span data-line="669"></span><span data-line="670"></span><span data-line="671"></span><span data-line="672"></span><span data-line="673"></span><span data-line="674"></span><span data-line="675"></span><span data-line="676"></span><span data-line="677"></span><span data-line="678"></span><span data-line="679"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        entry.record = replace(entry.record, cancel_requested=<span class="hljs-keyword">True</span>)
+        <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._commit(entry, status=<span class="hljs-string">"</span><span class="hljs-string">canceling</span><span class="hljs-string">"</span>, phase=<span class="hljs-string">"</span><span class="hljs-string">canceling</span><span class="hljs-string">"</span>)
+        payload = {
+            **{name: entry.manifest[name] <span class="hljs-keyword">for</span> name in (<span class="hljs-string">"</span><span class="hljs-string">version</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">session_id</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">run_id</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">launch_id</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">plan_digest</span><span class="hljs-string">"</span>)},
+            <span class="hljs-string">"</span><span class="hljs-string">action</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">cancel</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">control_epoch</span><span class="hljs-string">"</span>: entry.record.snapshot[<span class="hljs-string">"</span><span class="hljs-string">control_epoch</span><span class="hljs-string">"</span>],
+            <span class="hljs-string">"</span><span class="hljs-string">owner_identity</span><span class="hljs-string">"</span>: entry.record.snapshot[<span class="hljs-string">"</span><span class="hljs-string">owner_identity</span><span class="hljs-string">"</span>],
+        }
+        <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._port(write_signed, entry.directory / <span class="hljs-string">"</span><span class="hljs-string">cancel.json</span><span class="hljs-string">"</span>, payload, entry.capability)
+        <span class="hljs-keyword">try</span>:
+            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._rpc(entry, <span class="hljs-string">"</span><span class="hljs-string">cancel</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">except</span> (OSError, ValueError, RuntimeError) <span class="hljs-keyword">as</span> error:
+            receipt = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._port(<span class="hljs-built_in">self</span>._terminal, entry)
+            <span class="hljs-keyword">if</span> receipt is not <span class="hljs-keyword">None</span>:
+                <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._accept_terminal(entry, receipt)
+            <span class="hljs-keyword">else</span>:
+                <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._unknown(entry, error)
+        <span class="hljs-keyword">return</span> {<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>: run_id, <span class="hljs-string">"</span><span class="hljs-string">status</span><span class="hljs-string">"</span>: entry.record.status}</code></pre></div></figure>
+<p><code>cancel_requested=True</code> 和 <code>canceling</code> 记录请求阶段。终态收据是 runner 为这次执行写下的退出证据。它要签名通过、执行身份一致，runner 对外状态与收据的终态和日志元数据匹配并标明关闭。退款检查可能在请求到达之前已经失败并退出，这时按收据读作失败退出。工具 <code>BashOutput</code> 将 <code>completed</code>、<code>failed</code>、<code>canceled</code> 都显示为 <code>exited</code> 并附退出码，判断取消是否生效要查受管运行实际终态。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/managed_shell.py#L167" rel="noopener" target="_blank">src/ruocun/tools/managed_shell.py · 第 167–180 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>14 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="167"></span><span data-line="168"></span><span data-line="169"></span><span data-line="170"></span><span data-line="171"></span><span data-line="172"></span><span data-line="173"></span><span data-line="174"></span><span data-line="175"></span><span data-line="176"></span><span data-line="177"></span><span data-line="178"></span><span data-line="179"></span><span data-line="180"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        receipt = read_signed(file, entry.capability)
+        known_identity = entry.record.snapshot.get(<span class="hljs-string">"</span><span class="hljs-string">runner_identity</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> known_identity is <span class="hljs-keyword">None</span>:
+            known_identity = <span class="hljs-built_in">self</span>._state(entry)[<span class="hljs-string">"</span><span class="hljs-string">runner_identity</span><span class="hljs-string">"</span>]
+        validate_terminal(receipt, entry.manifest, entry.directory, known_identity)
+        published = read_signed(entry.directory / <span class="hljs-string">"</span><span class="hljs-string">runner-state.json</span><span class="hljs-string">"</span>, entry.capability)
+        <span class="hljs-keyword">if</span> published.get(<span class="hljs-string">"</span><span class="hljs-string">phase</span><span class="hljs-string">"</span>) != <span class="hljs-string">"</span><span class="hljs-string">terminal</span><span class="hljs-string">"</span>:
+            <span class="hljs-keyword">if</span> identity_alive(identity(receipt[<span class="hljs-string">"</span><span class="hljs-string">runner_identity</span><span class="hljs-string">"</span>])):
+                <span class="hljs-keyword">return</span> <span class="hljs-keyword">None</span>
+            <span class="hljs-keyword">raise</span> RuntimeError(<span class="hljs-string">"</span><span class="hljs-string">runner终态收据发布尚未确认。</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> (published.get(<span class="hljs-string">"</span><span class="hljs-string">status</span><span class="hljs-string">"</span>) != receipt.get(<span class="hljs-string">"</span><span class="hljs-string">status</span><span class="hljs-string">"</span>)
+                or published.get(<span class="hljs-string">"</span><span class="hljs-string">logs</span><span class="hljs-string">"</span>) != receipt.get(<span class="hljs-string">"</span><span class="hljs-string">logs</span><span class="hljs-string">"</span>) or published.get(<span class="hljs-string">"</span><span class="hljs-string">closed</span><span class="hljs-string">"</span>) is not <span class="hljs-keyword">True</span>):
+            <span class="hljs-keyword">raise</span> RuntimeError(<span class="hljs-string">"</span><span class="hljs-string">runner终态收据发布确认不匹配。</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">return</span> receipt</code></pre></div></figure>
+<p>这份收据回答进程是否退出。工具批次还能否把真实结果补进原调用，需要另外核对会话保存的进度，见<a href="10-工具可能已经执行.html#durable-journal" rel="noopener" target="_blank">意图和回包的持久化</a>。命令本身如何配合会话等待，见<a href="12-长任务怎样有序推进.html#wait-targets" rel="noopener" target="_blank">用实际运行身份登记等待条件</a>。</p>
+</section></section>
+<section class="v2-topic-group" id="article-assessment">
+<header class="v2-group-heading"><span>06</span><h2>学习效果检测</h2></header><div class="design-section">
+</div><section class="design-section" id="article-assessment-1">
+<h3>6.1 按日志和收据判断结论</h3>
+<p><strong>1．</strong> 夜间检查有两趟。昨晚的运行 <code>old</code> 已退出，退出码 0。今晚的 <code>new</code> 刚打印“索引检查通过”，后台状态仍为 <code>running</code>，余下还有一次导出检查。交接时能报告哪项进度？下一步按哪个 ID 查什么？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>今晚只观察到索引检查的通过日志。昨晚的退出码属于另一趟运行，今晚的导出检查还缺结果。保留 <code>new</code>，等该次完成通知或用 <code>BashOutput</code> 按该 ID 查新增输出，核对最终状态、退出码与导出检查的实际结果。</p></div></details>
+<p><strong>2．</strong><code>BashOutput</code> 显示输出被截断，<code>Grep</code> 应该搜索哪份数据？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>依据返回的日志目录找对应的 stdout 或 stderr 文件。前台最终输出如果只给出落盘文本路径，先识别它是前台汇总还是原 runner 日志。下一次增量查询不会自动补回已经略去的中段。</p></div></details>
+<p><strong>3．</strong>发送取消后控制连接中断，找不到可验证的收据。恢复后可否直接重启检查？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>保留原 run 为结果未确认，先依据运行身份和材料核实。重新启动会创建新的执行，原检查的产物可能已写出。已有可信终态时导入该终态；能接回后台时继续查原 run。</p></div></details>
+</section><div class="design-section">
+</div></section>
+<section class="v2-topic-group" id="article-interview">
+<header class="v2-group-heading"><span>07</span><h2>模拟面试官提问</h2></header><div class="design-section">
+</div><section class="design-section" id="article-interview-1"><h3>7.1 Agent 开发实习</h3>
+<h4>独立核心题</h4>
+<p><strong>你怎样给用户展示一个仍在运行的命令？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>我会展示实时日志和当前状态，让用户知道系统仍有进展，再单独展示最终退出和检查内容。转后台时把原 run ID 给后续查询。这样先看到一行通过不会误报整项检查结束。</p><p>实际依据是执行器的输出回调和 Bash 最后由 <code>stdout</code>、<code>stderr</code> 与退出信息合成的工具结果。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>日志太长怎样找到失败原因？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>先看头尾摘要，再按落盘指针查缺失的中段。展示层不用把完整日志塞给模型。</p></div></details>
+<p><strong>追问 1</strong> 改为后台后长日志如何查看？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>后台时按原 run ID 收增量，预览省去的部分到对应的 stdout 或 stderr 文件定位。</p></div></details>
+<p><strong>追问 2</strong> 后台查询一直没有新增又怎么办？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>空输出时参考当前状态，正在运行就等待完成通知。需要在会话里明确等待时登记已知后台任务的等待条件。</p></div></details>
+</section><section class="design-section" id="article-interview-2"><h3>7.2 Agent harness 岗位</h3>
+<h4>独立核心题</h4>
+<p><strong>前后台交接时，如何处理改变执行责任与程序退出之间的竞态？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>我把交接视为原运行的一次状态转换。先持久保存转后台意向，等 runner 确认保留原运行，再把控制从前台责任移出。前台取消与这个过程用同一个控制锁协调。</p><p><code>detach</code> 在交接前和通信失败后都检查终态收据，处理原命令恰好已经退出的情形。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>重启后原 runner 仍在，该怎样接？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>用保存的 run 身份、签名材料和控制租约核对再接管。保留同一个 run，避免产生第二次执行。</p></div></details>
+<p><strong>追问 1</strong> 若收据已生成但未确认发布呢？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>核对已发布的 runner 终态、日志和关闭信息。不满足条件时继续核实或保留未确认状态。</p></div></details>
+<p><strong>追问 2</strong> 取消消息已发、终态始终没回来呢？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>取消消息只表明有人请求终止。一直没有可验证的结果，保留原现场，明确结果尚未确认。关联<a href="10-工具可能已经执行.html" rel="noopener" target="_blank">意图、结果确认与恢复</a>。</p></div></details>
+</section></section>
+<section class="v2-topic-group" id="article-takeaways">
+<header class="v2-group-heading"><span>08</span><h2>这一篇带走什么</h2></header><div class="design-section">
+<p>一条 Shell 命令从前台执行到后台跟踪始终沿同一个 run 交接，日志按游标收取，最终由退出信息或受管收据确认终态。</p>
+<ul class="pilot-takeaways">
+<li>后台运行需要稳定身份、可回查输出和可重接控制；交接失败后用原身份核实，避免再启动一次并发写产物。</li>
+<li>长输出进入模型前先保留必要预览；若需要确定中间发生了什么，就按实际返回的日志位置回查。</li>
+<li>取消要保留请求与退出两个阶段。控制失败或材料不全时保留现场，等真实收据再发布确定终态。</li>
+</ul>
+<p>本篇从命令获准并启动后开始追踪。下一篇往前一步，看<a href="08-执行之前谁说了算.html#permission-start" rel="noopener" target="_blank">程序拿到批准时，怎样确认这次操作还有资格开始</a>。</p>
+</div></section>
+</article></main>
+</body>
+</html>

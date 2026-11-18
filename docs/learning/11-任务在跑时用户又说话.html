@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>任务在跑时用户又说话：输入排队、等待、批准与取消 · RuoCun 设计学习</title>
+<link href="assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="assets/ruocun-code.css" rel="stylesheet"/>
+<link href="assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="assets/ruocun-article.css" rel="stylesheet"/>
+<link href="assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="assets/ruocun-textbook.js"></script>
+</head>
+<body class="textbook-read">
+<a class="textbook-skip" href="#interactive-control">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#interactive-control">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航">
+<a href="课程学习地图.html" rel="noopener" target="_blank">学习地图</a>
+<a class="textbook-original" href="#article-takeaways">这一篇带走什么</a>
+</nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title">任务在跑时用户又说话</div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc" open="">
+<summary>展开文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#interactive-start"><span class="v2-toc-number">1</span><span>“保留日志”能插进正在执行的工具批次吗？</span></a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#interactive-input"><span class="v2-toc-number">2</span><span>接纳账本与消费边界</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#interactive-input-1"><span class="v2-toc-number">2.1</span><span>接纳先保存 ID 和顺序，消费再更新模型历史</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#interactive-generation"><span class="v2-toc-number">3</span><span>运行代际与暂停</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#interactive-generation-1"><span class="v2-toc-number">3.1</span><span>暂停先更新代际，旧回合才能放心收尾</span></a></li><li><a class="v2-toc-child-link" href="#interactive-generation-2"><span class="v2-toc-number">3.2</span><span>等待句柄交给调度器，前台先让出</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#interactive-human"><span class="v2-toc-number">4</span><span>用户问答与方案批准</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#interactive-human-1"><span class="v2-toc-number">4.1</span><span>AskUserQuestion 把用户决定写回工具结果</span></a></li><li><a class="v2-toc-child-link" href="#interactive-human-2"><span class="v2-toc-number">4.2</span><span>退出 plan 只改变会话模式，具体工具仍需授权</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-assessment"><span class="v2-toc-number">5</span><span>学习效果检测</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#article-assessment-1"><span class="v2-toc-number">5.1</span><span>追踪队列、旧回合和人的决定</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-interview"><span class="v2-toc-number">6</span><span>模拟面试官提问</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#article-interview-1"><span class="v2-toc-number">6.1</span><span>Agent 开发实习</span></a></li><li><a class="v2-toc-child-link" href="#article-interview-2"><span class="v2-toc-number">6.2</span><span>Agent harness 岗位</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways"><span class="v2-toc-number">7</span><span>这一篇带走什么</span></a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper course-lesson" id="interactive-control"><header class="design-hero">
+<h1>任务在跑时用户又说话</h1><p class="article-subtitle">输入排队、等待、批准与取消</p>
+<p class="target">跟着“保留日志”这句补充，看它什么时候被接纳，什么时候进入模型请求，以及暂停怎样挡住旧回合。</p>
+</header>
+<section class="v2-topic-group" id="interactive-start">
+<header class="v2-group-heading"><span>01</span><h2>“保留日志”能插进正在执行的工具批次吗？</h2></header><div class="design-section">
+<p>上一篇<a href="10-工具可能已经执行.html#durable-commit" rel="noopener" target="_blank">第 8 版检查点</a>已经保存了“保留日志”。现在回到用户刚输入这句话的时刻。模型刚在同一条助手消息里发出 <code>q-test</code> 和 <code>q-style</code> 两次日志查询。第一条结果先到，用户输入居中，第二条结果随后到。终端显示“收到”时，第二项查询还没返回。沿时间往下读，同一句话先后出现在哪里？</p>
+<figure class="reasoning-figure"><figcaption>源码推演 · 输入账本与模型消息分别记到了哪一步</figcaption>
+<div aria-label="源码推演 · 输入账本与模型消息分别记到了哪一步" class="table-scroll" role="region" tabindex="0"><table><thead><tr><th scope="col">时刻</th><th scope="col">已保存的输入账本</th><th scope="col">供模型使用的会话消息</th></tr></thead><tbody>
+<tr><th scope="row">第一项日志查询先返回</th><td>尚未收到补充要求。</td><td>助手已发出两项调用，整批结果尚未收齐。</td></tr>
+<tr><th scope="row">界面确认收到，若此刻退出</th><td>同一输入 ID 已保存，状态为 <code>queued</code>，文字是“保留日志”。</td><td>第二项仍在运行，历史中还没有这条用户消息。</td></tr>
+<tr><th scope="row">正常继续，整批结束且输入获准消费</th><td>同一输入 ID 更新为 <code>consumed</code>。</td><td>助手的两项调用 → 两条配对结果 → 用户的“保留日志”。</td></tr>
+</tbody></table></div>
+</figure>
+<details class="answer-box"><summary>停在第二行，重开后从哪里找这句话？能立刻让模型接着答吗？</summary><div><p>按输入 ID 查账本能找回这句话。已发送的请求看不到它。先核对并补齐原工具组，到可消费输入的边界时，才把用户消息和消费状态一起保存。把补充直接夹在两个回包之间，会拆散同一助手消息的调用与结果。</p></div></details>
+<p>如果只把新输入暂存在界面，程序退出时这句话就丢了。RuoCun 要维护两笔状态来允许用户及时说话。一笔负责记录“已经接纳”，另一笔负责确认“可以交给模型”。这句补充与后面答复“保留原始日志还是摘要”也分属不同入口，后一项要回到正在等答案的工具调用。</p>
+</div></section>
+<section class="v2-topic-group" id="interactive-input">
+<header class="v2-group-heading"><span>02</span><h2>接纳账本与消费边界</h2></header><div class="design-section">
+</div><section class="design-section" id="interactive-input-1"><h3>2.1 接纳先保存 ID 和顺序，消费再更新模型历史</h3>
+<p><code>Conversation.queue_user</code> 在检查点锁内给输入分配唯一 ID（UUID）、下一个顺序号 <code>seq</code> 和 <code>queued</code> 状态，连同当时的检查点保存。数据库确认后才返回接纳回执。把“保留日志”重新发一遍，一般会留下另一个输入 ID，模型读取过哪一次要按各自的编号确认。此时模型消息保持原样，工具结果仍可按原批次收齐。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/session/conversation.py#L228" rel="noopener" target="_blank">src/ruocun/session/conversation.py · 第 228–236 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>9 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="228"></span><span data-line="229"></span><span data-line="230"></span><span data-line="231"></span><span data-line="232"></span><span data-line="233"></span><span data-line="234"></span><span data-line="235"></span><span data-line="236"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">queue_user</span>(<span class="hljs-built_in">self</span>, session: Session, content: <span class="hljs-built_in">str</span> | <span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any]], *,
+                         model_content: <span class="hljs-built_in">str</span> | <span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any]] | <span class="hljs-keyword">None</span> = <span class="hljs-keyword">None</span>) -&gt; AcceptedInput:
+        <span class="hljs-string">"""把排队输入的身份和当前检查点一起提交，确认后才返回接纳回执。"""</span>
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> <span class="hljs-built_in">self</span>._checkpoint_lock:
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>._safe(content) != content or <span class="hljs-built_in">self</span>._safe(model_content) != model_content:
+                <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"</span><span class="hljs-string">此输入含当前账户凭据，无法完整保存；未接纳排队，请保留原输入并移除凭据后重试。</span><span class="hljs-string">"</span>)
+            item = <span class="hljs-built_in">self</span>._input(content, queued=<span class="hljs-keyword">True</span>, model_content=model_content)
+            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._commit(session, session.messages, (*<span class="hljs-built_in">self</span>._accepted_inputs, item))
+            <span class="hljs-keyword">return</span> item</code></pre></div></figure>
+<p>调度器启动一次执行前，或同一回合下一次发模型请求前，会进入 <code>_boundary</code>。这是可以取新材料、调整下一次请求的时点。它为当前活动回合按 <code>seq</code> 取已接纳队列里最早的一项，并投递此时可处理的后台事件。若配置了输入 Hook，程序还会在用户输入即将进入模型历史的时点执行规则。被规则拒绝的输入保存为 <code>discarded</code>，原始记录可查，该输入不会变成模型消息。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/session/conversation.py#L245" rel="noopener" target="_blank">src/ruocun/session/conversation.py · 第 245–265 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>21 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="245"></span><span data-line="246"></span><span data-line="247"></span><span data-line="248"></span><span data-line="249"></span><span data-line="250"></span><span data-line="251"></span><span data-line="252"></span><span data-line="253"></span><span data-line="254"></span><span data-line="255"></span><span data-line="256"></span><span data-line="257"></span><span data-line="258"></span><span data-line="259"></span><span data-line="260"></span><span data-line="261"></span><span data-line="262"></span><span data-line="263"></span><span data-line="264"></span><span data-line="265"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            item = <span class="hljs-built_in">next</span>((entry <span class="hljs-keyword">for</span> entry in <span class="hljs-built_in">self</span>._accepted_inputs <span class="hljs-keyword">if</span> entry.input_id == input_id), <span class="hljs-keyword">None</span>)
+            <span class="hljs-keyword">if</span> item is <span class="hljs-keyword">None</span>:
+                <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"</span><span class="hljs-string">没有已确认的排队输入身份。</span><span class="hljs-string">"</span>)
+            <span class="hljs-keyword">if</span> item.state != <span class="hljs-string">"</span><span class="hljs-string">queued</span><span class="hljs-string">"</span>:
+                <span class="hljs-keyword">return</span> <span class="hljs-keyword">False</span>
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>.queued_inputs()[<span class="hljs-number">0</span>].input_id != input_id:
+                <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"</span><span class="hljs-string">必须按已确认输入序号消费。</span><span class="hljs-string">"</span>)
+            messages = session.messages
+            <span class="hljs-keyword">if</span> not rejected:
+                <span class="hljs-built_in">self</span>._require_paired(session)
+                projected = modelInput(item.payload) <span class="hljs-keyword">if</span> model_content is <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> model_content
+                <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>._safe(projected) != projected:
+                    <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"</span><span class="hljs-string">模型输入无法完整保存，保留排队原文，停止本次消费。</span><span class="hljs-string">"</span>)
+                messages = [*messages, {<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">user</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: copy.deepcopy(projected)}]
+                <span class="hljs-keyword">if</span> hook_context:
+                    messages.append({<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">system</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: <span class="hljs-built_in">self</span>.redact(hook_context)})
+            replacement = replace(item, state=<span class="hljs-string">"</span><span class="hljs-string">discarded</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> rejected <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">consumed</span><span class="hljs-string">"</span>,
+                                  payload=item.payload <span class="hljs-keyword">if</span> rejected <span class="hljs-keyword">else</span> packQueuedInput(originalInput(item.payload)))
+            updated = <span class="hljs-built_in">tuple</span>(replacement <span class="hljs-keyword">if</span> entry.input_id == input_id <span class="hljs-keyword">else</span> entry <span class="hljs-keyword">for</span> entry in <span class="hljs-built_in">self</span>._accepted_inputs)
+            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._commit(session, messages, updated)
+            session.messages = messages</code></pre></div></figure>
+<p>读上面这段，把输入 <code>input-log</code> 代进去。它必须仍是队首且未被消费；助手调用少一条工具结果时，<code>_require_paired</code> 拒绝更新。满足条件后构造用户消息与变更后的输入账本，两个状态一起提交，确认后才换内存中的 <code>session.messages</code>。这样重新打开时，既不会消耗了输入却没有用户消息，也不会为一个已消费的 ID 又追加一遍。<strong>「接纳输入先入账，在消息配齐的边界再原子消费」</strong>。</p>
+</section></section>
+<section class="v2-topic-group" id="interactive-generation">
+<header class="v2-group-heading"><span>03</span><h2>运行代际与暂停</h2></header><div class="design-section">
+</div><section class="design-section" id="interactive-generation-1"><h3>3.1 暂停先更新代际，旧回合才能放心收尾</h3>
+<p>运行代际 <code>generation</code> 是调度器给整个活动回合的编号。一次 <code>_pump</code> 启动时取一个新编号和独立取消信号；调度器靠编号核对增量、输入消费及执行完成是否仍属于当前回合。同一回合可以先后发多次模型请求，各有<a href="09-请求出错怎样继续.html#request-empty" rel="noopener" target="_blank">自己的请求令牌</a>。这样既能挡一次模型请求结束后的旧显示，也能撤销暂停前整个回合推进会话的资格。数据库 <code>owner_epoch</code> 则在进程接管时变化，仍负责核对写入者。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/session_scheduler.py#L141" rel="noopener" target="_blank">src/ruocun/agent/session_scheduler.py · 第 141–143 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>3 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="141"></span><span data-line="142"></span><span data-line="143"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">is_current</span>(<span class="hljs-built_in">self</span>, generation: <span class="hljs-built_in">int</span>) -&gt; <span class="hljs-built_in">bool</span>:
+        <span class="hljs-keyword">return</span> (<span class="hljs-built_in">self</span>._active and <span class="hljs-built_in">self</span>._active_generation == generation == <span class="hljs-built_in">self</span>._generation
+                and <span class="hljs-built_in">self</span>._state == <span class="hljs-string">"</span><span class="hljs-string">running</span><span class="hljs-string">"</span> and <span class="hljs-built_in">self</span>._signal is not <span class="hljs-keyword">None</span> and not <span class="hljs-built_in">self</span>._signal.is_set())</code></pre></div></figure>
+<p>设活动回合是第 12 代。取消信号置位后，在途异步任务仍可能回到调度器，例如恰好带来一个刚登记好的等待句柄。若完成回调直接写状态，这份迟到结果会把暂停会话改回 <code>waiting</code>。以下按时间看，回调到底属于谁。</p>
+<figure class="reasoning-figure" id="generation-timeline">
+<figcaption>源码推演 · 暂停发生在等待回包到达之前</figcaption>
+<div class="reasoning-grid">
+<section><h4>① 第 12 代发起工作</h4><p>在途回调携带编号 <code>12</code>。</p></section>
+<section><h4>② 用户按下暂停</h4><p>当前编号改成 <code>13</code>，旧取消信号置位，状态为 <code>paused</code>。</p></section>
+<section><h4>③ 旧回调返回</h4><p>第 <code>12</code> 代报告 <code>waiting</code>。此时应比较手里的 <code>12</code> 与会话的 <code>13</code>。</p></section>
+</div>
+</figure>
+<p>检查失败，调度器让旧任务收尾，跳过等待激活。只有取消信号很容易漏掉已经排进事件循环的正常回调。编号检查多保留一份运行身份，换来回包再晚也只能属于它原来的回合。暂停自己的队列处置回执返回时也要核对编号。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/session_scheduler.py#L263" rel="noopener" target="_blank">src/ruocun/agent/session_scheduler.py · 第 263–277 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>15 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="263"></span><span data-line="264"></span><span data-line="265"></span><span data-line="266"></span><span data-line="267"></span><span data-line="268"></span><span data-line="269"></span><span data-line="270"></span><span data-line="271"></span><span data-line="272"></span><span data-line="273"></span><span data-line="274"></span><span data-line="275"></span><span data-line="276"></span><span data-line="277"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">                result = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._run(signal, boundary, generation)
+                <span class="hljs-keyword">if</span> generation != <span class="hljs-built_in">self</span>._generation or <span class="hljs-built_in">self</span>._state in {<span class="hljs-string">"</span><span class="hljs-string">paused</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">closed</span><span class="hljs-string">"</span>}:
+                    <span class="hljs-keyword">return</span>
+                <span class="hljs-keyword">if</span> result.status in {<span class="hljs-string">"</span><span class="hljs-string">cancelled</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">interrupted</span><span class="hljs-string">"</span>} or signal.is_set():
+                    <span class="hljs-built_in">self</span>._state = <span class="hljs-string">"</span><span class="hljs-string">idle</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>._queued() <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">paused</span><span class="hljs-string">"</span>
+                    <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._set_state(<span class="hljs-built_in">self</span>._state)
+                    <span class="hljs-keyword">return</span>
+                <span class="hljs-keyword">if</span> result.status == <span class="hljs-string">"</span><span class="hljs-string">waiting</span><span class="hljs-string">"</span>:
+                    handle = <span class="hljs-built_in">getattr</span>(result, <span class="hljs-string">"</span><span class="hljs-string">wait</span><span class="hljs-string">"</span>, <span class="hljs-keyword">None</span>)
+                    <span class="hljs-keyword">if</span> handle is <span class="hljs-keyword">None</span> or <span class="hljs-built_in">self</span>._background is <span class="hljs-keyword">None</span>:
+                        <span class="hljs-keyword">raise</span> RuntimeError(<span class="hljs-string">"</span><span class="hljs-string">等待缺少当前会话运行时。</span><span class="hljs-string">"</span>)
+                    <span class="hljs-built_in">self</span>._wait = handle
+                    <span class="hljs-built_in">self</span>._state = <span class="hljs-string">"</span><span class="hljs-string">waiting</span><span class="hljs-string">"</span>
+                    <span class="hljs-built_in">self</span>._background.activate(handle)
+                    <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._set_state(<span class="hljs-string">"</span><span class="hljs-string">waiting</span><span class="hljs-string">"</span>)</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/session_scheduler.py#L352" rel="noopener" target="_blank">src/ruocun/agent/session_scheduler.py · 第 352–373 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>22 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="352"></span><span data-line="353"></span><span data-line="354"></span><span data-line="355"></span><span data-line="356"></span><span data-line="357"></span><span data-line="358"></span><span data-line="359"></span><span data-line="360"></span><span data-line="361"></span><span data-line="362"></span><span data-line="363"></span><span data-line="364"></span><span data-line="365"></span><span data-line="366"></span><span data-line="367"></span><span data-line="368"></span><span data-line="369"></span><span data-line="370"></span><span data-line="371"></span><span data-line="372"></span><span data-line="373"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">_halt</span>(<span class="hljs-built_in">self</span>, state: Literal[<span class="hljs-string">"</span><span class="hljs-string">paused</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">closed</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">idle</span><span class="hljs-string">"</span>]) -&gt; <span class="hljs-keyword">None</span>:
+        <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>._state == <span class="hljs-string">"</span><span class="hljs-string">closed</span><span class="hljs-string">"</span>:
+            <span class="hljs-keyword">return</span>
+        <span class="hljs-built_in">self</span>._generation += <span class="hljs-number">1</span>
+        generation = <span class="hljs-built_in">self</span>._generation
+        <span class="hljs-built_in">self</span>._release_wait()
+        <span class="hljs-built_in">self</span>._state = <span class="hljs-string">"</span><span class="hljs-string">closed</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> state == <span class="hljs-string">"</span><span class="hljs-string">closed</span><span class="hljs-string">"</span> <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">paused</span><span class="hljs-string">"</span>
+        <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>._signal is not <span class="hljs-keyword">None</span>:
+            <span class="hljs-built_in">self</span>._signal.set()
+        <span class="hljs-built_in">self</span>._notify()
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> <span class="hljs-built_in">self</span>._control:
+            <span class="hljs-keyword">try</span>:
+                <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._discard(state)
+            <span class="hljs-keyword">except</span> Exception <span class="hljs-keyword">as</span> exc:
+                <span class="hljs-built_in">self</span>._record_error(exc)
+                <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>._notice is not <span class="hljs-keyword">None</span>:
+                    <span class="hljs-built_in">self</span>._notice(<span class="hljs-string">"</span><span class="hljs-string">[暂停未能保存] 已停止当前轮，队列处置尚未确认。</span><span class="hljs-string">"</span>)
+                <span class="hljs-keyword">raise</span>
+            <span class="hljs-keyword">if</span> generation == <span class="hljs-built_in">self</span>._generation:
+                <span class="hljs-built_in">self</span>._state = state
+                <span class="hljs-built_in">self</span>._schedule()
+            <span class="hljs-built_in">self</span>._notify()</code></pre></div></figure>
+<p>暂停会显式将仍排队的输入标为 <code>discarded</code>，已消费的留下；可以接受新输入走下一代。调度器关闭时则拒绝再接纳。代次和取消信号解决“谁还能驱动当前会话”。在它们之外，已经开始的工具还需要结算真实副作用，转交后台的运行也按自己的控制状态管理。</p>
+</section><section class="design-section" id="interactive-generation-2"><h3>3.2 等待句柄交给调度器，前台先让出</h3>
+<p>上面的 <code>waiting</code> 是主循环向调度器交还前台时的状态。随它返回的等待句柄 <code>handle</code> 是一份已登记的等待约定，写明本会话等哪些后台运行、什么条件算就绪。代码通过代际检查后才激活它。后台运行继续做事，新输入或就绪事件到来后，调度器会安排新的工作。</p>
+</section></section>
+<section class="v2-topic-group" id="interactive-human">
+<header class="v2-group-heading"><span>04</span><h2>用户问答与方案批准</h2></header><div class="design-section">
+</div><section class="design-section" id="interactive-human-1"><h3>4.1 AskUserQuestion 把用户决定写回工具结果</h3>
+<p>“保留日志”已经作为新输入进入历史，现在要决定保留哪些内容。原始日志便于审查，摘要占用空间更小。这里的回答属于已发出的提问工具：模型收到的是与该次提问配对的 <code>tool</code> 消息。旁边聊天框里新发的一句话则沿前面的队列进入历史。</p>
+<figure class="ruocun-code" data-language="json">
+<figcaption class="ruocun-code-caption"><span>JSON</span><span>1 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-json">{<span class="hljs-attr">"question"</span>:<span class="hljs-string">"要保留哪份日志？"</span>,<span class="hljs-attr">"options"</span>:[<span class="hljs-string">"完整原始日志"</span>,<span class="hljs-string">"只保留失败摘要"</span>]}</code></pre></div></figure>
+<p>有选项且交互回调可用时展示选择，否则使用普通询问入口；没有必要的询问能力则报告不支持。多问题依次询问，用户选“先讨论”后，剩余问题会标记未问。等待问答的回合收到取消信号时，工具将结果标为中断。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/ask_user.py#L26" rel="noopener" target="_blank">src/ruocun/tools/ask_user.py · 第 26–35 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>10 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="26"></span><span data-line="27"></span><span data-line="28"></span><span data-line="29"></span><span data-line="30"></span><span data-line="31"></span><span data-line="32"></span><span data-line="33"></span><span data-line="34"></span><span data-line="35"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">_ask_one</span>(ctx: ToolContext, question: <span class="hljs-built_in">str</span>, options: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>] | <span class="hljs-keyword">None</span>, multi: <span class="hljs-built_in">bool</span> = <span class="hljs-keyword">False</span>) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">if</span> ctx.signal.is_set():
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"</span><span class="hljs-string">[用户中断]</span><span class="hljs-string">"</span>
+    <span class="hljs-keyword">if</span> options and ctx.askChoice is not <span class="hljs-keyword">None</span>:
+        answer = <span class="hljs-keyword">await</span> ctx.askChoice(question, options, multi)
+    <span class="hljs-keyword">else</span>:
+        <span class="hljs-keyword">if</span> ctx.ask is <span class="hljs-keyword">None</span>:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"</span><span class="hljs-string">当前环境不支持向用户提问(ask 未配置)</span><span class="hljs-string">"</span>)
+        answer = <span class="hljs-keyword">await</span> ctx.ask(question)
+    <span class="hljs-keyword">return</span> <span class="hljs-string">"</span><span class="hljs-string">[用户中断]</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> ctx.signal.is_set() <span class="hljs-keyword">else</span> answer.strip() or <span class="hljs-string">"</span><span class="hljs-string">(用户未回答)</span><span class="hljs-string">"</span></code></pre></div></figure>
+</section><section class="design-section" id="interactive-human-2"><h3>4.2 退出 plan 只改变会话模式，具体工具仍需授权</h3>
+<p>如果还要设计日志保留方案，<code>EnterPlanMode</code> 可以进入只读探索；有模式绑定且环境可交互时才设置 plan，无人值守入口拒绝这次切换。<code>ExitPlanMode</code> 有选择回调时问用户是否批准；未批准则继续规划，没有选择回调时处理器沿现有实现直接设置 normal。模式切换改变工具清单和派发限制。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/plan_mode.py#L8" rel="noopener" target="_blank">src/ruocun/tools/plan_mode.py · 第 8–25 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>18 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="8"></span><span data-line="9"></span><span data-line="10"></span><span data-line="11"></span><span data-line="12"></span><span data-line="13"></span><span data-line="14"></span><span data-line="15"></span><span data-line="16"></span><span data-line="17"></span><span data-line="18"></span><span data-line="19"></span><span data-line="20"></span><span data-line="21"></span><span data-line="22"></span><span data-line="23"></span><span data-line="24"></span><span data-line="25"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">_enter</span>(args: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any], ctx: ToolContext) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">if</span> ctx.setMode is <span class="hljs-keyword">None</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"</span><span class="hljs-string">当前环境不支持模式切换。</span><span class="hljs-string">"</span>
+    <span class="hljs-keyword">if</span> ctx.headless:
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"</span><span class="hljs-string">无人值守（headless）会话无法接收退出规划所需的用户确认。本次未切换模式，请在已有授权内推进并说明结果。</span><span class="hljs-string">"</span>
+    ctx.setMode(<span class="hljs-string">"</span><span class="hljs-string">plan</span><span class="hljs-string">"</span>)
+    <span class="hljs-keyword">return</span> <span class="hljs-string">"</span><span class="hljs-string">已进入规划模式(只读)。探索代码库、设计方案,完成后用 ExitPlanMode 退出。</span><span class="hljs-string">"</span>
+
+
+<span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">_exit</span>(args: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any], ctx: ToolContext) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">if</span> ctx.setMode is <span class="hljs-keyword">None</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"</span><span class="hljs-string">当前环境不支持模式切换。</span><span class="hljs-string">"</span>
+    <span class="hljs-keyword">if</span> ctx.askChoice is not <span class="hljs-keyword">None</span>:
+        answer = <span class="hljs-keyword">await</span> ctx.askChoice(<span class="hljs-string">"</span><span class="hljs-string">已设计好方案,是否批准并退出规划模式开始实现?</span><span class="hljs-string">"</span>, [<span class="hljs-string">"</span><span class="hljs-string">批准,开始实现</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">不批准,继续讨论</span><span class="hljs-string">"</span>])
+        <span class="hljs-keyword">if</span> not answer.startswith(<span class="hljs-string">"</span><span class="hljs-string">批准</span><span class="hljs-string">"</span>):
+            <span class="hljs-keyword">return</span> <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">用户未批准方案(回应:</span><span class="hljs-string">{</span>answer<span class="hljs-string">}</span><span class="hljs-string">)。仍在规划模式,根据反馈调整方案后再试。</span><span class="hljs-string">"</span>
+    ctx.setMode(<span class="hljs-string">"</span><span class="hljs-string">normal</span><span class="hljs-string">"</span>)
+    <span class="hljs-keyword">return</span> <span class="hljs-string">"</span><span class="hljs-string">已退出规划模式,切回 normal。可以开始实现方案。</span><span class="hljs-string">"</span></code></pre></div></figure>
+<p>这里留意 <code>allowedPrompts</code>。它出现在该工具的 schema 和描述中，<code>_exit</code> 处理器当前没有读取它。用户同意整体方案后，下一次 Bash 仍走第 8 篇的<a href="08-执行之前谁说了算.html#permission-plan" rel="noopener" target="_blank">实际派发关口</a>。<strong>「人确定做什么和具体动作获准执行，分别由各自的关口确认」</strong>。</p>
+</section></section>
+<section class="v2-topic-group" id="article-assessment">
+<header class="v2-group-heading"><span>05</span><h2>学习效果检测</h2></header><div class="design-section">
+</div><section class="design-section" id="article-assessment-1">
+<h3>5.1 追踪队列、旧回合和人的决定</h3>
+<p><strong>1．</strong> 输入账本里 <code>u17</code> 为 <code>queued</code>，<code>u18</code> 为 <code>discarded</code>；历史还欠原工具组一条结果。有人建议把两句话都粘到历史末尾。哪些证据能说明它们已被模型看到？重开后应该先处理谁？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>这两种状态都不能证明本次模型请求已带上相应文字。先核对并修复原工具组的配对，再在可消费的边界按队列检查 u17 是否获准，成功时连同用户消息原子提交。u18 已丢弃，应保留原记录。最终要用实际外发的消息列表核对模型能看到哪句话。</p></div></details>
+<p><strong>2．</strong>调度器暂停第 12 代，原来等的确认随后返回。哪些条件使这次结果无法把调度器恢复到 running？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>暂停先增加当前代次，使原 12 无法通过代次相等条件，同时改变状态和置取消信号。存储或工具若已有实际结果可按自己的承诺结算，旧回调无权启动新一轮。</p></div></details>
+<p id="review-input-receipt"><strong>3． 设计评审</strong> 工具还在跑，用户补充“发给测试组”。界面团队想立刻回一声“收到”。你会把这句话承诺为“本机看见了”还是“重开也找得回”？选一个时机，解释程序突然退出时能兑现什么，以及用户要等什么。</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>我会在输入 ID、顺序和原文保存确认后才显示“已收到”。此刻退出，重开仍能从排队记录找回原话。工具组配齐且输入获准消费后，用户消息和消费状态一起保存，再交给模型。代价是存储慢时，确认也会慢。</p><p>如果界面需要立即响应，可以先显示“正在保存”，等提交确认再改为“已收到”。这样用户看见了操作反馈，也知道此刻是否已经具备重开找回的保证。</p></div></details>
+</section><div class="design-section">
+</div></section>
+<section class="v2-topic-group" id="article-interview">
+<header class="v2-group-heading"><span>06</span><h2>模拟面试官提问</h2></header><div class="design-section">
+</div><section class="design-section" id="article-interview-1"><h3>6.1 Agent 开发实习</h3>
+<h4>独立核心题</h4>
+<p><strong>用户可以一边等 Agent 一边补充要求，你怎样告诉用户这些要求到哪一步了？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>我会先确认输入已经接纳并排队，等当前消息处在安全边界后才消费。这样用户能分辨系统收到要求和模型已经读到要求，也能看到暂停后还有哪些要求需要重提。</p><p>RuoCun 保存输入的独立身份、顺序和状态，再把真正消费到的输入和新消息一起提交。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>如果两句话相同呢？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>正常提交的输入按各自 ID 和接受顺序处理，不能只以文本判断已经消费过。</p></div></details>
+<p><strong>追问 1</strong> 如果用户是在回答当前的选择面板呢？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>选择面板回复属于当前询问，经工具结果回到模型。正常聊天文本走会话排队。</p></div></details>
+<p><strong>追问 2</strong> 如果用户选“先讨论”呢？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>多题询问停止向后提问，返回已取得的答案和未问状态。</p></div></details>
+</section><section class="design-section" id="article-interview-2"><h3>6.2 Agent harness 岗位</h3>
+<h4>独立核心题</h4>
+<p><strong>用户取消后，怎样防止迟到事件推进旧回合，同时保留可信结果？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>我会给活动回合加代际和取消信号，投递增量、消费输入或从等待返回时核对身份。暂停时先废除旧代次，再收尾已启动动作。存储提交和工具结果依照各自的权威回执决定能保留什么。</p><p><code>is_current</code> 核对整个活动回合，模型请求内部还有请求令牌，二者分别过滤迟到事件。关联<a href="09-请求出错怎样继续.html" rel="noopener" target="_blank">模型请求恢复</a>。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>输入确认恰在暂停后返回怎么办？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>保留提交已经确认的事实，旧代次的回执无权把会话状态改回空闲。暂停动作按当前约定处置仍排队的输入。</p></div></details>
+<p><strong>追问 1</strong> 等待消息还没保存时能不能释放执行？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>需要先确认该等待对应的工具消息和消费状态。保存异常时不激活未确认的 handle。</p></div></details>
+<p><strong>追问 2</strong> 已经提交等待后，新输入如何唤醒？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>调度器发现等待有效且有新队列输入时释放等待，排入下一次执行；下一次在完整边界消费并读取已投递结果。关联<a href="10-工具可能已经执行.html" rel="noopener" target="_blank">检查点与工具恢复</a>。</p></div></details>
+</section></section>
+<section class="v2-topic-group" id="article-takeaways">
+<header class="v2-group-heading"><span>07</span><h2>这一篇带走什么</h2></header><div class="design-section">
+<p>前台调度以输入的接纳回执、消息安全边界和当前代际推进任务，并把已确认的等待或用户决定交回适用的执行路径。</p>
+<ul class="pilot-takeaways">
+<li>在途输入先单独按 ID 和顺序保存，历史配齐后再同消费状态提交。崩溃恢复可以从账本判定这句话该不该进入模型。</li>
+<li>取消时先吊销旧代次，再结算已经开始的动作。新会话状态和旧动作的真实结果各按自己的权威记录处理。</li>
+<li>等待需要已确认的条件，人的方案批准需要实际模式切换。具体工具仍看实时权限，避免让一条文本替代执行关口。</li>
+</ul>
+<p>这一篇把 <code>waiting</code> 看成调度器接过的一份等待约定。下一篇先<a href="12-长任务怎样有序推进.html#waiting-without-a-run" rel="noopener" target="_blank">用两条同为 running 的记录</a>辨认哪一趟运行能成为等待目标。</p>
+</div></section>
+</article></main>
+</body>
+</html>

@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="若存 RuoCun，开源 Coding Agent 工程参考实现。22 章中文源码课程和 Terminal-Bench 2.1 测评。">
+  <title>若存 RuoCun ｜ Coding Agent 工程参考实现</title>
+  <link rel="icon" href="learning/assets/ruocun-mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/site.css">
+  <script src="assets/site.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">跳到正文</a>
+  <header class="top">
+    <nav class="frame nav" aria-label="主导航">
+      <a class="wordmark" href="./">若存 <span>RuoCun</span></a>
+      <div class="nav-links">
+        <a href="learning/课程学习地图.html">课程</a>
+        <a href="#benchmark">测评</a>
+        <a href="https://github.com/hmmgotit/RuoCun">GitHub</a>
+      </div>
+    </nav>
+  </header>
+  <main id="main" class="frame">
+    <section class="hero" aria-labelledby="title">
+      <div>
+        <h1 id="title">若存 <span>RuoCun</span></h1>
+        <p class="subtitle">Coding Agent 工程参考实现</p>
+        <p>若存是一套可运行的终端编码智能体，为已经接触过 Agent 或 Harness、想读懂一套完整工程的开发者而做。</p>
+        <p>配套的 22 章中文源码课程沿着一次编码任务展开。你可以先跑通一个任务，再动手改动其中一环，用任务结果检验自己的判断。</p>
+        <div class="actions">
+          <a class="primary" href="learning/课程学习地图.html">开始读课</a>
+          <a href="https://github.com/hmmgotit/RuoCun/releases/tag/v1.0.0">下载 v1.0.0</a>
+        </div>
+      </div>
+      <figure class="terminal">
+        <picture>
+          <source media="(prefers-reduced-motion: reduce)" srcset="assets/ruocun-demo.png">
+          <img src="assets/ruocun-demo.gif" alt="若存在终端中修改普通价并试算普通价 180 元、会员价 200 元">
+        </picture>
+        <figcaption>折扣案例 · Windows Terminal 实录 · 本地模拟模型响应</figcaption>
+      </figure>
+    </section>
+    <section class="band" aria-labelledby="course-title">
+      <div class="section-head">
+        <h2 id="course-title">课程示例</h2>
+        <a href="learning/课程学习地图.html">查看全部 22 章</a>
+      </div>
+      <div class="lessons">
+        <a class="lesson" href="learning/01-文件编辑可靠性-精致教材预览.html#stale-observation">
+          <img src="assets/course-06.png" alt="课件图展示文件基线失效和重新读取" loading="lazy">
+          <h3><span>06</span> 文件编辑可靠性</h3>
+          <p>旧文本还能找到，为什么要先重新读取文件？</p>
+        </a>
+        <a class="lesson" href="learning/15-摘要丢了细节怎样回查.html#summary-lineage-paths">
+          <img src="assets/course-15.png" alt="沿两条摘要来源路线回查原文的课件图" loading="lazy">
+          <h3><span>15</span> 摘要丢了细节怎样回查</h3>
+          <p>摘要只剩一句「检查通过」，怎样找回原始回执？</p>
+        </a>
+        <a class="lesson" href="learning/17-经验怎样用到当前任务.html#memory-case">
+          <img src="assets/course-17.png" alt="对照历史记录、页面调用和当前测试的课件图" loading="lazy">
+          <h3><span>17</span> 经验怎样用到当前任务</h3>
+          <p>测试退出码为 0，怎么确认它测到了当前页面调用的接口？</p>
+        </a>
+      </div>
+    </section>
+    <section class="band two-up" aria-labelledby="cache-title">
+      <div>
+        <h2 id="cache-title">五道同题的前缀缓存实测</h2>
+        <p>每题每边各一次，按输入 token 加权。两边估算的低峰模型费用分别为 ¥1.66 和 ¥1.82。</p>
+        <p><a href="benchmark/terminal-bench-2.1.xlsx">下载精简测评表</a> · <a href="learning/16-前缀缓存怎样配合请求.html">读第 16 章</a></p>
+      </div>
+      <dl class="cache-figures">
+        <div><dt>若存</dt><dd>99.34%</dd></div>
+        <div><dt>DeepSeek Harness</dt><dd>99.07%</dd></div>
+      </dl>
+    </section>
+    <section class="band" id="benchmark" aria-labelledby="benchmark-title">
+      <h2 id="benchmark-title">Terminal-Bench 2.1</h2>
+      <p class="measure"><strong>在 Terminal-Bench 2.1 项目自测中，若存通过 71 / 89 项任务（79.78%）。</strong>与官方榜的 Codex + GPT‑6 Astra（xhigh，85.8%）相差约 6 个百分点，按 89 题折算约 5 题。</p>
+      <p class="measure">若存的数字来自历史制品的逐题汇总，包含补判与复测。官方榜单分数为多次试验的汇总。 <a href="https://hub.harborframework.com/datasets/terminal-bench/terminal-bench-2-1/latest?leaderboard=main&amp;tab=leaderboard">Harbor 官方榜单</a></p>
+      <div class="result-panel">
+        <div class="filter-bar" hidden id="filters">
+          <div class="field">
+            <label for="task-query">搜索题目</label>
+            <input type="search" id="task-query" placeholder="输入任务 ID" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="score-filter">结果</label>
+            <select id="score-filter">
+              <option value="">全部</option>
+              <option value="1">通过</option>
+              <option value="0">未通过</option>
+            </select>
+          </div>
+          <p class="result-count" id="result-count" role="status"></p>
+        </div>
+        <div class="table-wrap" id="table-wrap" hidden tabindex="0" aria-label="逐题成绩表">
+          <table>
+            <thead><tr><th scope="col">任务 ID</th><th scope="col">结果</th><th scope="col">裁判通过项</th></tr></thead>
+            <tbody id="task-rows"></tbody>
+          </table>
+        </div>
+        <div class="downloads">
+          <a href="benchmark/results.csv" download>下载 89 题 CSV</a>
+          <a href="benchmark/terminal-bench-2.1.xlsx" download>下载 Excel</a>
+          <a href="https://github.com/hmmgotit/RuoCun/tree/main/docs/benchmark">测评条件与数据说明</a>
+        </div>
+      </div>
+      <details class="leaderboard">
+        <summary>榜单原图与费用参考</summary>
+        <p class="measure">若存 89 题的已确认模型用量按低峰和高峰分别估算为 ¥31.07 和 ¥62.15，5 次请求缺用量。Codex + GPT‑6 Astra（xhigh）的榜单条目费用为 $888.54。两组金额分别反映各自的试次数、运行条件和计价。</p>
+        <a href="benchmark/leaderboard.png"><img src="benchmark/leaderboard.png" alt="Terminal-Bench 2.1 历史榜单" loading="lazy"></a>
+      </details>
+    </section>
+    <section class="band two-up" aria-label="设计详解">
+      <article>
+        <h2>上下文放不下怎么办</h2>
+        <p>先裁剪冗长的工具输出，仍超预算再摘要早期对话。最近的消息保留原文。需要核对某次测试或工具回执时，用 <code>ArchiveRead</code> 回查 SQLite 归档。</p>
+        <a href="learning/14-上下文放不下怎么办.html">读上下文压缩这一章</a>
+      </article>
+      <article>
+        <h2>上一轮的经验怎样复用</h2>
+        <p>把证实过的做法写成适用条件、做法和证据。下一次遇到相似任务时，若存可召回少量相关经验，再读当前代码确认它是否适用。</p>
+        <a href="learning/17-经验怎样用到当前任务.html">读任务记忆这一章</a>
+      </article>
+    </section>
+  </main>
+  <footer class="frame footer">
+    <a href="./" class="wordmark">若存 <span>RuoCun</span></a>
+    <div><a href="https://github.com/hmmgotit/RuoCun/blob/main/LICENSE">MIT 许可证</a> · <a href="https://github.com/hmmgotit/RuoCun">源代码</a></div>
+  </footer>
+</body>
+</html>

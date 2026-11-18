@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>工具调用怎样落地：定义、校验、延迟激活与执行屏障 · RuoCun 设计学习</title>
+<link href="assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="assets/ruocun-code.css" rel="stylesheet"/>
+<link href="assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="assets/ruocun-article.css" rel="stylesheet"/>
+<link href="assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="assets/ruocun-textbook.js"></script>
+</head>
+<body class="textbook-read">
+<a class="textbook-skip" href="#tool-contract">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#tool-contract">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航">
+<a href="课程学习地图.html" rel="noopener" target="_blank">学习地图</a>
+<a class="textbook-original" href="#article-takeaways">这一篇带走什么</a>
+</nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title">工具调用怎样落地</div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc" open="">
+<summary>展开文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#wrong-field"><span class="v2-toc-number">1</span><span>Read 知道文件名，为什么还是打不开？</span></a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#tool-definition"><span class="v2-toc-number">2</span><span>工具定义与模型可见接口</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#tool-definition-1"><span class="v2-toc-number">2.1</span><span>模型用公开定义填参，执行器用注册对象派发</span></a></li><li><a class="v2-toc-child-link" href="#tool-definition-2"><span class="v2-toc-number">2.2</span><span>Read、Edit 和 ToolSearch 的完整参数</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#validation"><span class="v2-toc-number">3</span><span>参数校验与执行上下文</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#validation-1"><span class="v2-toc-number">3.1</span><span>参数错误在发生处被分辨，再以原 ID 回流</span></a></li><li><a class="v2-toc-child-link" href="#validation-2"><span class="v2-toc-number">3.2</span><span>Read 的图片槽独立，文本基线回到会话</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#tool-disclosure"><span class="v2-toc-number">4</span><span>延迟工具发现</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#tool-disclosure-1"><span class="v2-toc-number">4.1</span><span>ToolSearch 让下一次请求看到完整定义</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#batch-order"><span class="v2-toc-number">5</span><span>同批执行的并行组与屏障</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#batch-order-1"><span class="v2-toc-number">5.1</span><span>前两次读可以重叠，Edit 前后必须等</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-assessment"><span class="v2-toc-number">6</span><span>学习效果检测</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#article-assessment-1"><span class="v2-toc-number">6.1</span><span>判断参数校验、执行分组与回填</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-interview"><span class="v2-toc-number">7</span><span>模拟面试官提问</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#article-interview-1"><span class="v2-toc-number">7.1</span><span>Agent 开发实习</span></a></li><li><a class="v2-toc-child-link" href="#article-interview-2"><span class="v2-toc-number">7.2</span><span>Agent harness 岗位</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways"><span class="v2-toc-number">8</span><span>这一篇带走什么</span></a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper course-lesson" id="tool-contract"><header class="design-hero">
+<h1>工具调用怎样落地</h1><p class="article-subtitle">定义、校验、延迟激活与执行屏障</p>
+<p class="target">模型找对了工具和文件名，却填了 Read 没有的字段。先修正这次调用，再看同一批里的四个动作怎样排队。</p>
+</header>
+<section class="v2-topic-group" id="wrong-field">
+<header class="v2-group-heading"><span>01</span><h2>Read 知道文件名，为什么还是打不开？</h2></header><div class="design-section">
+<p>普通价写在 <code>prices.mjs</code>，折扣约定在 <code>折扣.md</code>。模型准备先看两份文件，再改普通价。<a href="03-模型响应怎样变成调用.html#save-and-execute" rel="noopener" target="_blank">上一章把拼好的原始参数交给执行器</a>，这次 Read 已经收齐，参数也能解析成 JSON。执行器下一步要看 schema，也就是允许哪些字段、字段各应是什么类型的参数约定。对照下图的参数对象和 Read 的约定，找出这次的问题。</p>
+<figure class="reasoning-figure" id="read-schema-evidence"><figcaption>源码推演 · 执行器手里的两份材料</figcaption><div class="reasoning-grid">
+<section><h4>收到的参数 · call_21</h4><p><code>{"file":"prices.mjs"}</code></p></section>
+<section><h4>Read 的 schema</h4><p>必填字段 <code>path</code>。<br/>可选字段 <code>offset</code>、<code>limit</code>。<br/>禁止额外字段。</p></section>
+</div></figure>
+<details class="answer-box"><summary>第一个要报告哪个字段？下一次调用怎样填？</summary><div><p>JSON 解析成功，检查必填字段时先发现 <code>path</code> 缺失，所以 Read 处理器还没有启动。下一次传 <code>{"path":"prices.mjs"}</code>，通过形状校验后才能继续检查路径权限制约。</p></div></details>
+<p>第一次返回给模型的工具消息如下节选，仍带 <code>tool_call_id=call_21</code>。</p>
+<figure class="ruocun-code" data-language="text">
+<figcaption class="ruocun-code-caption"><span>输出</span><span>4 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span><span data-line="2"></span><span data-line="3"></span><span data-line="4"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-text">Error: 工具参数无效：Read 缺少必填参数「path」(string)。
+你传了 [file],但 Read 需要参数「path」——参数名可能写错了。
+…
+最小调用示例:Read({"path": "&lt;值&gt;"})</code></pre></div></figure>
+<p>下面是修正后的完整工具调用对象。主循环收完模型响应才把调用送入批次，执行器用 <code>id</code> 关联回包、<code>name</code> 查定义，再解析 <code>arguments</code> 字符串。</p>
+<figure class="ruocun-code" data-language="json">
+<figcaption class="ruocun-code-caption"><span>JSON</span><span>1 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-json">{<span class="hljs-attr">"id"</span>:<span class="hljs-string">"call_22"</span>,<span class="hljs-attr">"type"</span>:<span class="hljs-string">"function"</span>,<span class="hljs-attr">"function"</span>:{<span class="hljs-attr">"name"</span>:<span class="hljs-string">"Read"</span>,<span class="hljs-attr">"arguments"</span>:<span class="hljs-string">"{\"path\":\"prices.mjs\"}"</span>}}</code></pre></div></figure>
+</div></section>
+<section class="v2-topic-group" id="tool-definition">
+<header class="v2-group-heading"><span>02</span><h2>工具定义与模型可见接口</h2></header><div class="design-section">
+</div><section class="design-section" id="tool-definition-1"><h3>2.1 模型用公开定义填参，执行器用注册对象派发</h3>
+<p>模型需要工具名、用途和参数形状，程序另外需要派发函数、审批级别和调度信息。RuoCun 用一个 <code>Tool</code> 对象集中描述它们，由注册表按名字找回。增添工具后，派发器可以复用同一套校验与反馈流程。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/types.py#L106" rel="noopener" target="_blank">src/ruocun/tools/types.py · 第 106–118 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>13 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="106"></span><span data-line="107"></span><span data-line="108"></span><span data-line="109"></span><span data-line="110"></span><span data-line="111"></span><span data-line="112"></span><span data-line="113"></span><span data-line="114"></span><span data-line="115"></span><span data-line="116"></span><span data-line="117"></span><span data-line="118"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-meta">@dataclass</span>(frozen=<span class="hljs-keyword">True</span>)
+<span class="hljs-keyword">class</span> <span class="hljs-title">Tool</span>:
+    name: <span class="hljs-built_in">str</span>
+    description: <span class="hljs-built_in">str</span>
+    schema: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any]
+    capability: Literal[<span class="hljs-string">"</span><span class="hljs-string">read</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">write</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">exec</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">plan</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">network</span><span class="hljs-string">"</span>]
+    approval: Literal[<span class="hljs-string">"</span><span class="hljs-string">auto</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">suggest</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">required</span><span class="hljs-string">"</span>]
+    handler: Callable[[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any], ToolContext], Awaitable[<span class="hljs-built_in">str</span>]]
+    descriptionEn: <span class="hljs-built_in">str</span> | <span class="hljs-keyword">None</span> = <span class="hljs-keyword">None</span>
+    apiParameters: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any] | <span class="hljs-keyword">None</span> = <span class="hljs-keyword">None</span>
+    checkPermissions: Callable[[<span class="hljs-built_in">str</span>], Literal[<span class="hljs-string">"</span><span class="hljs-string">deny</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">ask</span><span class="hljs-string">"</span>] | <span class="hljs-keyword">None</span>] | <span class="hljs-keyword">None</span> = <span class="hljs-keyword">None</span>
+    shouldDefer: <span class="hljs-built_in">bool</span> = <span class="hljs-keyword">False</span>
+    persistentEffect: <span class="hljs-built_in">bool</span> = <span class="hljs-keyword">False</span>  <span class="hljs-comment"># 需要独占执行并持久记录意图，原有能力标签仍用于权限判断。</span></code></pre></div></figure>
+<div aria-label="模型用公开定义填参，执行器用注册对象派发" class="table-scroll" role="region" tabindex="0"><table><thead><tr><th scope="col">字段</th><th scope="col">类型及必填性</th><th scope="col">用途</th></tr></thead><tbody>
+<tr><th scope="row"><code>name</code></th><td>必填字符串</td><td>模型点名，注册表按名查定义。</td></tr>
+<tr><th scope="row"><code>description</code> / <code>descriptionEn</code></th><td>字符串，前者必填，后者可省</td><td>说明用途。英文请求优先用已有英文描述。</td></tr>
+<tr><th scope="row"><code>schema</code> / <code>apiParameters</code></th><td>字典，前者必填，后者默认 <code>None</code></td><td>用前者校验。若明确给了后者则向模型公布它，否则从前者转换。</td></tr>
+<tr><th scope="row"><code>capability</code></th><td>必填，可为 <code>read</code>、<code>write</code>、<code>exec</code>、<code>plan</code> 或 <code>network</code></td><td>参与清单过滤、权限和调度。</td></tr>
+<tr><th scope="row"><code>approval</code> / <code>checkPermissions</code></th><td>前者必填，可为 <code>auto</code>、<code>suggest</code> 或 <code>required</code>。后者是可选函数</td><td><code>approval</code> 是定义层标签。实际派发的权限引擎会读工具的 <code>capability</code> 和 <code>checkPermissions</code>，结合本轮策略与授权裁决。</td></tr>
+<tr><th scope="row"><code>handler</code></th><td>必填异步函数</td><td>收到参数对象及 <code>ToolContext</code>，返回文本。</td></tr>
+<tr><th scope="row"><code>shouldDefer</code> / <code>persistentEffect</code></th><td>布尔值，均默认 <code>false</code></td><td>延迟公布，或声明持久副作用以便独占执行和记账。</td></tr>
+</tbody></table></div>
+<p>正常清单会按规划模式、MCP 可见状态和延迟激活过滤。清单只公布名字、描述和参数，派发仍用注册对象。分叉需同时保存这轮实际发出的定义及其本地处理器。<code>forkSnapshot()</code> 按名字配对，找不到定义时无法构成快照，避免可见与可派发脱节。独立注册表见<a href="13-重活交给子代理.html" rel="noopener" target="_blank">子代理篇</a>。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/registry.py#L56" rel="noopener" target="_blank">src/ruocun/tools/registry.py · 第 56–66 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>11 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="56"></span><span data-line="57"></span><span data-line="58"></span><span data-line="59"></span><span data-line="60"></span><span data-line="61"></span><span data-line="62"></span><span data-line="63"></span><span data-line="64"></span><span data-line="65"></span><span data-line="66"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">forkSnapshot</span>(<span class="hljs-built_in">self</span>, api_tools: Sequence[ApiTool]) -&gt; ToolSnapshot | <span class="hljs-keyword">None</span>:
+        <span class="hljs-string">"""冻结本次发送给模型的工具清单，并把其中每个工具与派发定义对应起来。"""</span>
+        definitions: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Tool] = {}
+        <span class="hljs-keyword">for</span> entry in api_tools:
+            name = entry.get(<span class="hljs-string">"</span><span class="hljs-string">function</span><span class="hljs-string">"</span>, {}).get(<span class="hljs-string">"</span><span class="hljs-string">name</span><span class="hljs-string">"</span>)
+            <span class="hljs-keyword">if</span> not <span class="hljs-built_in">isinstance</span>(name, <span class="hljs-built_in">str</span>) or name not in <span class="hljs-built_in">self</span>._tools:
+                <span class="hljs-keyword">return</span> <span class="hljs-keyword">None</span>
+            definitions[name] = <span class="hljs-built_in">self</span>._tools[name]
+        <span class="hljs-keyword">return</span> ToolSnapshot(<span class="hljs-built_in">tuple</span>(copy.deepcopy(api_tools)), <span class="hljs-built_in">tuple</span>(definitions.values()),
+                            <span class="hljs-built_in">frozenset</span>(<span class="hljs-built_in">self</span>._activated_deferred.intersection(definitions)),
+                            <span class="hljs-built_in">frozenset</span>(<span class="hljs-built_in">self</span>._activated_mcp.intersection(definitions)))</code></pre></div></figure>
+</section><section class="design-section" id="tool-definition-2"><h3>2.2 Read、Edit 和 ToolSearch 的完整参数</h3>
+<p>JSON Schema 是机器可读的参数约定。<code>properties</code> 列出字段，<code>required</code> 指定必须填写的字段，<code>objectSchema()</code> 同时关掉额外字段。可选参数省略时的行为要看执行代码。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/read_file.py#L117" rel="noopener" target="_blank">src/ruocun/tools/read_file.py · 第 117–122 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>6 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="117"></span><span data-line="118"></span><span data-line="119"></span><span data-line="120"></span><span data-line="121"></span><span data-line="122"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    schema=objectSchema({
+        <span class="hljs-string">"</span><span class="hljs-string">path</span><span class="hljs-string">"</span>: {<span class="hljs-string">"</span><span class="hljs-string">type</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">string</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">description</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">相对工作区根目录的文件路径</span><span class="hljs-string">"</span>},
+        <span class="hljs-string">"</span><span class="hljs-string">offset</span><span class="hljs-string">"</span>: {<span class="hljs-string">"</span><span class="hljs-string">type</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">integer</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">minimum</span><span class="hljs-string">"</span>: <span class="hljs-number">1</span>, <span class="hljs-string">"</span><span class="hljs-string">description</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">起始行号(1-based,含)</span><span class="hljs-string">"</span>},
+        <span class="hljs-string">"</span><span class="hljs-string">limit</span><span class="hljs-string">"</span>: {<span class="hljs-string">"</span><span class="hljs-string">type</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">integer</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">minimum</span><span class="hljs-string">"</span>: <span class="hljs-number">1</span>, <span class="hljs-string">"</span><span class="hljs-string">description</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">最多读取的行数</span><span class="hljs-string">"</span>},
+    }, [<span class="hljs-string">"</span><span class="hljs-string">path</span><span class="hljs-string">"</span>]), capability=<span class="hljs-string">"</span><span class="hljs-string">read</span><span class="hljs-string">"</span>, approval=<span class="hljs-string">"</span><span class="hljs-string">auto</span><span class="hljs-string">"</span>, handler=_read,
+)</code></pre></div></figure>
+<div aria-label="Read、Edit 和 ToolSearch 的完整参数" class="table-scroll" role="region" tabindex="0"><table><thead><tr><th scope="col">工具</th><th scope="col">字段</th><th scope="col">接口及省略行为</th></tr></thead><tbody>
+<tr><th scope="row">Read</th><td><code>path</code></td><td>必填字符串。相对路径以执行时 <code>cwd</code> 优先，缺省回落到工作区根。</td></tr>
+<tr><th scope="row">Read</th><td><code>offset</code> / <code>limit</code></td><td>可选整数，均至少 1。文本默认从第 1 行起最多显示 2000 行。</td></tr>
+<tr><th scope="row">Edit</th><td><code>path</code> / <code>old_string</code> / <code>new_string</code></td><td>三项必填字符串。分别是文件路径、去掉展示行号的原文、替换内容。空的新文本删除匹配片段。</td></tr>
+<tr><th scope="row">Edit</th><td><code>replace_all</code></td><td>可选布尔值。省略时要求原文唯一，传 <code>true</code> 才允许多处替换。</td></tr>
+<tr><th scope="row">ToolSearch</th><td><code>query</code></td><td>必填字符串，长度至少 1。搜索时去两端空白，忽略大小写，匹配工具名或描述。</td></tr>
+</tbody></table></div>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/edit_file.py#L132" rel="noopener" target="_blank">src/ruocun/tools/edit_file.py · 第 132–138 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>7 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="132"></span><span data-line="133"></span><span data-line="134"></span><span data-line="135"></span><span data-line="136"></span><span data-line="137"></span><span data-line="138"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    schema=objectSchema({
+        <span class="hljs-string">"</span><span class="hljs-string">path</span><span class="hljs-string">"</span>: {<span class="hljs-string">"</span><span class="hljs-string">type</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">string</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">description</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">相对工作区根目录的文件路径</span><span class="hljs-string">"</span>},
+        <span class="hljs-string">"</span><span class="hljs-string">old_string</span><span class="hljs-string">"</span>: {<span class="hljs-string">"</span><span class="hljs-string">type</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">string</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">description</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">要被替换的原文(需唯一)</span><span class="hljs-string">"</span>},
+        <span class="hljs-string">"</span><span class="hljs-string">new_string</span><span class="hljs-string">"</span>: {<span class="hljs-string">"</span><span class="hljs-string">type</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">string</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">description</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">替换成的新文本</span><span class="hljs-string">"</span>},
+        <span class="hljs-string">"</span><span class="hljs-string">replace_all</span><span class="hljs-string">"</span>: {<span class="hljs-string">"</span><span class="hljs-string">type</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">boolean</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">description</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">是否替换全部出现</span><span class="hljs-string">"</span>},
+    }, [<span class="hljs-string">"</span><span class="hljs-string">path</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">old_string</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">new_string</span><span class="hljs-string">"</span>]), capability=<span class="hljs-string">"</span><span class="hljs-string">write</span><span class="hljs-string">"</span>, approval=<span class="hljs-string">"</span><span class="hljs-string">required</span><span class="hljs-string">"</span>, handler=_edit,
+)</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/tool_search.py#L12" rel="noopener" target="_blank">src/ruocun/tools/tool_search.py · 第 12–22 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>11 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="12"></span><span data-line="13"></span><span data-line="14"></span><span data-line="15"></span><span data-line="16"></span><span data-line="17"></span><span data-line="18"></span><span data-line="19"></span><span data-line="20"></span><span data-line="21"></span><span data-line="22"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">_handler</span>(args: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any], ctx: ToolContext) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">return</span> ctx.searchTools(args[<span class="hljs-string">"</span><span class="hljs-string">query</span><span class="hljs-string">"</span>]) <span class="hljs-keyword">if</span> ctx.searchTools <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">当前环境不支持工具搜索。</span><span class="hljs-string">"</span>
+
+
+toolSearchTool = Tool(
+    <span class="hljs-string">"</span><span class="hljs-string">ToolSearch</span><span class="hljs-string">"</span>, _metadata[<span class="hljs-string">"</span><span class="hljs-string">description</span><span class="hljs-string">"</span>], {
+        <span class="hljs-string">"</span><span class="hljs-string">type</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">object</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">properties</span><span class="hljs-string">"</span>: {<span class="hljs-string">"</span><span class="hljs-string">query</span><span class="hljs-string">"</span>: {<span class="hljs-string">"</span><span class="hljs-string">type</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">string</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">minLength</span><span class="hljs-string">"</span>: <span class="hljs-number">1</span>,
+            <span class="hljs-string">"</span><span class="hljs-string">description</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">搜索关键词(匹配工具名或描述,不分大小写)</span><span class="hljs-string">"</span>}}, <span class="hljs-string">"</span><span class="hljs-string">required</span><span class="hljs-string">"</span>: [<span class="hljs-string">"</span><span class="hljs-string">query</span><span class="hljs-string">"</span>],
+        <span class="hljs-string">"</span><span class="hljs-string">additionalProperties</span><span class="hljs-string">"</span>: <span class="hljs-keyword">False</span>,
+    }, <span class="hljs-string">"</span><span class="hljs-string">read</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">auto</span><span class="hljs-string">"</span>, _handler, descriptionEn=_metadata[<span class="hljs-string">"</span><span class="hljs-string">descriptionEn</span><span class="hljs-string">"</span>],
+)</code></pre></div></figure>
+</section></section>
+<section class="v2-topic-group" id="validation">
+<header class="v2-group-heading"><span>03</span><h2>参数校验与执行上下文</h2></header><div class="design-section">
+</div><section class="design-section" id="validation-1"><h3>3.1 参数错误在发生处被分辨，再以原 ID 回流</h3>
+<p>只回“工具失败”，模型还得猜是填错、没权限还是文件坏了。<code>validate()</code> 先用 JSON 解析把参数字符串变成数据，拒绝 <code>NaN</code> 这类非法常量，再用内置 schema 子集查类型、必填字段、额外字段及范围。<code>file</code> 传进来时，先报缺少 <code>path</code>，随后列出可接受字段。执行器用原调用 ID 组装错误消息。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/tool_batch.py#L175" rel="noopener" target="_blank">src/ruocun/tools/tool_batch.py · 第 175–193 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>19 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="175"></span><span data-line="176"></span><span data-line="177"></span><span data-line="178"></span><span data-line="179"></span><span data-line="180"></span><span data-line="181"></span><span data-line="182"></span><span data-line="183"></span><span data-line="184"></span><span data-line="185"></span><span data-line="186"></span><span data-line="187"></span><span data-line="188"></span><span data-line="189"></span><span data-line="190"></span><span data-line="191"></span><span data-line="192"></span><span data-line="193"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            args = registry.validate(name, raw)
+            <span class="hljs-keyword">if</span> tool is not <span class="hljs-keyword">None</span> and hooks is not <span class="hljs-keyword">None</span>:
+                post = hooks.matching(<span class="hljs-string">"</span><span class="hljs-string">PostToolUse</span><span class="hljs-string">"</span>, RunCtx(hook_cwd, tool_name=name, args_json=raw))
+                <span class="hljs-keyword">if</span> post:
+                    <span class="hljs-keyword">if</span> journal is <span class="hljs-keyword">None</span>:
+                        <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">"</span><span class="hljs-string">Hook 缺少工具执行日志，命令和工具均未启动。</span><span class="hljs-string">"</span>)
+                    post_hooks[call_id] = post
+        <span class="hljs-keyword">except</span> (ValueError, TypeError, KeyError) <span class="hljs-keyword">as</span> exc:
+            <span class="hljs-keyword">if</span> tool is not <span class="hljs-keyword">None</span> and decision == <span class="hljs-string">"</span><span class="hljs-string">deny</span><span class="hljs-string">"</span>:
+                denied_call = BatchCall(call_id, tool, raw, decision)
+                results[call_id] = _message(call_id, hook_denied(denied_call))
+                <span class="hljs-keyword">await</span> audit(denied_call, <span class="hljs-string">"</span><span class="hljs-string">hook-deny</span><span class="hljs-string">"</span>)
+                <span class="hljs-keyword">continue</span>
+            results[call_id] = _message(call_id, <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">Error: 工具参数无效：</span><span class="hljs-string">{</span>exc<span class="hljs-string">}</span><span class="hljs-string">"</span>)
+            <span class="hljs-keyword">if</span> tool is not <span class="hljs-keyword">None</span>:
+                <span class="hljs-keyword">await</span> audit(BatchCall(call_id, tool, raw, decision), <span class="hljs-string">"</span><span class="hljs-string">invalid</span><span class="hljs-string">"</span>)
+                <span class="hljs-keyword">if</span> tool.capability == <span class="hljs-string">"</span><span class="hljs-string">exec</span><span class="hljs-string">"</span>:
+                    invalid_exec.add(call_id)
+            <span class="hljs-keyword">continue</span></code></pre></div></figure>
+<p>整数校验接受 <code>2.0</code>，再规范化为整数 <code>2</code>。字符串 <code>"2"</code> 和布尔值 <code>true</code> 都不能当行号。若系统配置了能在执行前改参的扩展 Hook，校验使用改后的值。路径权限和磁盘读取也各有自己的失败反馈。<strong>「用形状校验解释该怎么填，用权限裁决判断这次能不能做。」</strong>具体裁决见<a href="08-执行之前谁说了算.html#permission-call" rel="noopener" target="_blank">执行裁决篇</a>，远端工具定义和本地校验的分工见<a href="20-远程能力怎样接入.html#mcp-schema-seam" rel="noopener" target="_blank">MCP 篇</a>。</p>
+</section><section class="design-section" id="validation-2"><h3>3.2 Read 的图片槽独立，文本基线回到会话</h3>
+<p><code>ToolContext</code> 是程序交给处理器的运行上下文。模型给 Read 的参数只有文件路径和可选行段，程序还要从上下文取得实际目录、取消信号和授权服务。处理器可以用它保存程序自己的状态，例如路径、读取前的修改时间和大小，供后续 Edit 核对。模型通过工具消息看到的是带行号的文本。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/read_file.py#L30" rel="noopener" target="_blank">src/ruocun/tools/read_file.py · 第 30–43 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>14 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="30"></span><span data-line="31"></span><span data-line="32"></span><span data-line="33"></span><span data-line="34"></span><span data-line="35"></span><span data-line="36"></span><span data-line="37"></span><span data-line="38"></span><span data-line="39"></span><span data-line="40"></span><span data-line="41"></span><span data-line="42"></span><span data-line="43"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">if</span> ctx.signal.is_set():
+        <span class="hljs-keyword">raise</span> InterruptedError(<span class="hljs-string">"</span><span class="hljs-string">工具调用已取消</span><span class="hljs-string">"</span>)
+    <span class="hljs-comment"># 后台线程使用独立的读取记录。回到业务循环再更新共享基线，避免界面同时遍历时遇到写入。</span>
+    worker_ctx = replace(ctx, readFiles=<span class="hljs-built_in">set</span>(), readMeta={}, currentImageData=<span class="hljs-keyword">None</span>, onFileAccessed=<span class="hljs-keyword">None</span>)
+    text, accessed = <span class="hljs-keyword">await</span> asyncio.to_thread(_read_text, absolute, args, worker_ctx)
+    <span class="hljs-keyword">for</span> path in worker_ctx.readFiles:
+        ctx.readFiles.add(path)
+    <span class="hljs-keyword">for</span> path, meta in worker_ctx.readMeta.items():
+        ctx.readMeta[path] = meta
+    <span class="hljs-keyword">if</span> worker_ctx.currentImageData is not <span class="hljs-keyword">None</span>:
+        ctx.currentImageData = worker_ctx.currentImageData
+    <span class="hljs-keyword">if</span> accessed and ctx.onFileAccessed is not <span class="hljs-keyword">None</span>:
+        ctx.onFileAccessed(absolute)
+    <span class="hljs-keyword">return</span> text</code></pre></div></figure>
+<p>如果两次并行 Read 都往同一个槽写图片，一个调用回来取图时就可能取到另一张。批次给每个 Read 单独的 <code>currentImageData</code>，按各自调用 ID 回填。读线程独立记录的文本基线则回业务循环合并到共享映射，后续 Edit 可以读取。状态需不需要共享取决于后面谁来用它。</p>
+</section></section>
+<section class="v2-topic-group" id="tool-disclosure">
+<header class="v2-group-heading"><span>04</span><h2>延迟工具发现</h2></header><div class="design-section">
+</div><section class="design-section" id="tool-disclosure-1"><h3>4.1 ToolSearch 让下一次请求看到完整定义</h3>
+<p><code>RepoMap</code> 用来给模型一份仓库结构摘要，适合一开始还不知道该读哪些文件时使用。它已注册，正常清单仍会过滤未激活的 <code>shouldDefer</code> 工具。每轮都发送所有定义会挤占模型可以用来读历史与材料的空间。延迟公布需要先多一次发现。调用 ToolSearch 传 <code>{"query":"RepoMap"}</code>，<code>ctx.searchTools</code> 找到已注册、未激活且匹配的工具，更新激活集合并返回完整参数。下次重新生成清单就能公布定义。拿到接口后怎样用结构摘要找入口，见<a href="05-从问题找到代码.html#semantic-hints" rel="noopener" target="_blank">下一篇的代码定位示例</a>。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/registry.py#L129" rel="noopener" target="_blank">src/ruocun/tools/registry.py · 第 129–146 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>18 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="129"></span><span data-line="130"></span><span data-line="131"></span><span data-line="132"></span><span data-line="133"></span><span data-line="134"></span><span data-line="135"></span><span data-line="136"></span><span data-line="137"></span><span data-line="138"></span><span data-line="139"></span><span data-line="140"></span><span data-line="141"></span><span data-line="142"></span><span data-line="143"></span><span data-line="144"></span><span data-line="145"></span><span data-line="146"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">searchAndActivateDeferred</span>(<span class="hljs-built_in">self</span>, query: <span class="hljs-built_in">str</span>, lang: <span class="hljs-built_in">str</span> | <span class="hljs-keyword">None</span> = <span class="hljs-keyword">None</span>) -&gt; <span class="hljs-built_in">str</span>:
+        q = query.strip().lower()
+        <span class="hljs-keyword">if</span> not q:
+            <span class="hljs-keyword">return</span> <span class="hljs-string">"</span><span class="hljs-string">请提供搜索关键词。</span><span class="hljs-string">"</span>
+        hits: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>] = []
+        <span class="hljs-keyword">for</span> tool in <span class="hljs-built_in">self</span>._tools.values():
+            <span class="hljs-keyword">if</span> not tool.shouldDefer or tool.name in <span class="hljs-built_in">self</span>._activated_deferred:
+                <span class="hljs-keyword">continue</span>
+            description = tool.descriptionEn <span class="hljs-keyword">if</span> lang == <span class="hljs-string">"</span><span class="hljs-string">en</span><span class="hljs-string">"</span> and tool.descriptionEn <span class="hljs-keyword">else</span> tool.description
+            <span class="hljs-keyword">if</span> q not in tool.name.lower() and q not in description.lower():
+                <span class="hljs-keyword">continue</span>
+            <span class="hljs-built_in">self</span>._activated_deferred.add(tool.name)
+            parameters = copy.deepcopy(tool.apiParameters) <span class="hljs-keyword">if</span> tool.apiParameters is not <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> toJsonSchema(tool.schema)
+            hits.append(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">{</span>tool.name<span class="hljs-string">}</span><span class="hljs-string">: </span><span class="hljs-string">{</span>description<span class="hljs-string">}</span><span class="hljs-string">\n</span><span class="hljs-string">参数: </span><span class="hljs-string">"</span> + json.dumps(
+                parameters, ensure_ascii=<span class="hljs-keyword">False</span>, separators=(<span class="hljs-string">"</span><span class="hljs-string">,</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">:</span><span class="hljs-string">"</span>)))
+        <span class="hljs-keyword">if</span> not hits:
+            <span class="hljs-keyword">return</span> <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">没有延迟加载工具匹配「</span><span class="hljs-string">{</span>query<span class="hljs-string">}</span><span class="hljs-string">」。</span><span class="hljs-string">"</span>
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"</span><span class="hljs-string">\n</span><span class="hljs-string">\n</span><span class="hljs-string">"</span>.join(hits) + <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">\n</span><span class="hljs-string">\n</span><span class="hljs-string">(以上 </span><span class="hljs-string">{</span><span class="hljs-built_in">len</span>(hits)<span class="hljs-string">}</span><span class="hljs-string"> 个工具已激活,从下一次工具调用起可直接调用它们。)</span><span class="hljs-string">"</span></code></pre></div></figure>
+<p>直接点名未激活的工具且填参校验失败时，注册表提示先通过 ToolSearch 加载。如果模型已知道这个已注册的名字，参数又合法，注册表校验可以通过，后续仍按模式与权限决定能否执行。延迟激活控制公布清单，执行权限由运行时裁决。</p>
+</section></section>
+<section class="v2-topic-group" id="batch-order">
+<header class="v2-group-heading"><span>05</span><h2>同批执行的并行组与屏障</h2></header><div class="design-section">
+</div><section class="design-section" id="batch-order-1"><h3>5.1 前两次读可以重叠，Edit 前后必须等</h3>
+<p>模型下一轮一次交来四项，顺序是 <code>r_before</code> 读价格、<code>r_rules</code> 读折扣、<code>e_price</code> 把价格从 100 改为 120、<code>r_after</code> 再读价格。假设它已经知道原文，写前基线仍然有效，四项都能成功。现在对照两种可能的调度，留意读取发生在哪个时刻。</p>
+<figure class="reasoning-figure" id="batch-read-write-order">
+<figcaption>源码推演 · 两条价格回包各自观察到什么</figcaption>
+<div aria-label="源码推演 · 两条价格回包各自观察到什么" class="table-scroll" role="region" tabindex="0"><table>
+<thead><tr><th scope="col">时刻</th><th scope="col">四项一起启动的一种交错</th><th scope="col">RuoCun 的分组</th></tr></thead>
+<tbody>
+<tr><th scope="row">起初 · 价格 100</th><td><code>r_before</code> 读完，<code>r_after</code> 也读完。</td><td><code>r_before</code> 与 <code>r_rules</code> 读完。</td></tr>
+<tr><th scope="row">写入</th><td><code>e_price</code> 写入 120。</td><td><code>e_price</code> 单独写入 120，等操作完成。</td></tr>
+<tr><th scope="row">写入之后</th><td><code>r_rules</code> 收尾。</td><td><code>r_after</code> 才启动。</td></tr>
+</tbody>
+</table></div>
+</figure>
+<details class="answer-box"><summary>如果两种调度都按原调用顺序回填，哪边仍会把 100 当成写后读数？</summary><div><p>左边的 <code>r_after</code> 写入前已读完，返回 100。最后把它摆在 Edit 的结果之后也改不了已读到的内容。右边由写入屏障保证 <code>r_after</code> 在写入后才读到 120。</p></div></details>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/tool_batch.py#L343" rel="noopener" target="_blank">src/ruocun/tools/tool_batch.py · 第 343–364 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>22 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="343"></span><span data-line="344"></span><span data-line="345"></span><span data-line="346"></span><span data-line="347"></span><span data-line="348"></span><span data-line="349"></span><span data-line="350"></span><span data-line="351"></span><span data-line="352"></span><span data-line="353"></span><span data-line="354"></span><span data-line="355"></span><span data-line="356"></span><span data-line="357"></span><span data-line="358"></span><span data-line="359"></span><span data-line="360"></span><span data-line="361"></span><span data-line="362"></span><span data-line="363"></span><span data-line="364"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        barrier_aborted = <span class="hljs-keyword">False</span>
+        group: <span class="hljs-built_in">list</span>[BatchCall] = []
+        <span class="hljs-keyword">for</span> call_id, _, _ in calls:
+            <span class="hljs-keyword">if</span> call_id in invalid_exec:
+                barrier_aborted = <span class="hljs-keyword">True</span>
+            <span class="hljs-keyword">if</span> call_id not in ready or call_id in results:
+                <span class="hljs-keyword">continue</span>
+            call = ready[call_id]
+            <span class="hljs-keyword">if</span> not _has_persistent_effect(call.tool) and call_id not in post_hooks:
+                group.append(call)
+                <span class="hljs-keyword">continue</span>
+            <span class="hljs-comment"># 先等待前面的并行工具全部收尾，再单独执行含持久副作用或事后钩子的调用。</span>
+            <span class="hljs-keyword">await</span> settle(group)
+            group.clear()
+            <span class="hljs-keyword">if</span> reason := stop_reason(call.tool):
+                results[call_id] = _message(call_id, reason)
+            <span class="hljs-keyword">elif</span> barrier_aborted and call.tool.capability in _EFFECTS:
+                results[call_id] = _message(call_id, _BARRIER_SKIPPED)
+            <span class="hljs-keyword">else</span>:
+                <span class="hljs-keyword">await</span> settle([call])
+                barrier_aborted = barrier_aborted or call_id in failed_exec
+        <span class="hljs-keyword">await</span> settle(group)</code></pre></div></figure>
+<p>代入四个调用，循环先把前两项加入 <code>group</code>。遇到 <code>e_price</code>，<code>settle(group)</code> 先等这一组，再用 <code>settle([call])</code> 单独执行改价。循环随后把 <code>r_after</code> 放入新组，由末尾的 <code>settle(group)</code> 执行。改过的文件会继续存在，后读看到的内容随之改变，这类留在实际环境里的变化叫持久副作用。可并行的一组最多八项同跑，持久副作用或事后 Hook 会割开前后两组。这道屏障牺牲了一部分并行机会，换来写入前后各自可信的读数。</p>
+<p>最后的回填顺序由调用 ID 保证，和执行时先看见哪个版本是两回事。若模型连 Edit 所需的原文都还不知道，就应该在第一轮只读，拿到回包之后再生成 Edit 参数。屏障只安排现有调用的执行时间。</p>
+<p><strong>「副作用屏障保护前后阶段的观察顺序。」</strong>配有持久日志时，副作用工具先登记意图，再进入处理器并保存结果。符合失败判断的 <code>exec</code> 可让后续 <code>write</code>、<code>exec</code> 跳过。若操作可能发生却缺结果确认，则会停止自动续跑，详见<a href="10-工具可能已经执行.html" rel="noopener" target="_blank">持久执行篇</a>。</p>
+</section></section>
+<section class="v2-topic-group" id="article-assessment">
+<header class="v2-group-heading"><span>06</span><h2>学习效果检测</h2></header><div class="design-section">
+</div><section class="design-section" id="article-assessment-1">
+<h3>6.1 判断参数校验、执行分组与回填</h3>
+<p><strong>1．</strong> 校验回包指向 <code>call-r</code>。这次 Read 的参数是 <code>{"path":"report.csv","offset":"2"}</code>。同事准备去改文件权限。当前能定位哪一层失败？请写出还值得尝试的一次调用，以及怎样验证它确实读到了第 2 行。</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>参数里的 <code>"2"</code> 是字符串，<code>offset</code> 要求整数，处理器还没打开文件。这条回包无法说明文件权限。用新的调用传 <code>{"path":"report.csv","offset":2,"limit":1}</code>，再看与新调用 ID 配对的工具结果是否返回第 2 行。</p></div></details>
+<p><strong>2．</strong>后一个 Read 先完成，能否把它的回包放在第一个？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>结果按 ID 找归属，最终按原调用顺序列出。组内完成时间可以不同，跨屏障的启动仍受约束。</p></div></details>
+<p><strong>3．</strong>第一个 Read 匹配事后 Hook，原来的并行组怎样变？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>它先等前组收尾后独占执行，Hook 也在这一阶段处理。第二个 Read 得等它收尾再进入后面的并行组。</p></div></details>
+</section><div class="design-section">
+</div></section>
+<section class="v2-topic-group" id="article-interview">
+<header class="v2-group-heading"><span>07</span><h2>模拟面试官提问</h2></header><div class="design-section">
+</div><section class="design-section" id="article-interview-1"><h3>7.1 Agent 开发实习</h3>
+<h4>独立核心题</h4>
+<p><strong>怎样让模型传错参数后容易改对？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p><strong>口述回答。</strong>先用 schema 规定形状，失败时点名字段、说明原因并给最小示例。RuoCun 把这条反馈连同原调用 ID 一起交回模型，下一轮可改用 <code>path</code>。路径许可仍由程序检查。</p><p>可以分别交合法 JSON 的错字段、合法字段的未授权路径，核对两类错误在何处返回。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>结构摘要工具只在少数任务里用，怎样减少每轮发送的定义？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>工具先注册为延迟能力，让 ToolSearch 按需公开完整定义，常规请求少背接口，第一次使用要额外发现。</p></div></details>
+<p><strong>追问 1</strong> 父代理在发出分叉请求之后才激活该工具，子任务会自动得到它吗？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>回看分叉时固定的清单与双方的激活集合，在对应作用域决定是否需要发现。</p></div></details>
+<p><strong>追问 2</strong> 工具还没激活，但模型已知道名字，参数也填对了。执行器怎样判断？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>当前注册表允许已注册工具以有效参数通过校验。延迟激活控制请求里的公布范围，模式和权限仍在实际派发时裁决。</p></div></details>
+</section><section class="design-section" id="article-interview-2"><h3>7.2 Agent harness 岗位</h3>
+<h4>独立核心题</h4>
+<p><strong>为什么不把一批调用都丢进 gather？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p><strong>口述回答。</strong>写入前后的读取有观察顺序。RuoCun 等前面的无副作用组完成，独占执行写入，再启动后段。可以记录两个延迟 Read 和 Edit 的启动及返回时间，验证组内重叠与组间等待，同时核对调用 ID 和回包排列。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>一批命令和写入里，前面的命令明确返回非零退出码，后面的 Edit 怎样处理？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>符合 <code>looksFailed()</code> 时记录失败，屏障可跳过后续写入或命令，先处理这个失败。</p></div></details>
+<p><strong>追问 1</strong> 如果命令可能执行了，但结果未能写入记录呢？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>停止自动推进，查日志及原操作的副作用，贸然再发可能执行两次。</p></div></details>
+<p><strong>追问 2</strong> 如果只是回包完成顺序不同，怎样还原批次结果？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>按调用 ID 收集，按原调用顺序回填。执行屏障约束何时开始，结果配对约束回到历史的每一项属于谁。</p></div></details>
+</section></section>
+<section class="v2-topic-group" id="article-takeaways">
+<header class="v2-group-heading"><span>08</span><h2>这一篇带走什么</h2></header><div class="design-section">
+<p>RuoCun 按条件公布注册工具，模型提交调用后，程序检查参数与权限，再按副作用约束执行并回填结果。</p>
+<ul class="pilot-takeaways">
+<li>参数错误给出字段、原因和最小调用，并保留原调用 ID，让下一轮有依据修正。</li>
+<li>低频工具可以先登记、后公布完整定义，设计发现入口时要明确何时更新清单、执行仍有哪些检查。</li>
+<li>并行前先查状态归属及依赖，调用独用图片槽，写入用可等待的屏障保护前后观察顺序。</li>
+</ul>
+<p>接下来用<a href="05-从问题找到代码.html" rel="noopener" target="_blank">《从问题找到代码》</a>里的 Glob、Grep、Read，把一条失败反馈追到真正拦住操作的位置。</p>
+</div></section>
+</article></main>
+</body>
+</html>

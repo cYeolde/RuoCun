@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>执行前后怎样插入规则：Hooks改参、决策与收据 · RuoCun 设计学习</title>
+<link href="assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="assets/ruocun-code.css" rel="stylesheet"/>
+<link href="assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="assets/ruocun-article.css" rel="stylesheet"/>
+<link href="assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="assets/ruocun-textbook.js"></script>
+</head>
+<body class="textbook-read">
+<a class="textbook-skip" href="#hooks">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#hooks">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航">
+<a href="课程学习地图.html" rel="noopener" target="_blank">学习地图</a>
+<a class="textbook-original" href="#article-takeaways">这一篇带走什么</a>
+</nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title">执行前后怎样插入规则</div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc" open="">
+<summary>展开文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#hook-case"><span class="v2-toc-number">1</span><span>Pre Hook 换了参数，哪份才该拿去校验和批准？</span></a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#hook-events"><span class="v2-toc-number">2</span><span>事件匹配、输入与结构化结果</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#hook-selection"><span class="v2-toc-number">2.1</span><span>按时点选择命令，按结果种类消费回包</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#hook-pre"><span class="v2-toc-number">3</span><span>参数改写与独立授权</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#hook-validate-after-rewrite"><span class="v2-toc-number">3.1</span><span>改写的整份 JSON 重新进入参数校验</span></a></li><li><a class="v2-toc-child-link" href="#hook-authorize"><span class="v2-toc-number">3.2</span><span>Hook 提供意见，权限层裁决最终调用</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#hook-post"><span class="v2-toc-number">4</span><span>工具确认、Post 时点与收据</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#hook-confirm-tool-first"><span class="v2-toc-number">4.1</span><span>保存原工具结果后才执行 Post</span></a></li><li><a class="v2-toc-child-link" href="#hook-independent-receipt"><span class="v2-toc-number">4.2</span><span>Hook 收据绑定事件、调用和已选命令</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#hook-extension-choice"><span class="v2-toc-number">5</span><span>修复流程、外部能力与执行关口</span></a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-assessment"><span class="v2-toc-number">6</span><span>学习效果检测</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#article-assessment-1"><span class="v2-toc-number">6.1</span><span>判断改参、权限和收据的生效时机</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-interview"><span class="v2-toc-number">7</span><span>模拟面试官提问</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#intern-hooks"><span class="v2-toc-number">7.1</span><span>Agent 开发实习</span></a></li><li><a class="v2-toc-child-link" href="#harness-hooks"><span class="v2-toc-number">7.2</span><span>Agent harness 岗位</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways"><span class="v2-toc-number">8</span><span>这一篇带走什么</span></a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper course-lesson" id="hooks"><header class="design-hero">
+<h1>执行前后怎样插入规则</h1><p class="article-subtitle">Hooks改参、决策与收据</p>
+<p class="target">在写入前检查目标，在写入后登记结果。只要钩子自己也能产生副作用，执行顺序和恢复记录就值得单独设计。</p>
+</header>
+<section class="v2-topic-group" id="hook-case">
+<header class="v2-group-heading"><span>01</span><h2>Pre Hook 换了参数，哪份才该拿去校验和批准？</h2></header><div class="design-section">
+<p>模型准备写一份会员预览核对笔记。项目约定把报告放到 <code>reports</code>，于是写入前触发了 <code>PreToolUse</code>。<code>Write</code> 需要 <code>path</code> 和 <code>content</code> 两项。看 Hook 的两种输出，先判断它们各能走到哪一步。</p>
+<figure class="reasoning-figure">
+<figcaption>源码推演 · updatedInput 提交的是整份参数</figcaption>
+<div class="reasoning-grid">
+<section><h4>原调用 w7</h4><p><code>path=notes/preview.md</code><br/><code>content="已核对"</code></p></section>
+<section><h4>替换值甲</h4><p><code>path=reports/preview.md</code><br/>权限意见 <code>ask</code>。替换值中只有 <code>path</code>。</p></section>
+<section><h4>替换值乙</h4><p><code>path=reports/preview.md</code><br/><code>content="已核对"</code><br/>权限意见同样是 <code>ask</code>。</p></section>
+</div>
+</figure>
+<details class="answer-box"><summary>首读自检 · 哪一项会问用户？问题里应出现哪个路径？</summary><div><p>甲少了 <code>content</code>，在参数校验处停下。乙满足这两项字段要求，若权限层允许询问，则应询问实际要写的 <code>reports/preview.md</code>。原调用 ID 仍是 <code>w7</code>。</p></div></details>
+<p><a href="20-远程能力怎样接入.html#mcp-discovery" rel="noopener" target="_blank">前篇的 MCP</a>让模型可以调用外部能力。Hook 是程序在指定事件发生时运行的配置命令。模型提出 <code>Write</code> 后，程序就在执行前决定要运行哪些命令。要跟踪它的效果，先看它取得哪份输入，又能向执行器交回什么。</p>
+</div></section>
+<section class="v2-topic-group" id="hook-events">
+<header class="v2-group-heading"><span>02</span><h2>事件匹配、输入与结构化结果</h2></header><div class="design-section">
+</div><section class="design-section" id="hook-selection"><h3>2.1 按时点选择命令，按结果种类消费回包</h3>
+<div aria-label="按时点选择命令，按结果种类消费回包" class="table-scroll" role="region" tabindex="0"><table>
+<thead><tr><th scope="col">事件</th><th scope="col">输入或时点</th><th scope="col">这一处怎样消费结果</th></tr></thead>
+<tbody>
+<tr><td><code>PreToolUse</code></td><td>工具名称和原始参数</td><td>可改参数、阻止本次调用或提出权限意见，也可提供上下文。</td></tr>
+<tr><td><code>PostToolUse</code></td><td>工具、最终参数和已保存结果</td><td>执行后置规则并保存独立收据。当前批执行器继续使用已确认的原工具结果。</td></tr>
+<tr><td><code>UserPromptSubmit</code></td><td>准备消费的用户输入</td><td>可阻止提交，允许时附加上下文与输入一同保存。</td></tr>
+<tr><td><code>SessionStart</code> / <code>SessionEnd</code></td><td>会话启动、恢复或收尾</td><td>启动可附加一条 <code>system</code> 消息，结束用于收尾动作。</td></tr>
+<tr><td><code>SubagentStart</code> / <code>SubagentStop</code></td><td>子运行身份与类型</td><td>开始事件执行后，额外上下文需保存确认，才能发子代理模型请求。结束事件也用独立的 Hook 收据。</td></tr>
+</tbody>
+</table></div>
+<p>选择命令时先对事件，匹配器通常检查工具名，<code>SessionStart</code> 用启动或恢复来源。工具事件的 <code>if</code> 还可看参数条件。运行器执行匹配的 command 项，将本事件载荷作为 JSON 写入标准输入。命令默认 30 秒超时，设置 <code>timeout: 0</code> 关闭该时限，输出受 4 MiB 上限保护。超时或输出超限的结果不作为权限决定或改参继续消费。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/hooks/hooks.py#L85" rel="noopener" target="_blank">src/ruocun/hooks/hooks.py · 第 85–111 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>27 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="85"></span><span data-line="86"></span><span data-line="87"></span><span data-line="88"></span><span data-line="89"></span><span data-line="90"></span><span data-line="91"></span><span data-line="92"></span><span data-line="93"></span><span data-line="94"></span><span data-line="95"></span><span data-line="96"></span><span data-line="97"></span><span data-line="98"></span><span data-line="99"></span><span data-line="100"></span><span data-line="101"></span><span data-line="102"></span><span data-line="103"></span><span data-line="104"></span><span data-line="105"></span><span data-line="106"></span><span data-line="107"></span><span data-line="108"></span><span data-line="109"></span><span data-line="110"></span><span data-line="111"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">parseHookOutput</span>(stdout: <span class="hljs-built_in">str</span>, stderr: <span class="hljs-built_in">str</span>, code: <span class="hljs-built_in">int</span>) -&gt; HookOutcome:
+    <span class="hljs-keyword">if</span> code == <span class="hljs-number">2</span>:
+        <span class="hljs-keyword">return</span> HookOutcome(block=<span class="hljs-keyword">True</span>, reason=(stderr or stdout).strip())
+    text = stdout.strip()
+    <span class="hljs-keyword">if</span> code != <span class="hljs-number">0</span> or not text:
+        <span class="hljs-keyword">return</span> HookOutcome()
+    <span class="hljs-keyword">try</span>:
+        raw = json.loads(text, parse_constant=_invalid_constant)
+    <span class="hljs-keyword">except</span> ValueError:
+        <span class="hljs-keyword">return</span> HookOutcome(additional_context=text)
+    <span class="hljs-keyword">if</span> raw is <span class="hljs-keyword">None</span>:
+        <span class="hljs-keyword">return</span> HookOutcome(additional_context=text)
+    <span class="hljs-keyword">if</span> not <span class="hljs-built_in">isinstance</span>(raw, <span class="hljs-built_in">dict</span>):
+        <span class="hljs-keyword">return</span> HookOutcome()
+    nested = raw.get(<span class="hljs-string">"</span><span class="hljs-string">hookSpecificOutput</span><span class="hljs-string">"</span>)
+    detail = nested <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(nested, <span class="hljs-built_in">dict</span>) <span class="hljs-keyword">else</span> {}
+    context = <span class="hljs-built_in">next</span>((value <span class="hljs-keyword">for</span> value in (detail.get(<span class="hljs-string">"</span><span class="hljs-string">additionalContext</span><span class="hljs-string">"</span>), raw.get(<span class="hljs-string">"</span><span class="hljs-string">additionalContext</span><span class="hljs-string">"</span>),
+                                        raw.get(<span class="hljs-string">"</span><span class="hljs-string">additional_context</span><span class="hljs-string">"</span>)) <span class="hljs-keyword">if</span> value is not <span class="hljs-keyword">None</span>), <span class="hljs-keyword">None</span>)
+    decision = detail.get(<span class="hljs-string">"</span><span class="hljs-string">permissionDecision</span><span class="hljs-string">"</span>)
+    updated = detail.get(<span class="hljs-string">"</span><span class="hljs-string">updatedInput</span><span class="hljs-string">"</span>)
+    <span class="hljs-keyword">if</span> updated is <span class="hljs-keyword">None</span>:
+        updated = raw.get(<span class="hljs-string">"</span><span class="hljs-string">updatedInput</span><span class="hljs-string">"</span>)
+    <span class="hljs-keyword">return</span> HookOutcome(
+        additional_context=_string(context) or <span class="hljs-string">"</span><span class="hljs-string">"</span>,
+        permission_decision=cast(HookDecision, decision) <span class="hljs-keyword">if</span> decision in (<span class="hljs-string">"</span><span class="hljs-string">allow</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">ask</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">deny</span><span class="hljs-string">"</span>) <span class="hljs-keyword">else</span> <span class="hljs-keyword">None</span>,
+        updated_input=updated <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(updated, (<span class="hljs-built_in">dict</span>, <span class="hljs-built_in">list</span>)) <span class="hljs-keyword">else</span> <span class="hljs-keyword">None</span>,
+    )</code></pre></div></figure>
+<p>退出码 2 会形成 <code>block</code> 和原因，Pre 的消费点把它当 <code>deny</code>。成功输出的普通文本可作为附加上下文。结构化结果可以含 <code>hookSpecificOutput.permissionDecision</code>、<code>updatedInput</code> 与 <code>additionalContext</code>。多个 Hook 匹配时合并上下文，决定取 <code>deny</code>、<code>ask</code>、<code>allow</code> 中较强的一个，最后一个提供的完整 <code>updatedInput</code> 生效。输出字段能否改变流程仍取决于事件消费点。</p>
+</section></section>
+<section class="v2-topic-group" id="hook-pre">
+<header class="v2-group-heading"><span>03</span><h2>参数改写与独立授权</h2></header><div class="design-section">
+</div><section class="design-section" id="hook-validate-after-rewrite"><h3>3.1 改写的整份 JSON 重新进入参数校验</h3>
+<p><a href="08-执行之前谁说了算.html#permission-hook-arguments" rel="noopener" target="_blank">权限篇</a>用参数变化追过批准应绑定的目标。这里向前追到 Hook 的输出。下面是开场乙的完整结构。如果把 <code>updatedInput</code> 当成合并，甲漏传的 <code>content</code> 会被从原对象补回。整份替换让这次调用依赖的字段都可以明确核对。</p>
+<figure class="ruocun-code" data-language="json">
+<figcaption class="ruocun-code-caption"><span>JSON</span><span>1 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-json">{<span class="hljs-attr">"hookSpecificOutput"</span>:{<span class="hljs-attr">"permissionDecision"</span>:<span class="hljs-string">"ask"</span>,<span class="hljs-attr">"updatedInput"</span>:{<span class="hljs-attr">"path"</span>:<span class="hljs-string">"reports/preview.md"</span>,<span class="hljs-attr">"content"</span>:<span class="hljs-string">"已核对"</span>}}}</code></pre></div></figure>
+<p>执行器把这份对象重新变成 JSON，再用原工具的校验规则读取它。Post 的匹配也使用改写后的参数。<strong>「校验和权限要绑定最终会执行的参数」</strong>。如果批准了原来的 <code>notes/preview.md</code>，实际要写的是另一份路径，应重新裁决。</p>
+</section><section class="design-section" id="hook-authorize"><h3>3.2 Hook 提供意见，权限层裁决最终调用</h3>
+<p><code>deny</code> 禁止本次操作，<code>ask</code> 可要求确认，<code>allow</code> 只在<a href="08-执行之前谁说了算.html#permission-call" rel="noopener" target="_blank">权限层允许的非敏感询问</a>中促成放行。用户拒绝新的 <code>reports/preview.md</code> 时，拒绝沿 <code>w7</code> 回给模型，让下一轮能据结果调整提议。</p>
+</section></section>
+<section class="v2-topic-group" id="hook-post">
+<header class="v2-group-heading"><span>04</span><h2>工具确认、Post 时点与收据</h2></header><div class="design-section">
+</div><section class="design-section" id="hook-confirm-tool-first"><h3>4.1 保存原工具结果后才执行 Post</h3>
+<p>从<a href="10-工具可能已经执行.html#durable-journal" rel="noopener" target="_blank">原工具的意图与结果</a>接着往后看。原处理器返回并确认保存的结果是 Post 的输入，另外还要匹配条件且未取消。这里“正常返回”只说明处理器交回了工具输出，字符串里仍可能报告业务失败。Post 触发时要读原工具结果，才能决定怎样收尾。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/tool_batch.py#L270" rel="noopener" target="_blank">src/ruocun/tools/tool_batch.py · 第 270–287 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>18 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="270"></span><span data-line="271"></span><span data-line="272"></span><span data-line="273"></span><span data-line="274"></span><span data-line="275"></span><span data-line="276"></span><span data-line="277"></span><span data-line="278"></span><span data-line="279"></span><span data-line="280"></span><span data-line="281"></span><span data-line="282"></span><span data-line="283"></span><span data-line="284"></span><span data-line="285"></span><span data-line="286"></span><span data-line="287"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            <span class="hljs-keyword">if</span> journal is not <span class="hljs-keyword">None</span>:
+                <span class="hljs-keyword">try</span>:
+                    <span class="hljs-keyword">if</span> image is <span class="hljs-keyword">None</span>:
+                        <span class="hljs-keyword">await</span> journal.result(call_id, result)
+                    <span class="hljs-keyword">else</span>:
+                        <span class="hljs-keyword">await</span> journal.result(call_id, result, image)
+                <span class="hljs-keyword">except</span> Exception <span class="hljs-keyword">as</span> exc:
+                    <span class="hljs-keyword">if</span> not effect:
+                        <span class="hljs-keyword">raise</span>
+                    <span class="hljs-keyword">raise</span> UnknownToolOutcome(
+                        <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">工具结果保存未确认（</span><span class="hljs-string">{</span><span class="hljs-built_in">type</span>(exc).__name__<span class="hljs-string">}</span><span class="hljs-string">），已停止；请核实原操作。</span><span class="hljs-string">"</span>
+                    ) <span class="hljs-keyword">from</span> exc
+            <span class="hljs-keyword">if</span> finished_handler and hooks is not <span class="hljs-keyword">None</span> and call_id in post_hooks and not ctx.signal.is_set():
+                post_ctx = RunCtx(hook_cwd, tool_name=tool.name, args_json=raw,
+                                  payload={<span class="hljs-string">"</span><span class="hljs-string">tool</span><span class="hljs-string">"</span>: tool.name, <span class="hljs-string">"</span><span class="hljs-string">args</span><span class="hljs-string">"</span>: raw, <span class="hljs-string">"</span><span class="hljs-string">result</span><span class="hljs-string">"</span>: result})
+                <span class="hljs-keyword">await</span> _invoke_tool_hook(hooks, <span class="hljs-string">"</span><span class="hljs-string">PostToolUse</span><span class="hljs-string">"</span>, call_id, post_ctx, ctx.signal, post_hooks[call_id], journal)
+            <span class="hljs-keyword">await</span> audit(call, <span class="hljs-string">"</span><span class="hljs-string">failed</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> looksFailed(result) <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">completed</span><span class="hljs-string">"</span>)
+            <span class="hljs-keyword">return</span> _message(call_id, result, image)</code></pre></div></figure>
+<p>恢复时，把原写入的结果与日志 Hook 的记录分开看。下面这两次都中断了，试着找出各自还有哪个效果需要核实。</p>
+<figure class="reasoning-figure">
+<figcaption>源码推演 · 同一调用 w7 的两种停止现场</figcaption>
+<div aria-label="源码推演 · 同一调用 w7 的两种停止现场" class="table-scroll" role="region" tabindex="0"><table>
+<thead><tr><th scope="col">留下的证据</th><th scope="col">停在原结果提交</th><th scope="col">停在 Post 收据提交</th></tr></thead>
+<tbody>
+<tr><th scope="row">Write 处理器</th><td>已返回</td><td>已返回</td></tr>
+<tr><th scope="row">Write 结果</th><td>保存未确认</td><td>已确认</td></tr>
+<tr><th scope="row">Post 登记</th><td>未开始</td><td>有意图，收据未确认</td></tr>
+</tbody>
+</table></div>
+</figure>
+<details class="answer-box"><summary>核对哪一次需要查文件，哪一次只需查日志动作</summary><div><p>第一列先查 Write 的实际文件，因为程序未拿到确认；按照当前顺序，Post 还没有启动。第二列保留已经确认的 Write，核对 Post 有没有把记录加到日志，不能为追这个回包再写一次文件。</p></div></details>
+</section><section class="design-section" id="hook-independent-receipt"><h3>4.2 Hook 收据绑定事件、调用和已选命令</h3>
+<p>Hook 记录使用事件与原身份生成独立 ID，并把最终参数或载荷、工作目录、选中命令的摘要纳入意图。可以取用可信已确认结果时，根据收据摘要核对并恢复结构化结果。执行记录允许继续且没有可复用回包时才实际运行命令。已有意图却无法确认效果，或回包不可信，处理为 <code>HookOutcomeUnknown</code>，保留现场。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/hooks/journal.py#L45" rel="noopener" target="_blank">src/ruocun/hooks/journal.py · 第 45–74 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>30 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="45"></span><span data-line="46"></span><span data-line="47"></span><span data-line="48"></span><span data-line="49"></span><span data-line="50"></span><span data-line="51"></span><span data-line="52"></span><span data-line="53"></span><span data-line="54"></span><span data-line="55"></span><span data-line="56"></span><span data-line="57"></span><span data-line="58"></span><span data-line="59"></span><span data-line="60"></span><span data-line="61"></span><span data-line="62"></span><span data-line="63"></span><span data-line="64"></span><span data-line="65"></span><span data-line="66"></span><span data-line="67"></span><span data-line="68"></span><span data-line="69"></span><span data-line="70"></span><span data-line="71"></span><span data-line="72"></span><span data-line="73"></span><span data-line="74"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    commands = runtime.matching(event, context) <span class="hljs-keyword">if</span> selected is <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> selected
+    <span class="hljs-keyword">if</span> not commands:
+        <span class="hljs-keyword">return</span> HookOutcome()
+    call_id = hookIntentId(event, identity)
+    name = <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">{</span>event<span class="hljs-string">}</span><span class="hljs-string">:</span><span class="hljs-string">{</span>context.tool_name<span class="hljs-string">}</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> context.tool_name is not <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> event
+    fingerprint = _digest(hookJSON([asdict(spec) <span class="hljs-keyword">for</span> spec in commands]))
+    metadata = {<span class="hljs-string">"</span><span class="hljs-string">toolCallId</span><span class="hljs-string">"</span>: identity, <span class="hljs-string">"</span><span class="hljs-string">args</span><span class="hljs-string">"</span>: context.args_json, <span class="hljs-string">"</span><span class="hljs-string">selection</span><span class="hljs-string">"</span>: fingerprint, <span class="hljs-string">"</span><span class="hljs-string">cwd</span><span class="hljs-string">"</span>: context.cwd}
+    <span class="hljs-keyword">if</span> context.tool_name is <span class="hljs-keyword">None</span>:
+        metadata[<span class="hljs-string">"</span><span class="hljs-string">payloadDigest</span><span class="hljs-string">"</span>] = _digest(hookJSON(context.payload))
+        metadata[<span class="hljs-string">"</span><span class="hljs-string">source</span><span class="hljs-string">"</span>] = context.source
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-comment"># 先登记事件和本次命令的身份。恢复时，可用经过校验的旧收据直接返回结果。</span>
+        cached = <span class="hljs-keyword">await</span> journal.intent(call_id, name, hookJSON(metadata), <span class="hljs-keyword">True</span>)
+        <span class="hljs-keyword">if</span> cached is not <span class="hljs-keyword">None</span>:
+            <span class="hljs-keyword">if</span> not <span class="hljs-built_in">isinstance</span>(cached, <span class="hljs-built_in">str</span>):
+                <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"</span><span class="hljs-string">Hook receipt must be text.</span><span class="hljs-string">"</span>)
+            receipt = json.loads(cached)
+            payload = receipt[<span class="hljs-string">"</span><span class="hljs-string">outcome</span><span class="hljs-string">"</span>]
+            <span class="hljs-keyword">if</span> not <span class="hljs-built_in">isinstance</span>(payload, <span class="hljs-built_in">str</span>) or _digest(payload) != receipt[<span class="hljs-string">"</span><span class="hljs-string">digest</span><span class="hljs-string">"</span>]:
+                <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"</span><span class="hljs-string">Hook receipt differs from the completed output.</span><span class="hljs-string">"</span>)
+            <span class="hljs-keyword">return</span> HookOutcome(**json.loads(payload))
+        <span class="hljs-comment"># 只有记录接口允许继续且没有可复用的结果时，才实际运行 Hook。</span>
+        outcome = <span class="hljs-keyword">await</span> runtime.run(event, context, signal, selected=commands)
+        <span class="hljs-keyword">if</span> signal.is_set():
+            outcome = HookOutcome(block=<span class="hljs-keyword">True</span>, reason=<span class="hljs-string">"</span><span class="hljs-string">Hook 已取消，原调用已停止。</span><span class="hljs-string">"</span>)
+        payload = hookJSON(asdict(outcome))
+        <span class="hljs-keyword">await</span> journal.result(call_id, hookJSON({<span class="hljs-string">"</span><span class="hljs-string">outcome</span><span class="hljs-string">"</span>: payload, <span class="hljs-string">"</span><span class="hljs-string">digest</span><span class="hljs-string">"</span>: _digest(payload)}))
+        <span class="hljs-keyword">return</span> outcome
+    <span class="hljs-keyword">except</span> Exception <span class="hljs-keyword">as</span> error:
+        <span class="hljs-keyword">raise</span> HookOutcomeUnknown(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">{</span>event<span class="hljs-string">}</span><span class="hljs-string"> 执行或结果未确认，原现场保留，未重新运行 Hook。</span><span class="hljs-string">"</span>) <span class="hljs-keyword">from</span> error</code></pre></div></figure>
+<p><strong>「原工具的收据不能替后置命令确认副作用」</strong>。查到 Write 成功就保留它，不为修复 Post 日志重新写文件。核对 Post 也查它自己的记录。一份可信收据能让调用点直接使用既有结果，不能用这种规则承诺每个遗失步骤都能自动补跑。恢复的证据顺序见 <a href="10-工具可能已经执行.html" rel="noopener" target="_blank">《工具可能已经执行》</a>。</p>
+</section></section>
+<section class="v2-topic-group" id="hook-extension-choice">
+<header class="v2-group-heading"><span>05</span><h2>修复流程、外部能力与执行关口</h2></header><div class="design-section">
+<p><a href="19-流程怎样按任务加载.html#csv-export-live" rel="noopener" target="_blank">只读 CSV 验收</a>已经得到表头和一条时间证据。如果以后要编成正式的导出验收流程，可以按谁触发、谁拿结果来选择扩展点。</p>
+<div aria-label="修复流程、外部能力与执行关口" class="table-scroll" role="region" tabindex="0"><table>
+<thead><tr><th scope="col">需求</th><th scope="col">扩展点</th><th scope="col">输入和产物</th></tr></thead>
+<tbody>
+<tr><td>告诉模型先查格式再核对实测字段</td><td><a href="19-流程怎样按任务加载.html#skill-load-body" rel="noopener" target="_blank">Skill</a></td><td>正文提供操作步骤，实际读取由模型再调用。</td></tr>
+<tr><td>查询资料系统保存的导出格式说明</td><td><a href="20-远程能力怎样接入.html#mcp-discovery" rel="noopener" target="_blank">MCP</a></td><td>外部服务处理查询，结果沿工具调用返回。</td></tr>
+<tr><td>开始写核对报告时检查目标目录，写完登记记录</td><td>Pre / Post Hook</td><td>程序在事件点取得工具提议或已保存结果，执行相应的检查或登记。</td></tr>
+</tbody>
+</table></div>
+<p>如果“写入必须经过目录检查”只写成 Skill 步骤，是否触发取决于执行模型。放在匹配的 Pre 关口，程序有机会在每次相应调用时检查，但还要考虑超时、匹配范围以及权限层自己的规则。对需要强制阻止的动作，最终保证要看真正的权限裁决和执行边界。</p>
+</div></section>
+<section class="v2-topic-group" id="article-assessment">
+<header class="v2-group-heading"><span>06</span><h2>学习效果检测</h2></header><div class="design-section">
+</div><section class="design-section" id="article-assessment-1">
+<h3>6.1 判断改参、权限和收据的生效时机</h3>
+<p><strong>1．</strong> 两个匹配的 Pre Hook 先后返回完整的 <code>updatedInput</code>。第一个给 <code>path=reports/a.md</code> 和正文，第二个只给 <code>path=reports/b.md</code>，同时要求询问用户。此时应弹出哪个文件的批准框？怎么改才能对正确目标提问？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>后一个提供的参数对象整体生效，只剩 b.md 的路径。Write 缺 content，校验阶段就会反馈错误，此时没有可供批准的有效写入。让第二个 Hook 返回带 b.md 和正文的完整参数，再按实际参数重新校验并授权。</p></div></details>
+<p><strong>2．</strong>追踪恢复 · Write 结果已保存，Post 意图存在但日志没有可信收据，先核对谁？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>分别查原工具与 Post 的记录。Write 确认完成后保留该结果，核对 Post 是否已经登记日志，避免重复执行任何有副作用的命令。</p></div></details>
+</section><div class="design-section">
+</div></section>
+<section class="v2-topic-group" id="article-interview">
+<header class="v2-group-heading"><span>07</span><h2>模拟面试官提问</h2></header><div class="design-section">
+</div><section class="design-section" id="intern-hooks"><h3>7.1 Agent 开发实习</h3>
+<h4>独立核心题</h4>
+<p><strong>一套修复流程和一个写入前检查，你会分别放哪里？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>“复现、修改与验证是模型要学会执行的流程，可以放进 Skill。写入前检查需要在相应事件点自动获得最终调用的相关信息，放在 Pre Hook 和权限关口。”再依据是否调用外部服务考虑 MCP。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>Pre 重写路径后如何发现输入问题？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>“我会看 Hook 返回的完整参数，再沿 schema 和最终权限走一遍。”</p></div></details>
+<p><strong>追问 1</strong> 只返回路径会怎样？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>它替换整个对象，必填字段缺失。</p></div></details>
+<p><strong>追问 2</strong> 权限拒绝而 Hook 返回 allow 呢？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>保留拒绝。</p></div></details>
+<p><strong>追问 3</strong> 能从 Post 被触发断言写入符合业务要求吗？</p>
+<details class="answer-box"><summary>展开追问 3 回答</summary><div><p>先读原工具结果和实际产物，再看它覆盖的要求。</p></div></details>
+</section><section class="design-section" id="harness-hooks"><h3>7.2 Agent harness 岗位</h3>
+<h4>独立核心题</h4>
+<p><strong>为什么 Hook 自己也要写意图和收据？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>“它是能产生副作用的命令。Pre 运行在工具之前，Post 运行在结果确认之后。每一个命令批都有独立身份，恢复时可以证明哪一步有结果。”原工具的确认不能说明 Hook 自己的日志、通知或外部动作是否发生。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>保存过程中退出，怎样避免恢复时把工具和 Post 都执行两遍？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>“按各自意图核对。工具结果保存未确认时先停在工具边界。工具已确认而 Hook 不明时，转向核对 Hook 的实际影响。”</p></div></details>
+<p><strong>追问 1</strong> Hook 有可信收据呢？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>核对完整性后直接取结构化结果。</p></div></details>
+<p><strong>追问 2</strong> 命令配置与之前不同怎么办？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>选中命令摘要参与意图身份核对，不能把新配置当旧结果使用。</p></div></details>
+<p><strong>追问 3</strong> 子代理启动 Hook 给的上下文保存失败呢？</p>
+<details class="answer-box"><summary>展开追问 3 回答</summary><div><p>子模型请求尚未派发，保留现场核实。</p></div></details>
+</section></section>
+<section class="v2-topic-group" id="article-takeaways">
+<header class="v2-group-heading"><span>08</span><h2>这一篇带走什么</h2></header><div class="design-section">
+<p>Hooks 在指定事件接收输入，Pre 的改参和意见回到校验与权限，Post 在工具结果确认后用自己的意图和收据运行。</p>
+<ul class="pilot-takeaways"><li>扩展点能改参数时，让所有后续校验、权限与执行使用同一份最终输入。</li><li>在外部副作用后继续触发新动作时，独立确认每一步。恢复时用可信收据接回已确认结果，对未知动作先核实。</li><li>让模型按需拿到流程用 Skill，让模型调用外部能力用 MCP，需要在确定的事件关口插入行为时用 Hook。</li></ul>
+<p>原工具的结果与 Post 的收据都可以留作交付证据。把它们带回<a href="22-怎样判断任务真的完成.html#completion-case" rel="noopener" target="_blank">最后的任务验收</a>，看看它们各自能证明用户要求的哪一项。</p>
+</div></section>
+</article></main>
+</body>
+</html>

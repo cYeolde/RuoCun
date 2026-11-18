@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>怎样判断任务真的完成：验收证据、停滞信号与资源取舍 · RuoCun 设计学习</title>
+<link href="assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="assets/ruocun-code.css" rel="stylesheet"/>
+<link href="assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="assets/ruocun-article.css" rel="stylesheet"/>
+<link href="assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="assets/ruocun-textbook.js"></script>
+</head>
+<body class="textbook-read">
+<a class="textbook-skip" href="#completion-evidence">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#completion-evidence">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航">
+<a href="课程学习地图.html" rel="noopener" target="_blank">学习地图</a>
+<a class="textbook-original" href="#article-takeaways">这一篇带走什么</a>
+</nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title">怎样判断任务真的完成</div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc" open="">
+<summary>展开文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#completion-case"><span class="v2-toc-number">1</span><span>待办都完成了，会员价为什么还是错的？</span></a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#completion-states"><span class="v2-toc-number">2</span><span>清单、工具回包与回合终态</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#todo-updates"><span class="v2-toc-number">2.1</span><span>TodoWrite 替换清单并给验收提醒</span></a></li><li><a class="v2-toc-child-link" href="#turn-ends"><span class="v2-toc-number">2.2</span><span>回合 complete 表示已保存回复且无后续调用</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#evidence-design"><span class="v2-toc-number">3</span><span>从改动范围到业务证据</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#diff-and-behavior"><span class="v2-toc-number">3.1</span><span>差异核对位置，定向测试核对实际入口</span></a></li><li><a class="v2-toc-child-link" href="#csv-delivery-evidence"><span class="v2-toc-number">3.2</span><span>只读 CSV 实录可以验收哪些条件</span></a></li><li><a class="v2-toc-child-link" href="#progress-signal"><span class="v2-toc-number">3.3</span><span>停滞提醒提示换一种更能分辨问题的动作</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#resource-budget"><span class="v2-toc-number">4</span><span>累计用量、本次进程估价与边界停止</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#usage-accounting"><span class="v2-toc-number">4.1</span><span>恢复的 token 与本次费用使用不同口径</span></a></li><li><a class="v2-toc-child-link" href="#soft-hard-budget"><span class="v2-toc-number">4.2</span><span>默认只提醒，显式硬预算在安全边界停止</span></a></li><li><a class="v2-toc-child-link" href="#compare-plans"><span class="v2-toc-number">4.3</span><span>比较推进方式时先用同一组验收条件</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-assessment"><span class="v2-toc-number">5</span><span>学习效果检测</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#article-assessment-1"><span class="v2-toc-number">5.1</span><span>用目标和用量核对交付结论</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-interview"><span class="v2-toc-number">6</span><span>模拟面试官提问</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#intern-complete"><span class="v2-toc-number">6.1</span><span>Agent 开发实习</span></a></li><li><a class="v2-toc-child-link" href="#harness-complete"><span class="v2-toc-number">6.2</span><span>Agent harness 岗位</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways"><span class="v2-toc-number">7</span><span>这一篇带走什么</span></a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper course-lesson" id="completion-evidence"><header class="design-hero">
+<h1>怎样判断任务真的完成</h1><p class="article-subtitle">验收证据、停滞信号与资源取舍</p>
+<p class="target">任务清单都勾了，Edit 成功了，模型也结束了。回到用户的那一句话，哪些事实已经能验收，哪些还缺一条结果？</p>
+</header>
+<section class="v2-topic-group" id="completion-case">
+<header class="v2-group-heading"><span>01</span><h2>待办都完成了，会员价为什么还是错的？</h2></header><div class="design-section">
+<p>用户要求“订单预览新增九折会员价，普通用户仍显示原价”。模型改了一处价格函数，工具报告替换成功，待办全部变成 <code>completed</code>。它发出一段结束说明，回合返回 <code>complete</code>。交付前，用同一个 100 元订单分别走两种身份，得到下面的结果。</p>
+<figure class="reasoning-figure">
+<figcaption>源码推演 · 两次都输入 100 元，哪条要求有证据通过？</figcaption>
+<div aria-label="源码推演 · 两次都输入 100 元，哪条要求有证据通过？" class="table-scroll" role="region" tabindex="0"><table>
+<thead><tr><th scope="col">同一订单预览入口</th><th scope="col">需求预期</th><th scope="col">选该身份进入页面后的结果</th></tr></thead>
+<tbody>
+<tr><th scope="row">会员</th><td>90 元</td><td>100 元</td></tr>
+<tr><th scope="row">普通用户</th><td>100 元</td><td>100 元</td></tr>
+</tbody>
+</table></div>
+</figure>
+<details class="answer-box"><summary>首读自检 · 哪条能报告通过？下一步该查什么？</summary><div><p>普通用户预览检查通过。会员检查已经失败。先从页面追真实的价格调用入口，对照修改位置。定位后再改，随后重新跑两种身份的断言。</p></div></details>
+<p>第 1 篇区分过<a href="01-一次任务怎样跑完.html#completion-is-not-acceptance" rel="noopener" target="_blank">回合停止与业务验收</a>。现在要把需求拆成逐条可以核对的结论。会员预览的结果回答其中一条，普通用户预览回答另一条。编辑和回合的状态告诉你执行到了哪一步，不能直接填进这两行。</p>
+</div></section>
+<section class="v2-topic-group" id="completion-states">
+<header class="v2-group-heading"><span>02</span><h2>清单、工具回包与回合终态</h2></header><div class="design-section">
+</div><section class="design-section" id="todo-updates"><h3>2.1 TodoWrite 替换清单并给验收提醒</h3>
+<p><a href="12-长任务怎样有序推进.html#todo-replacement" rel="noopener" target="_blank">整份清单替换</a>解决当前要记哪些待办。此处看写完后的提醒。当至少三项待办都勾完，回包提醒模型逐条回看需求，实质改动还要独立验证。检查是否真的运行，要另外寻找带实际结果的工具回复。</p>
+<p>部分无人值守路径有“先列计划”的程序门槛：工具批出现名为 <code>TodoWrite</code> 的调用，便可标志这一门槛已跨过。清单内容能否通过工具校验、计划是否充分、要求是否做完，仍是后续核对项。用程序门槛约束最低行为时，要清楚它究竟观察了什么。</p>
+</section><section class="design-section" id="turn-ends"><h3>2.2 回合 complete 表示已保存回复且无后续调用</h3>
+<p>这次模型已经给出有效回复，<a href="09-请求出错怎样继续.html#request-empty" rel="noopener" target="_blank">空响应补救</a>不再需要。程序保存助手消息，见到无后续工具调用就返回 <code>complete</code>。因此在这条分支里找不到会员预览的实测断言，它还需要实际执行。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/loop.py#L475" rel="noopener" target="_blank">src/ruocun/agent/loop.py · 第 475–485 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>11 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="475"></span><span data-line="476"></span><span data-line="477"></span><span data-line="478"></span><span data-line="479"></span><span data-line="480"></span><span data-line="481"></span><span data-line="482"></span><span data-line="483"></span><span data-line="484"></span><span data-line="485"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        assistant: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any] = message
+        assistant[<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>] = <span class="hljs-string">"</span><span class="hljs-string">assistant</span><span class="hljs-string">"</span>
+        assistant[<span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>] = content
+        <span class="hljs-keyword">if</span> saved_calls:
+            assistant[<span class="hljs-string">"</span><span class="hljs-string">tool_calls</span><span class="hljs-string">"</span>] = saved_calls
+        session.messages.append(assistant)
+        <span class="hljs-keyword">await</span> save()
+        <span class="hljs-keyword">if</span> on_assistant_saved is not <span class="hljs-keyword">None</span>:
+            on_assistant_saved(assistant)
+        <span class="hljs-keyword">if</span> not calls:
+            <span class="hljs-keyword">return</span> TurnResult(<span class="hljs-string">"</span><span class="hljs-string">complete</span><span class="hljs-string">"</span>)</code></pre></div></figure>
+<p><strong>「从原需求找每一条验收证据，不能用执行状态补缺口」</strong>。RuoCun 的系统提示要求逐条返回需求原文，对照读回结果或命令证据，非琐碎改动还要求安排 <code>verify</code> 并抽查报告。这个约定指导模型行动。<code>complete</code> 分支没有程序化验证任意业务目标的条件。</p>
+</section></section>
+<section class="v2-topic-group" id="evidence-design">
+<header class="v2-group-heading"><span>03</span><h2>从改动范围到业务证据</h2></header><div class="design-section">
+</div><section class="design-section" id="diff-and-behavior"><h3>3.1 差异核对位置，定向测试核对实际入口</h3>
+<p>先拿 <code>diff</code> 和重新读取的文件确认改到哪里。一次批量替换只有首处附近的差异片段时，另看实际修改总数和文件内容。回到页面的会员分支，发现调用的是 <code>preview_total()</code>，刚改的 <code>settle_total()</code> 只供结算。由此判断该修哪个调用路径，再用页面断言确认行为，避免为了复验不断重复检查结算函数。</p>
+<div aria-label="差异核对位置，定向测试核对实际入口" class="table-scroll" role="region" tabindex="0"><table>
+<thead><tr><th scope="col">需求或约束</th><th scope="col">合适的证据</th><th scope="col">本例现状</th></tr></thead>
+<tbody>
+<tr><td>会员结算前预览为 90</td><td>以会员身份调用订单预览入口，断言输出里的实际金额</td><td>得到 100，失败</td></tr>
+<tr><td>普通用户预览仍是 100</td><td>以普通用户走同一入口，断言实际金额</td><td>得到 100，通过</td></tr>
+<tr><td>修改范围与需求对应</td><td>查入口、读实际文件和差异，确认改动所在的模块</td><td>当前只改了结算函数，待修正</td></tr>
+</tbody>
+</table></div>
+<p>修正后再用最新工作树重跑。涉及多个文件、接口或其它关键边界时，给独立核对方原需求、复验命令和实际产物，主代理按需要抽查其输出。子任务显示完成只是结束状态。测试环境缺失时，交付写“会员预览运行未验证”并说明已完成的文件检查。相关机制见 <a href="01-文件编辑可靠性-精致教材预览.html" rel="noopener" target="_blank">《文件编辑》</a> 与 <a href="13-重活交给子代理.html" rel="noopener" target="_blank">《重活交给子代理》</a>。</p>
+</section><section class="design-section" id="csv-delivery-evidence"><h3>3.2 只读 CSV 实录可以验收哪些条件</h3>
+<p><a href="19-流程怎样按任务加载.html#csv-export-live" rel="noopener" target="_blank">CSV 实录</a>的最终回答有 <code>EXPORT_TZ_UTC_OK</code>。逐条回到工具结果，可以用首行 <code>order_id,exported_at</code> 核对表头，用唯一数据行的 <code>2026-11-18T06:30:00Z</code> 核对末尾 <code>Z</code>。模型取到了流程，读取了产物，给出的判定码覆盖这两项。</p>
+<p>如果把验收范围扩大到日期格式和日历合法性，就要实际运行相应校验。只看末尾 <code>Z</code> 的证据不足以验收扩大的条件，生成端能否持续产出也要另作检查。</p>
+</section><section class="design-section" id="progress-signal"><h3>3.3 停滞提醒提示换一种更能分辨问题的动作</h3>
+<p><a href="12-长任务怎样有序推进.html#tool-based-progress" rel="noopener" target="_blank">停滞提醒</a>靠工具动作估计有没有推进。假设模型围着同一个旧函数读了几轮，这时可以用实际预览请求对照会员和普通用户，直接确定验收表里哪一项还有问题。若本轮借用了旧经验，按<a href="17-经验怎样用到当前任务.html#memory-targeted-verify" rel="noopener" target="_blank">最后一次改动后的旧错检查</a>核对当前入口和断言。提醒和经验都可以帮你找下一步，结果还要由证据来填。</p>
+</section></section>
+<section class="v2-topic-group" id="resource-budget">
+<header class="v2-group-heading"><span>04</span><h2>累计用量、本次进程估价与边界停止</h2></header><div class="design-section">
+</div><section class="design-section" id="usage-accounting"><h3>4.1 恢复的 token 与本次费用使用不同口径</h3>
+<p>每次服务返回用量时，<code>addUsage</code> 把输入、输出、命中和未命中 token 同时累加到账面总计与对应模型的用量桶。累计指标可能含恢复的历史 token，费用只用本次进程的模型桶按配置价格估算。如果当前输出“累计输入 25,000 token，本次进程费用约 0.08 元”，两个数字可能覆盖不同时间范围，不能拿 0.08 元去估算全部历史成本。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/session/session.py#L59" rel="noopener" target="_blank">src/ruocun/session/session.py · 第 59–72 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>14 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="59"></span><span data-line="60"></span><span data-line="61"></span><span data-line="62"></span><span data-line="63"></span><span data-line="64"></span><span data-line="65"></span><span data-line="66"></span><span data-line="67"></span><span data-line="68"></span><span data-line="69"></span><span data-line="70"></span><span data-line="71"></span><span data-line="72"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">addUsage</span>(<span class="hljs-built_in">self</span>, u: Usage, model: <span class="hljs-built_in">str</span> | <span class="hljs-keyword">None</span> = <span class="hljs-keyword">None</span>) -&gt; <span class="hljs-keyword">None</span>:
+        selected = <span class="hljs-built_in">self</span>.model <span class="hljs-keyword">if</span> model is <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> model
+        prompt = u.get(<span class="hljs-string">"</span><span class="hljs-string">prompt_tokens</span><span class="hljs-string">"</span>, <span class="hljs-number">0</span>) or <span class="hljs-number">0</span>
+        completion = u.get(<span class="hljs-string">"</span><span class="hljs-string">completion_tokens</span><span class="hljs-string">"</span>, <span class="hljs-number">0</span>) or <span class="hljs-number">0</span>
+        hit = u.get(<span class="hljs-string">"</span><span class="hljs-string">prompt_cache_hit_tokens</span><span class="hljs-string">"</span>, <span class="hljs-number">0</span>) or <span class="hljs-number">0</span>
+        miss = u.get(<span class="hljs-string">"</span><span class="hljs-string">prompt_cache_miss_tokens</span><span class="hljs-string">"</span>, <span class="hljs-number">0</span>) or <span class="hljs-number">0</span>
+        bucket = <span class="hljs-built_in">self</span>._modelUsage.setdefault(selected, _emptyUsage())
+        <span class="hljs-keyword">for</span> totals in (<span class="hljs-built_in">self</span>.usage, bucket):
+            totals[<span class="hljs-string">"</span><span class="hljs-string">promptTokens</span><span class="hljs-string">"</span>] += prompt
+            totals[<span class="hljs-string">"</span><span class="hljs-string">completionTokens</span><span class="hljs-string">"</span>] += completion
+            totals[<span class="hljs-string">"</span><span class="hljs-string">cacheHitTokens</span><span class="hljs-string">"</span>] += hit
+            totals[<span class="hljs-string">"</span><span class="hljs-string">cacheMissTokens</span><span class="hljs-string">"</span>] += miss
+        <span class="hljs-keyword">if</span> selected == <span class="hljs-built_in">self</span>.model and prompt:
+            <span class="hljs-built_in">self</span>.lastPromptTokens = prompt</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/session/session.py#L89" rel="noopener" target="_blank">src/ruocun/session/session.py · 第 89–106 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>18 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="89"></span><span data-line="90"></span><span data-line="91"></span><span data-line="92"></span><span data-line="93"></span><span data-line="94"></span><span data-line="95"></span><span data-line="96"></span><span data-line="97"></span><span data-line="98"></span><span data-line="99"></span><span data-line="100"></span><span data-line="101"></span><span data-line="102"></span><span data-line="103"></span><span data-line="104"></span><span data-line="105"></span><span data-line="106"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">cacheHitRatio</span>(<span class="hljs-built_in">self</span>) -&gt; <span class="hljs-built_in">float</span>:
+        prompt = <span class="hljs-built_in">self</span>.usage[<span class="hljs-string">"</span><span class="hljs-string">promptTokens</span><span class="hljs-string">"</span>]
+        <span class="hljs-keyword">return</span> <span class="hljs-built_in">self</span>.usage[<span class="hljs-string">"</span><span class="hljs-string">cacheHitTokens</span><span class="hljs-string">"</span>] / prompt <span class="hljs-keyword">if</span> prompt &gt; <span class="hljs-number">0</span> <span class="hljs-keyword">else</span> <span class="hljs-number">0</span>
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title">costCNY</span>(<span class="hljs-built_in">self</span>) -&gt; <span class="hljs-built_in">float</span>:
+        <span class="hljs-keyword">return</span> estimateCostByModel(<span class="hljs-built_in">self</span>._modelUsage, <span class="hljs-built_in">self</span>._env)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title">overBudget</span>(<span class="hljs-built_in">self</span>) -&gt; <span class="hljs-built_in">bool</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-built_in">self</span>.budgetCNY is not <span class="hljs-keyword">None</span> and <span class="hljs-built_in">self</span>.costCNY() &gt;= <span class="hljs-built_in">self</span>.budgetCNY
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title">usageSummary</span>(<span class="hljs-built_in">self</span>) -&gt; <span class="hljs-built_in">str</span>:
+        prompt = <span class="hljs-built_in">self</span>.usage[<span class="hljs-string">"</span><span class="hljs-string">promptTokens</span><span class="hljs-string">"</span>]
+        <span class="hljs-keyword">if</span> prompt == <span class="hljs-number">0</span>:
+            <span class="hljs-keyword">return</span> <span class="hljs-string">"</span><span class="hljs-string">本会话暂无 token 统计。</span><span class="hljs-string">"</span>
+        suffix = <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">(提醒阈值 </span><span class="hljs-string">{</span>formatCNY(<span class="hljs-built_in">self</span>.budgetCNY)<span class="hljs-string">}</span><span class="hljs-string">)</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>.budgetCNY is not <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">"</span>
+        <span class="hljs-keyword">return</span> (<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">累计token（可含已恢复历史）:输入 </span><span class="hljs-string">{</span>prompt<span class="hljs-string">}</span><span class="hljs-string"> tok(cache 命中 </span><span class="hljs-string">{</span><span class="hljs-built_in">self</span>.usage[<span class="hljs-string">'</span><span class="hljs-string">cacheHitTokens</span><span class="hljs-string">'</span>]<span class="hljs-string">}</span><span class="hljs-string">,</span><span class="hljs-string">"</span>
+                <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">命中率 </span><span class="hljs-string">{</span><span class="hljs-built_in">self</span>.cacheHitRatio() * <span class="hljs-number">100</span><span class="hljs-string">:</span><span class="hljs-string">.1f</span><span class="hljs-string">}</span><span class="hljs-string">%)· 输出 </span><span class="hljs-string">{</span><span class="hljs-built_in">self</span>.usage[<span class="hljs-string">'</span><span class="hljs-string">completionTokens</span><span class="hljs-string">'</span>]<span class="hljs-string">}</span><span class="hljs-string"> tok</span><span class="hljs-string">"</span>
+                <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string"> · 本次进程费用约 </span><span class="hljs-string">{</span>formatCNY(<span class="hljs-built_in">self</span>.costCNY())<span class="hljs-string">}</span><span class="hljs-string">{</span>suffix<span class="hljs-string">}</span><span class="hljs-string">；历史费用不完整</span><span class="hljs-string">"</span>)</code></pre></div></figure>
+<p><a href="16-前缀缓存怎样配合请求.html#usage-versus-layout" rel="noopener" target="_blank">前缀篇的服务回报</a>给出总输入和命中输入。现在把两类输入量和输出量分别计入成本，再核对两次工作实际验收了几项。成本是按本次进程与配置单价算出的估价，实际账单要用服务侧记录核对。</p>
+</section><section class="design-section" id="soft-hard-budget"><h3>4.2 默认只提醒，显式硬预算在安全边界停止</h3>
+<p><code>MAX_BUDGET</code> 提供有效的正数时形成费用阈值。到了回合内部的边界，程序先看 <code>MAX_TURNS</code> 限额，再看进程估价是否达到阈值。默认提醒后可以继续，显式 <code>MAX_BUDGET_HARD=1</code> 时先保存再返回 <code>budget_limit</code>；模型请求轮数先达上限时返回 <code>turn_limit</code>。它们描述不同停止原因，也与业务是否完成独立。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/loop.py#L291" rel="noopener" target="_blank">src/ruocun/agent/loop.py · 第 291–302 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>12 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="291"></span><span data-line="292"></span><span data-line="293"></span><span data-line="294"></span><span data-line="295"></span><span data-line="296"></span><span data-line="297"></span><span data-line="298"></span><span data-line="299"></span><span data-line="300"></span><span data-line="301"></span><span data-line="302"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">while</span> not ctx.signal.is_set():
+        <span class="hljs-keyword">if</span> boundary:
+            <span class="hljs-keyword">if</span> turns &gt;= max_turns:
+                <span class="hljs-keyword">await</span> save()
+                <span class="hljs-keyword">return</span> TurnResult(<span class="hljs-string">"</span><span class="hljs-string">turn_limit</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">已达最大轮数，记录已保存。</span><span class="hljs-string">"</span>)
+            <span class="hljs-keyword">if</span> session.overBudget():
+                <span class="hljs-keyword">if</span> not budget_warned and notice:
+                    notice(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">[成本提醒] 本次进程费用约 ¥</span><span class="hljs-string">{</span>session.costCNY()<span class="hljs-string">:</span><span class="hljs-string">.2f</span><span class="hljs-string">}</span><span class="hljs-string">，已达阈值 ¥</span><span class="hljs-string">{</span>session.budgetCNY<span class="hljs-string">}</span><span class="hljs-string">。</span><span class="hljs-string">"</span>)
+                budget_warned = <span class="hljs-keyword">True</span>
+                <span class="hljs-keyword">if</span> budget_hard:
+                    <span class="hljs-keyword">await</span> save()
+                    <span class="hljs-keyword">return</span> TurnResult(<span class="hljs-string">"</span><span class="hljs-string">budget_limit</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">已达显式硬预算上限，本轮停止。</span><span class="hljs-string">"</span>)</code></pre></div></figure>
+<p>设阈值为 0.10 元，某轮请求前估价 0.08 元，回包记账后变成 0.11 元，完成工具批后还有事要问模型。到下一个轮次边界时，软预算提醒后仍可发下一次请求，硬预算先保存上下文再停止。如果轮数也正好用尽，源码先返回 <code>turn_limit</code>。这个例子给出预算真正能挡住的动作和已经发生的费用。</p>
+<p><strong>「边界预算能阻止下一轮继续，无法预先知道这一轮的最终费用」</strong>。跨过阈值的用量可能已经回报，硬停止的检查时点决定它控制哪个动作。停下时把表里已经通过、明确失败和未验证的事实留下，下次可以有针对性地继续。</p>
+</section><section class="design-section" id="compare-plans"><h3>4.3 比较推进方式时先用同一组验收条件</h3>
+<p>固定开场的两条验收条件。做法甲先扫所有价格模块，再跑广泛测试。做法乙直接追页面入口并跑两条定向断言，再补改动范围内的回归。假设得到这两组读数，先算各自有多少未命中输入，再判断哪组已覆盖本次需求。</p>
+<figure class="reasoning-figure">
+<figcaption>示意读数 · 命中率、输入量与验收证据要一起看</figcaption>
+<div aria-label="示意读数 · 命中率、输入量与验收证据要一起看" class="table-scroll" role="region" tabindex="0"><table>
+<thead><tr><th scope="col">同一项核对</th><th scope="col">甲 · 广泛扫描和测试</th><th scope="col">乙 · 从实际入口验证</th></tr></thead>
+<tbody>
+<tr><th scope="row">输入 token 和命中率</th><td>9,000，60%</td><td>4,500，40%</td></tr>
+<tr><th scope="row">普通用户预览断言</th><td>通过</td><td>通过</td></tr>
+<tr><th scope="row">会员预览断言</th><td>未运行</td><td>通过</td></tr>
+</tbody>
+</table></div>
+</figure>
+<details class="answer-box"><summary>核对未命中量，并判断能否直接用它们算费用</summary><div><p>甲有 <code>9000 × 40% = 3600</code> 未命中 token，乙有 <code>4500 × 60% = 2700</code>。乙给出了两条行为通过所需的证据。这组材料还缺输出 token 和各类单价，无法给出总费用。比较真实收益还要固定任务、模型和验收条件，多次观察实际结果和开销。</p></div></details>
+</section></section>
+<section class="v2-topic-group" id="article-assessment">
+<header class="v2-group-heading"><span>05</span><h2>学习效果检测</h2></header><div class="design-section">
+</div><section class="design-section" id="article-assessment-1">
+<h3>5.1 用目标和用量核对交付结论</h3>
+<p><strong>1．</strong> 交付邮件说“100 行全部有效”。工具回执只显示读到了第 1 至 20 行，文件末尾尚未读取，助手已返回 <code>complete</code>。你会保留邮件里的哪部分结论，怎样补查？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>可以说明已读取前 20 行。仅有读取记录还没有校验结果，100 行的数量也要核对。按实际文件统计数据行并逐行跑约定校验，保存总数、失败行和文件版本，再据回执写交付结论。回合返回 complete 说明本轮已经结束。</p></div></details>
+<p><strong>2．</strong>读控制流 · 到边界时达到软预算且还没触发轮数上限，程序会返回 budget_limit 吗？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>默认不会。只有硬预算显式打开才会保存并返回 <code>budget_limit</code>。如果轮数也已先达到上限，这个分支之前会先返回 <code>turn_limit</code>。</p></div></details>
+<p id="review-csv-handoff"><strong>3． 结课设计评审</strong> 用户要求导出的每行都是合法 UTC 时间，并在验收通过后向远端登记一条备注。现场只有正确表头和一行以 Z 结尾的抽样。另有一次备注追加已发出，回包超时，随后重连成功。请设计收尾流程，写三句交接说明，交代已验证的范围、暂缓的动作和接下来要取的证据。为什么值得多做这一步？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>我能确认表头正确，抽到的一行以 Z 结尾，其余行和日期合法性仍待验证。</p><p>我会暂缓再次追加，先按原调用 ID 核对本地记录，再用可对应本次操作的远端回执或审计记录查备注是否已写入，结果仍不明就保留未决，避免重连后重复登记。</p><p>我会从交付入口生成 CSV，逐行校验日期可解析且符合约定的 UTC 表示，记录文件版本、总行数和错误数，多花一次复验，才能据实决定补记、保留或更正那条验收备注。</p></div></details>
+</section><div class="design-section">
+</div></section>
+<section class="v2-topic-group" id="article-interview">
+<header class="v2-group-heading"><span>06</span><h2>模拟面试官提问</h2></header><div class="design-section">
+</div><section class="design-section" id="intern-complete"><h3>6.1 Agent 开发实习</h3>
+<h4>独立核心题</h4>
+<p><strong>怎样防止模型把已完成待办当成验收？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>“让它重新打开用户原话，把每条要求配到能复查的结果。比如会员预览是否变成 90，要走目标入口断言，不能只看工具成功。”重要改动有条件时安排独立复验，主代理还要查看真实输出。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>代码改完了，如何快速补关键证据？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>“先查实际使用的入口，再把相同输入和不同身份过一遍，核对需求提到的变化和保留项。”</p></div></details>
+<p><strong>追问 1</strong> 检查都在旧函数上？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>把测试对准当前调用路径。</p></div></details>
+<p><strong>追问 2</strong> 相关服务无法启动？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>保留文本核对，写明运行未验证。</p></div></details>
+<p><strong>追问 3</strong> 只看到下一次模型没有调用呢？</p>
+<details class="answer-box"><summary>展开追问 3 回答</summary><div><p>最多说明这次请求回合结束，应回到验收证据。</p></div></details>
+</section><section class="design-section" id="harness-complete"><h3>6.2 Agent harness 岗位</h3>
+<h4>独立核心题</h4>
+<p><strong>如何设计成本约束，又保证停止时的工作可追？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>“记录本次请求用量，分模型估算成本，在明确安全边界判断是否停止。默认可提醒，明确硬限就先保存。回报停止原因和已取得的证据。”历史累计 token 与本次费用需分别说明。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>要评估一个新推进策略，为什么不能只比命中率？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>“先固定业务验收条件，再比较完成同一目标的资源开销。命中率是输入的一部分，也要看总用量和实际结果。”</p></div></details>
+<p><strong>追问 1</strong> 命中率高但用了更多 token？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>看输入总量、未命中和输出，按同模型口径估价。</p></div></details>
+<p><strong>追问 2</strong> 成本小但结论漏了一项？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>先补验收，不能直接宣称效率更高。</p></div></details>
+<p><strong>追问 3</strong> 恢复了历史会话怎么办？</p>
+<details class="answer-box"><summary>展开追问 3 回答</summary><div><p>比实验所需的实际用量或当前进程费用，明确历史成本缺口。</p></div></details>
+</section></section>
+<section class="v2-topic-group" id="article-takeaways">
+<header class="v2-group-heading"><span>07</span><h2>这一篇带走什么</h2></header><div class="design-section">
+<p>RuoCun 用清单和回合状态推进任务，用进度信号和预算管理资源，最终交付仍要把原需求逐项对到实际证据。</p>
+<ul class="pilot-takeaways"><li>当操作已成功但目标可能没完成时，读回文件和实际差异核对位置，再从用户所用入口验证要求的行为。</li><li>遇到停滞提醒时，挑一条能对现有假设给出不同结果的检查。勾选、提示或命令次数只能描述过程。</li><li>比较方案时统一验收和计费口径，区别累计用量与本次费用。硬预算触发后按已确认结果交付，明确失败和未验证的条件。</li></ul>
+</div></section>
+</article></main>
+</body>
+</html>

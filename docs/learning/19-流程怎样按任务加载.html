@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>流程怎样按任务加载：Skill目录、正文与动态发现 · RuoCun 设计学习</title>
+<link href="assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="assets/ruocun-code.css" rel="stylesheet"/>
+<link href="assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="assets/ruocun-article.css" rel="stylesheet"/>
+<link href="assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="assets/ruocun-textbook.js"></script>
+</head>
+<body class="textbook-read">
+<a class="textbook-skip" href="#skills">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#skills">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航">
+<a href="课程学习地图.html" rel="noopener" target="_blank">学习地图</a>
+<a class="textbook-original" href="#article-takeaways">这一篇带走什么</a>
+</nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title">流程怎样按任务加载</div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc" open="">
+<summary>展开文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#skill-case"><span class="v2-toc-number">1</span><span>Read 已经找到文件，为什么同批 Skill 还读不到测试流程？</span></a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#skill-catalog"><span class="v2-toc-number">2</span><span>启动目录、覆盖与调用入口</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#skill-startup-selection"><span class="v2-toc-number">2.1</span><span>原生项目条目参与同名覆盖</span></a></li><li><a class="v2-toc-child-link" href="#skill-invocation-flags"><span class="v2-toc-number">2.2</span><span>模型目录与用户命令有独立过滤规则</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#skill-body"><span class="v2-toc-number">3</span><span>正文返回与执行权限</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#skill-load-body"><span class="v2-toc-number">3.1</span><span>Skill 结果带正文、资源根和任务参数</span></a></li><li><a class="v2-toc-child-link" href="#csv-export-live"><span class="v2-toc-number">3.2</span><span>CSV 导出验收先取步骤，再读产物</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#skill-discovery"><span class="v2-toc-number">4</span><span>文件访问、候选准备与确认</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#skill-discovery-path"><span class="v2-toc-number">4.1</span><span>成功访问的路径驱动就近扫描</span></a></li><li><a class="v2-toc-child-link" href="#skill-publish-order"><span class="v2-toc-number">4.2</span><span>先提交目录消息，再确认候选状态</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-assessment"><span class="v2-toc-number">5</span><span>学习效果检测</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#article-assessment-1"><span class="v2-toc-number">5.1</span><span>判断目录发现和正文的生效时机</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-interview"><span class="v2-toc-number">6</span><span>模拟面试官提问</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#intern-skill"><span class="v2-toc-number">6.1</span><span>Agent 开发实习</span></a></li><li><a class="v2-toc-child-link" href="#harness-skill"><span class="v2-toc-number">6.2</span><span>Agent harness 岗位</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways"><span class="v2-toc-number">7</span><span>这一篇带走什么</span></a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper course-lesson" id="skills"><header class="design-hero">
+<h1>流程怎样按任务加载</h1><p class="article-subtitle">Skill目录、正文与动态发现</p>
+<p class="target">查会员预览错误时，先用启动目录里的调试流程。读进模块后，RuoCun 才发现该目录自己的测试流程。两份流程各在什么时候对模型可见？</p>
+</header>
+<section class="v2-topic-group" id="skill-case">
+<header class="v2-group-heading"><span>01</span><h2>Read 已经找到文件，为什么同批 Skill 还读不到测试流程？</h2></header><div class="design-section">
+<p>在工作区根启动，模型看到简短的 <code>debug</code> 描述。它想先打开 <code>packages/pricing/preview.py</code>，再取附近的 <code>pricing-tests</code> 正文。后者位于 <code>packages/pricing/.ruocun/skills/pricing-tests/SKILL.md</code>，尚未加载到启动清单。设模型在同一份响应里提出了两个工具调用。</p>
+<figure class="reasoning-figure">
+<figcaption>源码推演 · 两次调用时，目录里分别有什么？</figcaption>
+<div class="reasoning-grid">
+<section><h4>同批 Read 和 Skill</h4><p>活跃清单 <code>[debug]</code>。即使 Read 先回来，也只登记实际访问过的 <code>preview.py</code> 路径。</p></section>
+<section><h4>本批结束，发布目录</h4><p>发现 <code>pricing-tests</code> 候选。目录消息保存后，活跃清单成为 <code>[debug, pricing-tests]</code>。</p></section>
+<section><h4>下一份模型请求</h4><p>消息尾部多了一份新增 Skill 目录，里面有 <code>pricing-tests</code> 的名称、用途。</p></section>
+</div>
+</figure>
+<details class="answer-box"><summary>首读自检 · 同批 Skill 看得到正文吗？下一轮怎么填？</summary><div><p>同批 Skill 只查当时的活跃清单，找不到 <code>pricing-tests</code>。等下一次请求看见新增目录，模型才有依据提交 <code>{"name":"pricing-tests"}</code>，这时工具查到的清单与模型看到的目录对应。</p></div></details>
+<p><a href="02-模型收到什么.html#mutable-skill-catalog" rel="noopener" target="_blank">模型输入篇</a>已经展示了首条 system 可以带一份 Skill 目录。这里跟踪两次交付，先让模型知道有这种流程、什么问题适合用它，再在需要时把完整步骤送进任务。第 4 篇的 <a href="04-工具调用怎样落地.html#tool-disclosure" rel="noopener" target="_blank">ToolSearch</a> 把工具参数接口加入可见清单，此处的 <code>Skill</code> 则取得一份供模型读的流程正文。</p>
+</div></section>
+<section class="v2-topic-group" id="skill-catalog">
+<header class="v2-group-heading"><span>02</span><h2>启动目录、覆盖与调用入口</h2></header><div class="design-section">
+</div><section class="design-section" id="skill-startup-selection"><h3>2.1 原生项目条目参与同名覆盖</h3>
+<p>加载器从磁盘读取 <code>SKILL.md</code>。顶部两行 <code>---</code> 之间是 YAML 配置，也叫 frontmatter，记录名称、用途和触发条件。其下的 Markdown 是模型按需获取的步骤。启动时目录来源依次为已配置兼容用户、原生用户、已配置兼容项目、原生项目，加载器先以实际文件路径去重，再按名称让后面的项覆盖前面的同名项。磁盘同名项也会遮住内置 core 项，停用项被过滤。<code>--no-skills</code> 会跳过启动 Skill，关闭磁盘发现。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/skills/skills.py#L131" rel="noopener" target="_blank">src/ruocun/skills/skills.py · 第 131–145 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>15 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="131"></span><span data-line="132"></span><span data-line="133"></span><span data-line="134"></span><span data-line="135"></span><span data-line="136"></span><span data-line="137"></span><span data-line="138"></span><span data-line="139"></span><span data-line="140"></span><span data-line="141"></span><span data-line="142"></span><span data-line="143"></span><span data-line="144"></span><span data-line="145"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    byRealpath: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Skill] = {}
+    <span class="hljs-keyword">for</span> skills in loaded:
+        <span class="hljs-keyword">for</span> skill in skills:
+            file = skill.get(<span class="hljs-string">"</span><span class="hljs-string">file</span><span class="hljs-string">"</span>)
+            key = file or <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">{</span>skill[<span class="hljs-string">'</span><span class="hljs-string">dir</span><span class="hljs-string">'</span>]<span class="hljs-string">}</span><span class="hljs-string">/</span><span class="hljs-string">{</span>skill.get(<span class="hljs-string">'</span><span class="hljs-string">slug</span><span class="hljs-string">'</span>, <span class="hljs-string">'</span><span class="hljs-string">'</span>)<span class="hljs-string">}</span><span class="hljs-string">"</span>
+            <span class="hljs-keyword">if</span> file:
+                <span class="hljs-keyword">try</span>:
+                    key = <span class="hljs-built_in">str</span>(Path(file).resolve(strict=<span class="hljs-keyword">True</span>))
+                <span class="hljs-keyword">except</span> OSError:
+                    <span class="hljs-keyword">pass</span>
+            byRealpath[key] = skill
+    byName: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Skill] = {}
+    <span class="hljs-keyword">for</span> skill in byRealpath.values():
+        byName[skill[<span class="hljs-string">"</span><span class="hljs-string">name</span><span class="hljs-string">"</span>]] = skill
+    <span class="hljs-keyword">return</span> <span class="hljs-built_in">list</span>(byName.values())</code></pre></div></figure>
+<p>若根部有一个 <code>debug</code>，带 <code>paths</code> 的 <code>pricing-check</code> 则属于触发有条件的项。<code>paths</code> 用<a href="05-从问题找到代码.html#file-candidates" rel="noopener" target="_blank">路径模式</a>说明哪些文件与该流程相关。启动扫描能命中路径时直接使它可见，扫描上限为 4000 个文件。动态发现启用时，未命中的条件项可先放入待匹配池。目录公布名称、条件和短描述，完整正文按需领取。</p>
+</section><section class="design-section" id="skill-invocation-flags"><h3>2.2 模型目录与用户命令有独立过滤规则</h3>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/skills/skills.py#L15" rel="noopener" target="_blank">src/ruocun/skills/skills.py · 第 15–41 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>27 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="15"></span><span data-line="16"></span><span data-line="17"></span><span data-line="18"></span><span data-line="19"></span><span data-line="20"></span><span data-line="21"></span><span data-line="22"></span><span data-line="23"></span><span data-line="24"></span><span data-line="25"></span><span data-line="26"></span><span data-line="27"></span><span data-line="28"></span><span data-line="29"></span><span data-line="30"></span><span data-line="31"></span><span data-line="32"></span><span data-line="33"></span><span data-line="34"></span><span data-line="35"></span><span data-line="36"></span><span data-line="37"></span><span data-line="38"></span><span data-line="39"></span><span data-line="40"></span><span data-line="41"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">findUserInvocableSkill</span>(skills: <span class="hljs-built_in">list</span>[Skill], name: <span class="hljs-built_in">str</span>) -&gt; Skill | <span class="hljs-keyword">None</span>:
+    want = name.strip().lower()
+    <span class="hljs-keyword">for</span> skill in skills:
+        <span class="hljs-keyword">if</span> skill.get(<span class="hljs-string">"</span><span class="hljs-string">userInvocable</span><span class="hljs-string">"</span>) is <span class="hljs-keyword">False</span>:
+            <span class="hljs-keyword">continue</span>
+        slug = skill.get(<span class="hljs-string">"</span><span class="hljs-string">slug</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">"</span>)
+        namespace = <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">{</span>skill[<span class="hljs-string">'</span><span class="hljs-string">namespace</span><span class="hljs-string">'</span>]<span class="hljs-string">}</span><span class="hljs-string">:</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> skill.get(<span class="hljs-string">"</span><span class="hljs-string">namespace</span><span class="hljs-string">"</span>) <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">"</span>
+        <span class="hljs-keyword">if</span> want in (slug.lower(), skill[<span class="hljs-string">"</span><span class="hljs-string">name</span><span class="hljs-string">"</span>].lower(), (namespace + slug).lower()):
+            <span class="hljs-keyword">return</span> skill
+    <span class="hljs-keyword">return</span> <span class="hljs-keyword">None</span>
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title">skillCatalogLines</span>(skills: <span class="hljs-built_in">list</span>[Skill]) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-string">"""把技能元信息编排成供模型查看的目录。"""</span>
+    lines: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>] = []
+    <span class="hljs-keyword">for</span> skill in skills:
+        <span class="hljs-keyword">if</span> skill.get(<span class="hljs-string">"</span><span class="hljs-string">modelInvokable</span><span class="hljs-string">"</span>) is <span class="hljs-keyword">False</span>:
+            <span class="hljs-keyword">continue</span>
+        name = skill[<span class="hljs-string">"</span><span class="hljs-string">name</span><span class="hljs-string">"</span>]
+        trigger = <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string"> 何时用:</span><span class="hljs-string">{</span>skill[<span class="hljs-string">'</span><span class="hljs-string">whenToUse</span><span class="hljs-string">'</span>]<span class="hljs-string">}</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> skill.get(<span class="hljs-string">"</span><span class="hljs-string">whenToUse</span><span class="hljs-string">"</span>) <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">"</span>
+        namespace = <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">{</span>skill[<span class="hljs-string">'</span><span class="hljs-string">namespace</span><span class="hljs-string">'</span>]<span class="hljs-string">}</span><span class="hljs-string">:</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> skill.get(<span class="hljs-string">"</span><span class="hljs-string">namespace</span><span class="hljs-string">"</span>) <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">"</span>
+        callName = namespace + skill.get(<span class="hljs-string">"</span><span class="hljs-string">slug</span><span class="hljs-string">"</span>, name)
+        call = <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">(调用名 </span><span class="hljs-string">{</span>callName<span class="hljs-string">}</span><span class="hljs-string">)</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> callName.lower() != name.lower() <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">"</span>
+        detail = (skill[<span class="hljs-string">"</span><span class="hljs-string">description</span><span class="hljs-string">"</span>] + trigger).encode(<span class="hljs-string">"</span><span class="hljs-string">utf-16-le</span><span class="hljs-string">"</span>, errors=<span class="hljs-string">"</span><span class="hljs-string">surrogatepass</span><span class="hljs-string">"</span>)
+        <span class="hljs-comment"># 按 UTF-16 单元折叠描述，保持与既有提示预算算法一致。</span>
+        detailText = detail[:<span class="hljs-number">440</span>].decode(<span class="hljs-string">"</span><span class="hljs-string">utf-16-le</span><span class="hljs-string">"</span>, errors=<span class="hljs-string">"</span><span class="hljs-string">surrogatepass</span><span class="hljs-string">"</span>)
+        lines.append(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">- </span><span class="hljs-string">{</span>name<span class="hljs-string">}</span><span class="hljs-string">{</span>call<span class="hljs-string">}</span><span class="hljs-string">:</span><span class="hljs-string">{</span>detailText<span class="hljs-string">}</span><span class="hljs-string">"</span>)</code></pre></div></figure>
+<p><code>user-invocable: false</code> 会跳过用户斜杠入口。<code>disable-model-invocation: true</code> 让目录省掉此项，<code>Skill</code> handler 本身仍按绑定清单查名称，当前实现里的目录隐藏只是显露规则。用户调用匹配完整名称、目录名或 <code>namespace:slug</code>，允许的斜杠入口会投影展开的正文，入队同时确认原命令和该份投影正文。恢复这条已入队消息时使用当时确认的展开内容。</p>
+</section></section>
+<section class="v2-topic-group" id="skill-body">
+<header class="v2-group-heading"><span>03</span><h2>正文返回与执行权限</h2></header><div class="design-section">
+</div><section class="design-section" id="skill-load-body"><h3>3.1 Skill 结果带正文、资源根和任务参数</h3>
+<p>模型用必填字符串 <code>name</code> 选择目录里的条目，若要给流程补充任务参数，可再传字符串 <code>args</code>。处理器优先找带命名空间的调用名，例如 <code>reports:audit</code>，再尝试实际名称和简名。命中后记录使用情况，按需适配正文，附带资源根、用户参数和执行约定。相对资源以该 Skill 所在目录为根，后续还需实际读取。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/skill.py#L23" rel="noopener" target="_blank">src/ruocun/tools/skill.py · 第 23–43 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>21 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="23"></span><span data-line="24"></span><span data-line="25"></span><span data-line="26"></span><span data-line="27"></span><span data-line="28"></span><span data-line="29"></span><span data-line="30"></span><span data-line="31"></span><span data-line="32"></span><span data-line="33"></span><span data-line="34"></span><span data-line="35"></span><span data-line="36"></span><span data-line="37"></span><span data-line="38"></span><span data-line="39"></span><span data-line="40"></span><span data-line="41"></span><span data-line="42"></span><span data-line="43"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">_skill</span>(args: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any], ctx: ToolContext) -&gt; <span class="hljs-built_in">str</span>:
+    want = args[<span class="hljs-string">"</span><span class="hljs-string">name</span><span class="hljs-string">"</span>].strip().lower()
+    skill = <span class="hljs-built_in">next</span>((item <span class="hljs-keyword">for</span> item in ctx.skills
+                  <span class="hljs-keyword">if</span> ((<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">{</span>item[<span class="hljs-string">'</span><span class="hljs-string">namespace</span><span class="hljs-string">'</span>]<span class="hljs-string">}</span><span class="hljs-string">:</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> item.get(<span class="hljs-string">"</span><span class="hljs-string">namespace</span><span class="hljs-string">"</span>) <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">"</span>)
+                      + item.get(<span class="hljs-string">"</span><span class="hljs-string">slug</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">"</span>)).lower() == want), <span class="hljs-keyword">None</span>)
+    <span class="hljs-keyword">if</span> skill is <span class="hljs-keyword">None</span>:
+        skill = <span class="hljs-built_in">next</span>((item <span class="hljs-keyword">for</span> item in ctx.skills <span class="hljs-keyword">if</span> item[<span class="hljs-string">"</span><span class="hljs-string">name</span><span class="hljs-string">"</span>] == args[<span class="hljs-string">"</span><span class="hljs-string">name</span><span class="hljs-string">"</span>]), <span class="hljs-keyword">None</span>)
+    <span class="hljs-keyword">if</span> skill is <span class="hljs-keyword">None</span>:
+        skill = <span class="hljs-built_in">next</span>((item <span class="hljs-keyword">for</span> item in ctx.skills <span class="hljs-keyword">if</span> item[<span class="hljs-string">"</span><span class="hljs-string">name</span><span class="hljs-string">"</span>].lower() == want), <span class="hljs-keyword">None</span>)
+    <span class="hljs-keyword">if</span> skill is <span class="hljs-keyword">None</span>:
+        skill = <span class="hljs-built_in">next</span>((item <span class="hljs-keyword">for</span> item in ctx.skills <span class="hljs-keyword">if</span> item.get(<span class="hljs-string">"</span><span class="hljs-string">slug</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">"</span>).lower() == want), <span class="hljs-keyword">None</span>)
+    <span class="hljs-keyword">if</span> skill is <span class="hljs-keyword">None</span>:
+        available = <span class="hljs-string">"</span><span class="hljs-string">, </span><span class="hljs-string">"</span>.join(item[<span class="hljs-string">"</span><span class="hljs-string">name</span><span class="hljs-string">"</span>] <span class="hljs-keyword">for</span> item in ctx.skills) or <span class="hljs-string">"</span><span class="hljs-string">(无)</span><span class="hljs-string">"</span>
+        <span class="hljs-keyword">return</span> <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">未找到 skill「</span><span class="hljs-string">{</span>args[<span class="hljs-string">'</span><span class="hljs-string">name</span><span class="hljs-string">'</span>]<span class="hljs-string">}</span><span class="hljs-string">」。可用:</span><span class="hljs-string">{</span>available<span class="hljs-string">}</span><span class="hljs-string">。</span><span class="hljs-string">"</span>
+    <span class="hljs-keyword">if</span> ctx.recordSkillUse:
+        ctx.recordSkillUse(skill[<span class="hljs-string">"</span><span class="hljs-string">name</span><span class="hljs-string">"</span>])
+    text = <span class="hljs-keyword">await</span> ctx.adaptSkill(skill[<span class="hljs-string">"</span><span class="hljs-string">body</span><span class="hljs-string">"</span>]) <span class="hljs-keyword">if</span> ctx.adaptSkill <span class="hljs-keyword">else</span> skill[<span class="hljs-string">"</span><span class="hljs-string">body</span><span class="hljs-string">"</span>]
+    location = (<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">(目录:</span><span class="hljs-string">{</span>skill[<span class="hljs-string">'</span><span class="hljs-string">dir</span><span class="hljs-string">'</span>]<span class="hljs-string">}</span><span class="hljs-string">,正文中引用的相对资源以此为根)</span><span class="hljs-string">\n</span><span class="hljs-string">"</span>
+                <span class="hljs-keyword">if</span> skill.get(<span class="hljs-string">"</span><span class="hljs-string">dir</span><span class="hljs-string">"</span>) <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">"</span>)
+    argsNote = <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">\n</span><span class="hljs-string">(用户参数:</span><span class="hljs-string">{</span>args[<span class="hljs-string">'</span><span class="hljs-string">args</span><span class="hljs-string">'</span>]<span class="hljs-string">}</span><span class="hljs-string">)</span><span class="hljs-string">\n</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> args.get(<span class="hljs-string">"</span><span class="hljs-string">args</span><span class="hljs-string">"</span>) <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">"</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string"># Skill: </span><span class="hljs-string">{</span>skill[<span class="hljs-string">'</span><span class="hljs-string">name</span><span class="hljs-string">'</span>]<span class="hljs-string">}</span><span class="hljs-string">\n</span><span class="hljs-string">{</span>location<span class="hljs-string">}</span><span class="hljs-string">\n</span><span class="hljs-string">{</span>argsNote<span class="hljs-string">}</span><span class="hljs-string">{</span>text<span class="hljs-string">}</span><span class="hljs-string">{</span>_FOLLOW<span class="hljs-string">}</span><span class="hljs-string">{</span>_CAPABILITY_NOTE<span class="hljs-string">}</span><span class="hljs-string">"</span></code></pre></div></figure>
+<p><strong>「流程正文可以安排工作，真正能执行什么由工具和权限决定」</strong>。正文中列出 <code>Read</code>、<code>Bash</code> 或 <code>Edit</code> 时，模型仍需独立发起调用，再经过<a href="08-执行之前谁说了算.html#permission-call" rel="noopener" target="_blank">本次操作的权限裁决</a>。下面拿一条实际模型回包核对这种分工。</p>
+</section><section class="design-section" id="csv-export-live"><h3>3.2 CSV 导出验收先取步骤，再读产物</h3>
+<p><strong>真实 API · RuoCun 客户端与只读工具链</strong>。在教学工作区，用 <code>deepseek-flash</code> 跑了三次请求。请求提供 <code>Skill</code> 和 <code>Read</code>。先看第一次请求的两段节选，哪些信息已经给了模型？</p>
+<figure class="ruocun-code" data-language="text">
+<figcaption class="ruocun-code-caption"><span>输出</span><span>7 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span><span data-line="2"></span><span data-line="3"></span><span data-line="4"></span><span data-line="5"></span><span data-line="6"></span><span data-line="7"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-text">system 中的目录
+可用技能
+- csv-export-audit:验收 CSV 导出文件表头和 UTC 时间字段时使用。
+任务符合时先调用 Skill 查看步骤。
+
+user
+按当前项目适用的流程验收 export.csv，给出实际表头、时间样例和流程规定的判定码。只读。</code></pre></div></figure>
+<p>服务返回一条 <code>Skill</code> 调用。RuoCun 在本地取出正文，保留调用 ID 配对。第二次请求把这组调用和结果一起送回模型。下面只保留用于判断的字段。</p>
+<figure class="ruocun-code" data-language="text">
+<figcaption class="ruocun-code-caption"><span>输出</span><span>8 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span><span data-line="2"></span><span data-line="3"></span><span data-line="4"></span><span data-line="5"></span><span data-line="6"></span><span data-line="7"></span><span data-line="8"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-text">assistant tool_calls · call_00_KncmXAwoadOYktdFrzDZ7413
+Skill {"name": "csv-export-audit"}
+
+tool_call_id · call_00_KncmXAwoadOYktdFrzDZ7413
+# Skill: csv-export-audit
+读取 export.csv。表头应为 order_id,exported_at。
+逐行核对 exported_at 是否以 Z 结尾。
+两项均满足时报告判定码 EXPORT_TZ_UTC_OK，并引用文件中的实际表头与时间样例。</code></pre></div></figure>
+<p>现在模型知道判定规则，但还不知道文件的实际值。它又提出一次 <code>Read</code>。第三次请求才带上这次读取的结果。</p>
+<figure class="ruocun-code" data-language="text">
+<figcaption class="ruocun-code-caption"><span>输出</span><span>6 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span><span data-line="2"></span><span data-line="3"></span><span data-line="4"></span><span data-line="5"></span><span data-line="6"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-text">assistant tool_calls · call_00_ZUCYMdy4voYYFaODldBA8970
+Read {"path": "export.csv"}
+
+tool_call_id · call_00_ZUCYMdy4voYYFaODldBA8970 · 回包节选
+1	order_id,exported_at
+2	demo-001,2026-11-18T06:30:00Z</code></pre></div></figure>
+<p>最终回答引用了实际表头 <code>order_id,exported_at</code> 和时间 <code>2026-11-18T06:30:00Z</code>，按这份流程给出 <code>EXPORT_TZ_UTC_OK</code>。目录提供了选用线索，第一份回包提供了规则，第二份回包才给出产物证据。这个例子只核对表头和样例字段的 <code>Z</code> 后缀。</p>
+<details class="answer-box"><summary>目录、流程、实际时间分别出现在第几次请求里？</summary><div><p>目录在第一次请求已经可见。流程经 <code>Skill</code> 回包加入第二次请求。实际时间经另一条 <code>Read</code> 回包加入第三次请求。</p></div></details>
+</section></section>
+<section class="v2-topic-group" id="skill-discovery">
+<header class="v2-group-heading"><span>04</span><h2>文件访问、候选准备与确认</h2></header><div class="design-section">
+</div><section class="design-section" id="skill-discovery-path"><h3>4.1 成功访问的路径驱动就近扫描</h3>
+<p><code>Read</code> 先通过路径授权，再读文件。在本例的成功文本读取路径上，它把解析后的实际路径报给访问回调。只在请求里提到文件名，没有通过访问边界，发现器就缺少这条输入。对真正访问过的 <code>packages/pricing/preview.py</code>，发现器从父目录向上找子树的原生 <code>.ruocun/skills</code>，根目录的目录已由启动加载负责。候选目录的物理目标必须位于工作区内。发现器避开已确认扫描的目录，并过滤停用、已有名称和已知文件。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/skills/discover.py#L74" rel="noopener" target="_blank">src/ruocun/skills/discover.py · 第 74–95 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>22 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="74"></span><span data-line="75"></span><span data-line="76"></span><span data-line="77"></span><span data-line="78"></span><span data-line="79"></span><span data-line="80"></span><span data-line="81"></span><span data-line="82"></span><span data-line="83"></span><span data-line="84"></span><span data-line="85"></span><span data-line="86"></span><span data-line="87"></span><span data-line="88"></span><span data-line="89"></span><span data-line="90"></span><span data-line="91"></span><span data-line="92"></span><span data-line="93"></span><span data-line="94"></span><span data-line="95"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">for</span> path in paths:
+            file = Path(os.path.abspath(<span class="hljs-built_in">self</span>.cwd / path))
+            <span class="hljs-keyword">try</span>:
+                relative = file.relative_to(<span class="hljs-built_in">self</span>.cwd)
+                <span class="hljs-keyword">if</span> not relative.parts or not file.resolve().is_relative_to(<span class="hljs-built_in">self</span>.cwd):
+                    <span class="hljs-keyword">continue</span>
+            <span class="hljs-keyword">except</span> (OSError, RuntimeError, ValueError):
+                <span class="hljs-keyword">continue</span>
+            relative_paths.append(relative.as_posix())
+            parent = file.parent
+            <span class="hljs-keyword">while</span> parent != <span class="hljs-built_in">self</span>.cwd:
+                native = parent / <span class="hljs-string">"</span><span class="hljs-string">.ruocun</span><span class="hljs-string">"</span> / <span class="hljs-string">"</span><span class="hljs-string">skills</span><span class="hljs-string">"</span>
+                <span class="hljs-keyword">if</span> <span class="hljs-string">"</span><span class="hljs-string">node_modules</span><span class="hljs-string">"</span> not in <span class="hljs-built_in">str</span>(parent) and native not in checked and native not in found:
+                    <span class="hljs-keyword">try</span>:
+                        physical = native.resolve(strict=<span class="hljs-keyword">True</span>)
+                        <span class="hljs-keyword">if</span> physical.is_dir() and physical.is_relative_to(<span class="hljs-built_in">self</span>.cwd):
+                            found[native] = physical
+                    <span class="hljs-keyword">except</span> (OSError, RuntimeError):
+                        <span class="hljs-keyword">pass</span>  <span class="hljs-comment"># 缺失目录仍可在后续访问时重新发现。</span>
+                parent = parent.parent
+        directories = <span class="hljs-built_in">tuple</span>(<span class="hljs-built_in">sorted</span>(found, key=<span class="hljs-keyword">lambda</span> item: -<span class="hljs-built_in">len</span>(item.parts)))
+        <span class="hljs-keyword">return</span> directories, <span class="hljs-built_in">tuple</span>(found.values()), relative_paths</code></pre></div></figure>
+<p>同一经过验证的相对路径也会与待匹配池的 <code>paths</code> 模式对照。这里可能同时得到两类信息：例如规则早已读到内存，此次路径命中才激活的 <code>pricing-check</code>，以及刚从子目录读出的 <code>pricing-tests</code>。前者来自路径条件，后者来自此前没有读取的目录。动态扫描失败时，原来已经在池里的路径条件仍可进行匹配。</p>
+</section><section class="design-section" id="skill-publish-order"><h3>4.2 先提交目录消息，再确认候选状态</h3>
+<p>准备阶段用清单、停用状态和已查目录的快照，返回候选和目录文字。<a href="14-上下文放不下怎么办.html#confirm-candidate" rel="noopener" target="_blank">压缩篇</a>也用过先保存后切换的顺序。这里要先保存模型会看到的目录消息，再更新内存里的活跃清单和已扫目录。让开场保存目录这一步失败，看看两种顺序会留下什么。</p>
+<figure class="reasoning-figure">
+<figcaption>源码推演 · 目录消息没能保存，活跃清单与已扫记录剩下什么？</figcaption>
+<div aria-label="源码推演 · 目录消息没能保存，活跃清单与已扫记录剩下什么？" class="table-scroll" role="region" tabindex="0"><table>
+<thead><tr><th scope="col">失败时的状态</th><th scope="col">如果发现后立即登记</th><th scope="col">现在的先保存后登记</th></tr></thead>
+<tbody>
+<tr><th scope="row">会话已确认的新增目录</th><td>无</td><td>无</td></tr>
+<tr><th scope="row">活跃清单</th><td><code>[debug, pricing-tests]</code></td><td><code>[debug]</code></td></tr>
+<tr><th scope="row">模块目录已扫记录</th><td>已标记</td><td>未标记</td></tr>
+</tbody>
+</table></div>
+</figure>
+<details class="answer-box"><summary>核对哪一列会使模型看到的目录与工具查阅状态脱节</summary><div><p>立即登记时，本轮的清单已经变了，会话里却没有对应目录。再次访问同一模块时，还可能因已扫标记跳过，错失重新公告。先保存后登记要多保留一份待确认候选，换来两份信息能一起推进。</p></div></details>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/runtime.py#L1983" rel="noopener" target="_blank">src/ruocun/agent/runtime.py · 第 1983–1990 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>8 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1983"></span><span data-line="1984"></span><span data-line="1985"></span><span data-line="1986"></span><span data-line="1987"></span><span data-line="1988"></span><span data-line="1989"></span><span data-line="1990"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">                <span class="hljs-keyword">if</span> signal_event.is_set() or not scheduler.is_current(generation):
+                    <span class="hljs-keyword">return</span>
+                <span class="hljs-keyword">if</span> catalog_texts:
+                    catalog = [{<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">system</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: text} <span class="hljs-keyword">for</span> text in catalog_texts]
+                    <span class="hljs-keyword">await</span> conversation.replace_context(session, [*session.messages, *catalog], reset_prompt=<span class="hljs-keyword">False</span>)
+                <span class="hljs-comment"># 保存期间即使收到暂停，也须发布已确认工作目录对应的同一候选。</span>
+                skill_discovery.confirm(candidate, skills)
+                skills.extend(installed)</code></pre></div></figure>
+<p><code>replace_context</code> 把目录作为追加的 <code>system</code> 消息保存。返回后 <code>confirm</code> 才记已扫目录、移出已匹配条件项、更新活跃 Skill。没有可公布条目的候选可在同一边界直接确认，无需追加空消息。<strong>「先保存模型能看到的目录，再推进已确认扫描和激活状态」</strong>。保存前会检查取消和代次，成功提交途中收到暂停也会完成同一候选的确认。</p>
+</section></section>
+<section class="v2-topic-group" id="article-assessment">
+<header class="v2-group-heading"><span>05</span><h2>学习效果检测</h2></header><div class="design-section">
+</div><section class="design-section" id="article-assessment-1">
+<h3>5.1 判断目录发现和正文的生效时机</h3>
+<p><strong>1．</strong> 模型在目录里看见 <code>invoice-check</code>，随后成功取到正文。正文要求先读 Skill 目录下的 <code>fields.json</code>，再核对工作区的 <code>invoice.csv</code>。到此能报告“字段正确”吗？下一步两次读取分别以哪里为起点？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>当前能确认流程可用及它要求的步骤。先根据 Skill 回包给的资源根定位 fields.json，再按当前执行目录和任务路径读取实际的 invoice.csv。分别取得两份配对的工具结果，比较字段后才能报告。目录和正文都没给出这份发票的实际表头。</p></div></details>
+<p><strong>2．</strong>预测状态 · 候选扫描完成，但保存目录消息失败，已查目录应不应该增加？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>不应提前增加。<code>prepare</code> 只生成候选，保存异常时走不到 <code>confirm</code>。修复保存问题后，后续符合条件的访问仍可准备候选。</p></div></details>
+</section><div class="design-section">
+</div></section>
+<section class="v2-topic-group" id="article-interview">
+<header class="v2-group-heading"><span>06</span><h2>模拟面试官提问</h2></header><div class="design-section">
+</div><section class="design-section" id="intern-skill"><h3>6.1 Agent 开发实习</h3>
+<h4>独立核心题</h4>
+<p><strong>怎样让 Agent 按需加载一套测试流程？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>“短目录回答何时用哪套流程。模型找到相关项后调用 Skill，正文和资源目录随工具结果返回。下一步用真实工具逐项执行。”这样启动输入不用装下所有正文，代价是遇到适用任务要做一次查阅。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>有流程写了测试命令，模型怎样真正运行它？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>“先确认这份流程适合当前任务，再按资源位置读材料，最后用可用工具执行。”</p></div></details>
+<p><strong>追问 1</strong> 流程给的相对路径从哪算？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>引用材料以 Skill 目录为根，实际调用仍须明确路径。</p></div></details>
+<p><strong>追问 2</strong> 如果需要改文件，正文能授权吗？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>调用由正常模式与权限裁决处理。</p></div></details>
+<p><strong>追问 3</strong> 正文测试用的是旧入口怎么办？</p>
+<details class="answer-box"><summary>展开追问 3 回答</summary><div><p>先核今日调用路径，再修正测试输入。</p></div></details>
+</section><section class="design-section" id="harness-skill"><h3>6.2 Agent harness 岗位</h3>
+<h4>独立核心题</h4>
+<p><strong>动态发现为什么要把准备和确认拆开？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>“发现器先找候选和目录文本，避免提前改变当前清单。会话保存目录后才提交已扫目录和激活状态，让下一轮模型能查到它刚看到的项。”验证时看会话追加消息、扫描记录与实际查阅结果三者。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>在保存附近遇到失败或暂停怎样处理？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>“先以会话提交边界判断公开是否发生，再推进同批候选。”</p></div></details>
+<p><strong>追问 1</strong> 提交前收到取消呢？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>跳过发布，不确认候选。</p></div></details>
+<p><strong>追问 2</strong> 消息保存后才暂停呢？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>完成同一候选的确认。</p></div></details>
+<p><strong>追问 3</strong> 发现了一个 model 隐藏但用户可用的项呢？</p>
+<details class="answer-box"><summary>展开追问 3 回答</summary><div><p>没有模型目录文本可以保存，候选的活跃状态仍可确认。目录显露不能用作权限隔离。</p></div></details>
+</section></section>
+<section class="v2-topic-group" id="article-takeaways">
+<header class="v2-group-heading"><span>07</span><h2>这一篇带走什么</h2></header><div class="design-section">
+<p>RuoCun 先用目录显露流程入口，按需把正文交给模型，并在文件访问后的安全边界扩充本会话已确认的清单。</p>
+<ul class="pilot-takeaways"><li>流程集合很大时先发用途和调用名，选中后再给步骤及资源位置，减少每轮都背全部正文的开销。</li><li>同时维护模型可见目录和运行清单时，先确认目录消息，再登记扫描与激活，提交失败时保留再次发现的机会。</li><li>脚本步骤、能力注册和执行权限各自有来源。加载正文后，实际动作仍要有可用工具和独立授权。</li></ul>
+<p>CSV 实录里的实际动作是本地 <code>Read</code>。如果下一步需要查外部资料库，就要先把服务能力接成一个工具。<a href="20-远程能力怎样接入.html#mcp-case" rel="noopener" target="_blank">下一篇</a>追到外部请求的明确结果和未决状态。</p>
+</div></section>
+</article></main>
+</body>
+</html>

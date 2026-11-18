@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 346" role="img" aria-labelledby="projection-title projection-desc">
+  <title id="projection-title">同一个调用身份怎样进入两种请求</title>
+  <desc id="projection-desc">左列是会话内的助手调用和结果。中列为 Chat 投影，保留 tool_calls.id 与 tool_call_id。右列为 Responses 投影，function_call 与 function_call_output 都使用 call_id=call_prices。</desc>
+  <defs><style>
+    text { fill: #172638; font: 16px "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif; }
+    .heading { font-size: 17px; font-weight: 700; }
+    .code { font: 15px "Cascadia Code", Consolas, "Microsoft YaHei", monospace; }
+    .muted { fill: #52647a; }
+    .identity { fill: #204e95; }
+    .message { fill: #f4f6f9; stroke: #dce3ec; }
+    .projected { fill: #edf3fc; stroke: #c4d3ea; }
+  </style></defs>
+  <rect width="840" height="346" fill="#ffffff"/>
+  <text x="24" y="37" class="heading">会话记录</text>
+  <text x="296" y="37" class="heading">Chat · <tspan class="code">messages</tspan></text>
+  <text x="568" y="37" class="heading">Responses · <tspan class="code">input</tspan></text>
+
+  <rect x="24" y="56" width="248" height="99" rx="7" class="message"/>
+  <rect x="296" y="56" width="248" height="99" rx="7" class="message"/>
+  <rect x="568" y="56" width="248" height="99" rx="7" class="projected"/>
+  <rect x="24" y="173" width="248" height="99" rx="7" class="message"/>
+  <rect x="296" y="173" width="248" height="99" rx="7" class="message"/>
+  <rect x="568" y="173" width="248" height="99" rx="7" class="projected"/>
+
+  <text x="36" y="83">助手提出 Read</text>
+  <text x="36" y="110" class="code">tool_calls[].id</text>
+  <text x="36" y="137" class="code identity">call_prices</text>
+  <text x="308" y="83" class="code">role: assistant</text>
+  <text x="308" y="110" class="code">tool_calls[].id</text>
+  <text x="308" y="137" class="code identity">call_prices</text>
+  <text x="580" y="83" class="code">type: function_call</text>
+  <text x="580" y="110" class="code">call_id</text>
+  <text x="580" y="137" class="code identity">call_prices</text>
+
+  <text x="36" y="200">工具返回文件内容</text>
+  <text x="36" y="227" class="code">tool_call_id</text>
+  <text x="36" y="254" class="code identity">call_prices</text>
+  <text x="308" y="200" class="code">role: tool</text>
+  <text x="308" y="227" class="code">tool_call_id</text>
+  <text x="308" y="254" class="code identity">call_prices</text>
+  <text x="580" y="200" class="code">type: function_call_output</text>
+  <text x="580" y="227" class="code">call_id</text>
+  <text x="580" y="254" class="code identity">call_prices</text>
+
+  <path d="M284 56V272 M556 56V272" stroke="#dce3ec" stroke-dasharray="4 5"/>
+  <text x="24" y="308" class="muted">按一次请求所用的协议看一列，图中仅保留调用与结果的配对字段。</text>
+  <text x="24" y="332" class="muted">两次调用都叫 Read 时，也要用对应的调用 ID 才能找回各自的结果。</text>
+</svg>

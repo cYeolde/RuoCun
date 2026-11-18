@@ -1,0 +1,19 @@
+#model-protocol .protocol-figure img {
+  min-width: 660px;
+}
+
+#model-protocol .design-hero h1 {
+  margin-bottom: 4px;
+}
+
+.protocol-subtitle {
+  margin: 0 0 16px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+@media (min-width: 901px) {
+  #model-protocol .design-section > :is(p, ul, ol) {
+    max-inline-size: 42em;
+  }
+}

@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>从问题找到代码：Glob、Grep、Read怎样配合 · RuoCun 设计学习</title>
+<link href="assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="assets/ruocun-code.css" rel="stylesheet"/>
+<link href="assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="assets/ruocun-article.css" rel="stylesheet"/>
+<link href="assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="assets/ruocun-textbook.js"></script>
+</head>
+<body class="textbook-read">
+<a class="textbook-skip" href="#code-navigation">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#code-navigation">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航">
+<a href="课程学习地图.html" rel="noopener" target="_blank">学习地图</a>
+<a class="textbook-original" href="#article-takeaways">这一篇带走什么</a>
+</nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title">从问题找到代码</div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc" open="">
+<summary>展开文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#first-clue"><span class="v2-toc-number">1</span><span>只知道报错，第一步搜文件名还是搜内容？</span></a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#file-candidates"><span class="v2-toc-number">2</span><span>路径候选与遍历范围</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#file-candidates-1"><span class="v2-toc-number">2.1</span><span>Glob 在搜索根下匹配相对路径</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#content-search"><span class="v2-toc-number">3</span><span>内容命中与结果范围</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#content-search-1"><span class="v2-toc-number">3.1</span><span>Grep 用 Python 正则，每种模式返回不同粒度</span></a></li><li><a class="v2-toc-child-link" href="#content-search-2"><span class="v2-toc-number">3.2</span><span>先缩小搜索，再读上下文、分页或匹配片段</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#read-context"><span class="v2-toc-number">4</span><span>原文、读取基线与调用点</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#read-context-1"><span class="v2-toc-number">4.1</span><span>Read 从搜索行号向上找定义</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#api-navigation-example"><span class="v2-toc-number">5</span><span>真实 API 示例：从仓库告警定位代码</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#api-navigation-search-root"><span class="v2-toc-number">5.1</span><span>相同文件名要带回搜索根</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#semantic-hints"><span class="v2-toc-number">6</span><span>结构摘要与语义导航</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#semantic-hints-1"><span class="v2-toc-number">6.1</span><span>RepoMap 缩小入口，LSP 沿符号定位</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-assessment"><span class="v2-toc-number">7</span><span>学习效果检测</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#article-assessment-1"><span class="v2-toc-number">7.1</span><span>根据搜索结果选择下一步定位</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-interview"><span class="v2-toc-number">8</span><span>模拟面试官提问</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#article-interview-1"><span class="v2-toc-number">8.1</span><span>Agent 开发实习</span></a></li><li><a class="v2-toc-child-link" href="#article-interview-2"><span class="v2-toc-number">8.2</span><span>Agent harness 岗位</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways"><span class="v2-toc-number">9</span><span>这一篇带走什么</span></a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper course-lesson" id="code-navigation"><header class="design-hero">
+<h1>从问题找到代码</h1><p class="article-subtitle">Glob、Grep、Read怎样配合</p>
+<p class="target">手里只有一句“文件自上次 Read 后已被外部改动”。顺着这条反馈找到抛出错误的地方，再追到真正使用这项检查的代码。</p>
+</header>
+<section class="v2-topic-group" id="first-clue">
+<header class="v2-group-heading"><span>01</span><h2>只知道报错，第一步搜文件名还是搜内容？</h2></header><div class="design-section">
+<p>价格文件已经 Read 过，但提交 Edit 时被拒绝。上一章<a href="04-工具调用怎样落地.html#validation" rel="noopener" target="_blank">用填错字段的反馈定位了失败的关口</a>。这次参数有效，失败来自处理器。现在手里只有一句报错，连条件写在哪个文件都不清楚。把那句话交给 Glob 匹配文件名，结果为空。改用 Grep，从工具目录搜报错文本，得到第一条可用线索。</p>
+<figure class="reasoning-figure" id="search-path-evidence"><figcaption>源码推演 · 两次调用对路径使用的起点</figcaption><div class="reasoning-grid">
+<section><h4>Grep 在哪里搜</h4><p><code>path="src/ruocun/tools"</code><br/>回包节选 <code>paths.py:112</code>。</p></section>
+<section><h4>Read 从哪里打开</h4><p>当前工作目录是仓库根。<br/><code>Read({"path":"paths.py"})</code> 提示根目录下没有这个文件。</p></section>
+</div></figure>
+<details class="answer-box"><summary>实际应把什么传给 Read？为什么要从第 112 行之前开始读？</summary><div><p>给回包的相对路径补上搜索根，传 <code>src/ruocun/tools/paths.py</code>。抛错语句只提供位置，向上读才看得到函数名和抛错条件。找到 <code>checkReadBaseline</code> 后，再沿符号找到谁在写前调用它。</p></div></details>
+<p>这次查询的目标是找到一次真实的拒绝是怎样发生的。目录和文件名先给候选，内容命中给位置，原文和调用点才能解释程序为什么拒绝。<a href="02-模型收到什么.html#actual-path-and-result" rel="noopener" target="_blank">第二篇算过 Read 从当前工具目录找文件</a>，Grep 又有自己的搜索根。两段路径都相对时，<strong>「让下游读到同一文件，要带上上游结果的解释起点。」</strong></p>
+</div></section>
+<section class="v2-topic-group" id="file-candidates">
+<header class="v2-group-heading"><span>02</span><h2>路径候选与遍历范围</h2></header><div class="design-section">
+</div><section class="design-section" id="file-candidates-1"><h3>2.1 Glob 在搜索根下匹配相对路径</h3>
+<p>假设只知道文件名大概包含 <code>edit</code>，这时才轮到 Glob。传 <code>{"path":"src/ruocun","glob":"**/*edit*.py"}</code>，<code>**/</code> 允许前面有零层或多层目录，<code>*</code> 匹配一段不含斜杠的字符，<code>?</code> 匹配一个非斜杠字符。<code>tools/edit_file.py</code> 是这个模式的候选之一，返回地址以这次给定的搜索根为基准。下一次把路径交给 Read 时，要按会话目录补齐搜索根。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/glob.py#L14" rel="noopener" target="_blank">src/ruocun/tools/glob.py · 第 14–28 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>15 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="14"></span><span data-line="15"></span><span data-line="16"></span><span data-line="17"></span><span data-line="18"></span><span data-line="19"></span><span data-line="20"></span><span data-line="21"></span><span data-line="22"></span><span data-line="23"></span><span data-line="24"></span><span data-line="25"></span><span data-line="26"></span><span data-line="27"></span><span data-line="28"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">globToRegExp</span>(glob: <span class="hljs-built_in">str</span>) -&gt; re.Pattern[<span class="hljs-built_in">str</span>]:
+    parts: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>] = []
+    index = <span class="hljs-number">0</span>
+    <span class="hljs-keyword">while</span> index &lt; <span class="hljs-built_in">len</span>(glob):
+        char = glob[index]
+        <span class="hljs-keyword">if</span> glob[index:index + <span class="hljs-number">3</span>] == <span class="hljs-string">"</span><span class="hljs-string">**/</span><span class="hljs-string">"</span>:
+            parts.append(<span class="hljs-string">"</span><span class="hljs-string">(?:.*/)?</span><span class="hljs-string">"</span>)
+            index += <span class="hljs-number">3</span>
+        <span class="hljs-keyword">elif</span> glob[index:index + <span class="hljs-number">2</span>] == <span class="hljs-string">"</span><span class="hljs-string">**</span><span class="hljs-string">"</span>:
+            parts.append(<span class="hljs-string">"</span><span class="hljs-string">.*</span><span class="hljs-string">"</span>)
+            index += <span class="hljs-number">2</span>
+        <span class="hljs-keyword">else</span>:
+            parts.append(<span class="hljs-string">"</span><span class="hljs-string">[^/]*</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> char == <span class="hljs-string">"</span><span class="hljs-string">*</span><span class="hljs-string">"</span> <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">[^/]</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> char == <span class="hljs-string">"</span><span class="hljs-string">?</span><span class="hljs-string">"</span> <span class="hljs-keyword">else</span> re.escape(char))
+            index += <span class="hljs-number">1</span>
+    <span class="hljs-keyword">return</span> re.compile(<span class="hljs-string">"</span><span class="hljs-string">^</span><span class="hljs-string">"</span> + <span class="hljs-string">"</span><span class="hljs-string">"</span>.join(parts) + <span class="hljs-string">"</span><span class="hljs-string">$</span><span class="hljs-string">"</span>)</code></pre></div></figure>
+<p>Glob 的接口有两项。<code>glob</code> 是必填的模式字符串，<code>path</code> 是可选的搜索起点字符串，缺省传 <code>.</code> 交给路径授权与解析。遍历可能跳过固定忽略目录、目录链接和无法访问的条目，最多拿前 50000 个文件来匹配，再按修改时间降序返回前 100 项。刚改过的文件更容易出现在列表开头，但这张列表回答的是候选范围。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/glob_files.py#L25" rel="noopener" target="_blank">src/ruocun/tools/glob_files.py · 第 25–37 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>13 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="25"></span><span data-line="26"></span><span data-line="27"></span><span data-line="28"></span><span data-line="29"></span><span data-line="30"></span><span data-line="31"></span><span data-line="32"></span><span data-line="33"></span><span data-line="34"></span><span data-line="35"></span><span data-line="36"></span><span data-line="37"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">_search</span>(root: <span class="hljs-built_in">str</span>, args: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any], ctx: ToolContext) -&gt; <span class="hljs-built_in">str</span>:
+    regex = globToRegExp(args[<span class="hljs-string">"</span><span class="hljs-string">glob</span><span class="hljs-string">"</span>])
+    hits: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">float</span>]] = []
+    <span class="hljs-keyword">for</span> count, (absolute, relative) in <span class="hljs-built_in">enumerate</span>(walkFiles(root), <span class="hljs-number">1</span>):
+        <span class="hljs-keyword">if</span> ctx.signal.is_set() or count &gt; <span class="hljs-number">50000</span>:
+            <span class="hljs-keyword">break</span>
+        <span class="hljs-keyword">if</span> regex.search(relative):
+            <span class="hljs-keyword">try</span>:
+                hits.append((relative, os.stat(absolute).st_mtime_ns / <span class="hljs-number">1_000_000</span>))
+            <span class="hljs-keyword">except</span> OSError:
+                <span class="hljs-keyword">continue</span>
+    hits.sort(key=<span class="hljs-keyword">lambda</span> hit: -hit[<span class="hljs-number">1</span>])
+    <span class="hljs-keyword">return</span> <span class="hljs-string">"</span><span class="hljs-string">\n</span><span class="hljs-string">"</span>.join(relative <span class="hljs-keyword">for</span> relative, _ in hits[:<span class="hljs-number">100</span>]) <span class="hljs-keyword">if</span> hits <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">(无匹配)</span><span class="hljs-string">"</span></code></pre></div></figure>
+<p><strong>「空结果只对这次实际搜索过的范围负责。」</strong>例如缩错 <code>path</code>、写错层级模式，或者目标落在遍历上限之后，都会使目标不在结果中。结合参数和搜索边界调整范围，再决定是否需要换成内容或符号查找。</p>
+</section></section>
+<section class="v2-topic-group" id="content-search">
+<header class="v2-group-heading"><span>03</span><h2>内容命中与结果范围</h2></header><div class="design-section">
+</div><section class="design-section" id="content-search-1"><h3>3.1 Grep 用 Python 正则，每种模式返回不同粒度</h3>
+<p>从仓库根出发，传 <code>{"path":"src/ruocun/tools","pattern":"文件自上次 Read 后已被外部改动","type":"py"}</code>。这个模式没有正则元字符，可以直接匹配报错正文。默认 <code>mode="content"</code>，回包中的这一条形如 <code>paths.py:112: …</code>。换成 <code>mode="files"</code> 则返回 <code>paths.py</code>，路径相对于搜索根。用 <code>context:2</code> 看命中周边时，会带出前后各两行，但仍需看更上面的函数入口和调用点。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/grep_files.py#L143" rel="noopener" target="_blank">src/ruocun/tools/grep_files.py · 第 143–168 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>26 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="143"></span><span data-line="144"></span><span data-line="145"></span><span data-line="146"></span><span data-line="147"></span><span data-line="148"></span><span data-line="149"></span><span data-line="150"></span><span data-line="151"></span><span data-line="152"></span><span data-line="153"></span><span data-line="154"></span><span data-line="155"></span><span data-line="156"></span><span data-line="157"></span><span data-line="158"></span><span data-line="159"></span><span data-line="160"></span><span data-line="161"></span><span data-line="162"></span><span data-line="163"></span><span data-line="164"></span><span data-line="165"></span><span data-line="166"></span><span data-line="167"></span><span data-line="168"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">if</span> mode == <span class="hljs-string">"</span><span class="hljs-string">files</span><span class="hljs-string">"</span>:
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">next</span>(hits(), <span class="hljs-keyword">None</span>) is not <span class="hljs-keyword">None</span>:
+                total += <span class="hljs-number">1</span>
+                <span class="hljs-keyword">if</span> total &gt; skip:
+                    out.append(relative)
+        <span class="hljs-keyword">else</span>:
+            collected: <span class="hljs-built_in">set</span>[<span class="hljs-built_in">int</span>] = <span class="hljs-built_in">set</span>()
+            <span class="hljs-keyword">for</span> index, column, source, start, length in hits():
+                total += <span class="hljs-number">1</span>
+                <span class="hljs-keyword">if</span> total &lt;= skip:
+                    <span class="hljs-keyword">continue</span>
+                <span class="hljs-keyword">if</span> only:
+                    out.append(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">{</span>relative<span class="hljs-string">}</span><span class="hljs-string">:</span><span class="hljs-string">{</span>index + <span class="hljs-number">1</span><span class="hljs-string">}</span><span class="hljs-string">:</span><span class="hljs-string">{</span>column + <span class="hljs-number">1</span><span class="hljs-string">}</span><span class="hljs-string">:</span><span class="hljs-string">{</span>_snippet(source, start, length, match_context, ctx.lang)<span class="hljs-string">}</span><span class="hljs-string">"</span>)
+                <span class="hljs-keyword">elif</span> before or after:
+                    <span class="hljs-keyword">if</span> args.get(<span class="hljs-string">"</span><span class="hljs-string">multiline</span><span class="hljs-string">"</span>):
+                        collected = <span class="hljs-built_in">set</span>()
+                    <span class="hljs-keyword">for</span> number in <span class="hljs-built_in">range</span>(<span class="hljs-built_in">max</span>(<span class="hljs-number">0</span>, index - before), <span class="hljs-built_in">min</span>(<span class="hljs-built_in">len</span>(lines), index + after + <span class="hljs-number">1</span>)):
+                        <span class="hljs-keyword">if</span> number not in collected:
+                            collected.add(number)
+                            marker = <span class="hljs-string">"</span><span class="hljs-string">&gt;</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> number == index <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">-</span><span class="hljs-string">"</span>
+                            out.append(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">{</span>relative<span class="hljs-string">}</span><span class="hljs-string">:</span><span class="hljs-string">{</span>number + <span class="hljs-number">1</span><span class="hljs-string">}</span><span class="hljs-string">:</span><span class="hljs-string">{</span>marker<span class="hljs-string">}</span><span class="hljs-string"> </span><span class="hljs-string">{</span>_truncate(lines[number], ctx.lang)<span class="hljs-string">}</span><span class="hljs-string">"</span>)
+                <span class="hljs-keyword">else</span>:
+                    out.append(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">{</span>relative<span class="hljs-string">}</span><span class="hljs-string">:</span><span class="hljs-string">{</span>index + <span class="hljs-number">1</span><span class="hljs-string">}</span><span class="hljs-string">:</span><span class="hljs-string">{</span>_truncate(lines[index], ctx.lang)<span class="hljs-string">}</span><span class="hljs-string">"</span>)
+                <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(out) &gt;= maximum:
+                    truncated = <span class="hljs-keyword">True</span>
+                    <span class="hljs-keyword">break</span></code></pre></div></figure>
+<p>Glob 的模式对路径生效。Grep 的 <code>glob</code> 只匹配文件名末段，<code>type</code> 按已知扩展名过滤。比如要扫工具目录里的 Python 文件，设 <code>path="src/ruocun/tools"</code> 配 <code>glob="*.py"</code> 就够。若改为 <code>glob="tools/*.py"</code>，带斜杠的模式对这里的末段文件名不会命中。下面这个条件就解释了为什么。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/grep_files.py#L105" rel="noopener" target="_blank">src/ruocun/tools/grep_files.py · 第 105–120 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>16 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="105"></span><span data-line="106"></span><span data-line="107"></span><span data-line="108"></span><span data-line="109"></span><span data-line="110"></span><span data-line="111"></span><span data-line="112"></span><span data-line="113"></span><span data-line="114"></span><span data-line="115"></span><span data-line="116"></span><span data-line="117"></span><span data-line="118"></span><span data-line="119"></span><span data-line="120"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">for</span> scanned, (absolute, relative) in <span class="hljs-built_in">enumerate</span>(walkFiles(root), <span class="hljs-number">1</span>):
+        <span class="hljs-keyword">if</span> ctx.signal.is_set():
+            <span class="hljs-keyword">break</span>
+        <span class="hljs-keyword">if</span> scanned &gt; <span class="hljs-number">50000</span>:
+            truncated = <span class="hljs-keyword">True</span>
+            <span class="hljs-keyword">break</span>
+        <span class="hljs-keyword">if</span> name_regex and not name_regex.search(relative.rsplit(<span class="hljs-string">"</span><span class="hljs-string">/</span><span class="hljs-string">"</span>, <span class="hljs-number">1</span>)[-<span class="hljs-number">1</span>]):
+            <span class="hljs-keyword">continue</span>
+        <span class="hljs-keyword">if</span> extensions and not <span class="hljs-built_in">any</span>(relative.endswith(extension) <span class="hljs-keyword">for</span> extension in extensions):
+            <span class="hljs-keyword">continue</span>
+        <span class="hljs-keyword">try</span>:
+            raw = Path(absolute).read_bytes().decode(<span class="hljs-string">"</span><span class="hljs-string">utf-8</span><span class="hljs-string">"</span>, errors=<span class="hljs-string">"</span><span class="hljs-string">replace</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">except</span> OSError:
+            <span class="hljs-keyword">continue</span>
+        <span class="hljs-keyword">if</span> <span class="hljs-string">"</span><span class="hljs-string">\0</span><span class="hljs-string">"</span> in raw:
+            <span class="hljs-keyword">continue</span></code></pre></div></figure>
+</section><section class="design-section" id="content-search-2"><h3>3.2 先缩小搜索，再读上下文、分页或匹配片段</h3>
+<p>默认输出一整行的缩略文本，长行只展示前 300 个 UTF-16 代码单元。报错恰好在行尾时，可以用 <code>only_matching=true</code> 加 <code>match_context=12</code>，让输出对准命中的片段，给出行、列和命中附近的字符。只有 <code>mode="content"</code> 才能看这种结果。普通上下文模式的 <code>head_limit</code> 按输出行来判断何时停下，最后一组前后文可能越过阈值。<code>offset</code> 跳过的是正则命中项，两者不能当作同一种计数。整个结果还有长度上限，到达上限后可缩小搜索目录或收紧正则。</p>
+<div aria-label="先缩小搜索，再读上下文、分页或匹配片段" class="table-scroll" role="region" tabindex="0"><table><thead><tr><th scope="col">参数</th><th scope="col">类型及默认</th><th scope="col">影响</th></tr></thead><tbody>
+<tr><th scope="row"><code>pattern</code></th><td>必填字符串</td><td>Python 正则。按原文查找普通符号时需转义，例如给 <code>(</code> 加反斜杠。</td></tr>
+<tr><th scope="row"><code>path</code> / <code>glob</code> / <code>type</code></th><td>可选字符串，缺省从 <code>.</code> 开始，另两项不限制</td><td>搜索目录或指定文件，按末级文件名模式筛选，或按已知文件类型筛选。未识别的类型不会产生扩展名限制。</td></tr>
+<tr><th scope="row"><code>mode</code></th><td>可选枚举，默认 <code>content</code></td><td><code>content</code> 报到行，<code>files</code> 只列路径。</td></tr>
+<tr><th scope="row"><code>ignore_case</code> / <code>multiline</code></th><td>可选布尔，默认 <code>false</code></td><td>是否忽略大小写，是否按整个文件匹配并允许点号越过换行。</td></tr>
+<tr><th scope="row"><code>before</code> / <code>after</code> / <code>context</code></th><td>可选整数，均非负，默认 0</td><td>前后文行数，每侧取单边值与 <code>context</code> 的较大值。</td></tr>
+<tr><th scope="row"><code>head_limit</code> / <code>offset</code></th><td>可选整数，前者至少 1，默认 200，后者非负，默认 0</td><td>前者达到输出行数阈值后停止搜索，带上下文时会先添加整组。后者跳过命中项。文件模式中以命中文件为单位。</td></tr>
+<tr><th scope="row"><code>only_matching</code> / <code>match_context</code></th><td>可选，前者布尔默认 <code>false</code>，后者整数 0–200，默认 0</td><td>将匹配文本标为 <code>&lt;&lt;…&gt;&gt;</code>。第二项只在片段模式下生效，按 UTF-16 代码单元保留周边字符。</td></tr>
+</tbody></table></div>
+<p>试算另一个文件。第 3、10 行各有一处命中，以 <code>context=1</code> 和 <code>head_limit=2</code> 查询。返回行和实际命中数可以从下面这个片段分别数出来。</p>
+<figure class="reasoning-figure" id="grep-page-evidence">
+<figcaption>源码推演 · 首次查询的回包节选</figcaption>
+<div aria-label="源码推演 · 首次查询的回包节选" class="table-scroll" role="region" tabindex="0"><table>
+<thead><tr><th scope="col">返回行</th><th scope="col">输出标记</th></tr></thead>
+<tbody>
+<tr><td><code>example.py:2</code></td><td><code>-</code> 前一行</td></tr>
+<tr><td><code>example.py:3</code></td><td><code>&gt;</code> 正则命中</td></tr>
+<tr><td><code>example.py:4</code></td><td><code>-</code> 后一行</td></tr>
+</tbody>
+</table></div>
+</figure>
+<details class="answer-box"><summary>下次 offset 填 3 会漏掉哪一处？应该填多少？</summary><div><p>填 3 会跳过全部已知命中。上次只查到一处匹配，所以填 1 才能从第 10 行续搜。</p></div></details>
+<p>代码先在 <code>hits()</code> 循环内增加 <code>total</code>，再为本次命中追加前后文，最后看 <code>len(out)</code> 是否达到阈值。一处命中可以占三行展示，所以即使没有命中第 10 行，首份回包仍已有三行。上下文让模型更快判断命中是否相关，也让展示行数失去作分页游标的资格。看到截断，优先缩小范围再搜。看到空结果，核对路径、文件类型、正则和跳过数。</p>
+</section></section>
+<section class="v2-topic-group" id="read-context">
+<header class="v2-group-heading"><span>04</span><h2>原文、读取基线与调用点</h2></header><div class="design-section">
+</div><section class="design-section" id="read-context-1"><h3>4.1 Read 从搜索行号向上找定义</h3>
+<p>在仓库根调用 <code>Read</code>：<code>{"path":"src/ruocun/tools/paths.py","offset":104,"limit":9}</code>。这里的 offset 是起始行号，从 1 开始，limit 是显示的行数。下面直接看这九行源码。读取记录按绝对路径拿出旧 <code>meta</code>，再取磁盘上的当前时间和大小。只有两份元数据不一致才进入外部改动这条拒绝分支。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/paths.py#L104" rel="noopener" target="_blank">src/ruocun/tools/paths.py · 第 104–112 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>9 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="104"></span><span data-line="105"></span><span data-line="106"></span><span data-line="107"></span><span data-line="108"></span><span data-line="109"></span><span data-line="110"></span><span data-line="111"></span><span data-line="112"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">checkReadBaseline</span>(absolute: <span class="hljs-built_in">str</span>, path: <span class="hljs-built_in">str</span>, ctx: ToolContext) -&gt; <span class="hljs-keyword">None</span>:
+    meta = ctx.readMeta.get(absolute)
+    <span class="hljs-keyword">if</span> meta is not <span class="hljs-keyword">None</span>:
+        <span class="hljs-keyword">try</span>:
+            current = fileMeta(absolute)
+        <span class="hljs-keyword">except</span> OSError <span class="hljs-keyword">as</span> exc:
+            <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">写入前无法核对文件:</span><span class="hljs-string">{</span>path<span class="hljs-string">}</span><span class="hljs-string">。请重新 Read。</span><span class="hljs-string">{</span>exc<span class="hljs-string">}</span><span class="hljs-string">"</span>) <span class="hljs-keyword">from</span> exc
+        <span class="hljs-keyword">if</span> current != meta:
+            <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">文件自上次 Read 后已被外部改动:</span><span class="hljs-string">{</span>path<span class="hljs-string">}</span><span class="hljs-string">。请重新 Read 看最新内容再写,以免覆盖他人改动。</span><span class="hljs-string">"</span>)</code></pre></div></figure>
+<p>现在用 <code>{"path":"src/ruocun/tools","pattern":"checkReadBaseline","mode":"files"}</code> 找定义、导入和调用的候选文件。再读 <code>edit_file.py</code> 的第 89–91 行与 <code>write_file.py</code> 的第 41 行，确认两者都会调用它。文件清单只指示还该读哪里，读到调用表达式才确认这个函数真的参与写前控制。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/edit_file.py#L88" rel="noopener" target="_blank">src/ruocun/tools/edit_file.py · 第 88–95 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>8 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="88"></span><span data-line="89"></span><span data-line="90"></span><span data-line="91"></span><span data-line="92"></span><span data-line="93"></span><span data-line="94"></span><span data-line="95"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            <span class="hljs-keyword">raise</span> InterruptedError(<span class="hljs-string">"</span><span class="hljs-string">工具调用已取消</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> absolute not in ctx.readFiles:
+            <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">编辑前请先用 Read 读过它:</span><span class="hljs-string">{</span>args[<span class="hljs-string">'</span><span class="hljs-string">path</span><span class="hljs-string">'</span>]<span class="hljs-string">}</span><span class="hljs-string">"</span>)
+        checkReadBaseline(absolute, args[<span class="hljs-string">"</span><span class="hljs-string">path</span><span class="hljs-string">"</span>], ctx)
+        <span class="hljs-keyword">try</span>:
+            raw = Path(absolute).read_bytes().decode(<span class="hljs-string">"</span><span class="hljs-string">utf-8</span><span class="hljs-string">"</span>, errors=<span class="hljs-string">"</span><span class="hljs-string">replace</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">except</span> OSError <span class="hljs-keyword">as</span> exc:
+            <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">编辑前无法读取文件:</span><span class="hljs-string">{</span>args[<span class="hljs-string">'</span><span class="hljs-string">path</span><span class="hljs-string">'</span>]<span class="hljs-string">}</span><span class="hljs-string">。</span><span class="hljs-string">{</span>exc<span class="hljs-string">}</span><span class="hljs-string">"</span>) <span class="hljs-keyword">from</span> exc</code></pre></div></figure>
+<p>Read 默认显示 2000 行。每行超过 2000 个 UTF-16 代码单元时会截成预览。超过 5 MiB 的文本应显式传分页参数，目前实现仍整份读取字节再切行，缩小的是回包。Grep 只提供找到文件的证据。文本 Read 还把开始读取前的修改时间和字节数留给程序，写入前据此发现文件可能已变化。这份供比较的读取记录称为基线。若成功访问还可能触发<a href="19-流程怎样按任务加载.html#skill-discovery-path" rel="noopener" target="_blank">附近 Skill 的发现</a>。基线何时会挡住修改，留到<a href="01-文件编辑可靠性-精致教材预览.html#stale-observation" rel="noopener" target="_blank">文件编辑篇的外部改动示例</a>代入。</p>
+</section></section>
+<section class="v2-topic-group" id="api-navigation-example">
+<header class="v2-group-heading"><span>05</span><h2>真实 API 示例：从仓库告警定位代码</h2></header><div class="design-section">
+</div><section class="design-section" id="api-navigation-search-root"><h3>5.1 相同文件名要带回搜索根</h3>
+<p>换一个场景。仓库扫描告警留下了字符串 <code>warehouse scan retries exhausted</code>，需要找出它的触发条件。会话目录是合成仓库根，搜索限定在 <code>src/warehouse</code>。同一份模型响应发出了下面两个 Grep 调用。这次用了 RuoCun 当前流式客户端和本地只读工具执行器，共三次真实模型请求。</p>
+<figure class="ruocun-code" data-language="json">
+<figcaption class="ruocun-code-caption"><span>JSON</span><span>4 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span><span data-line="2"></span><span data-line="3"></span><span data-line="4"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-json">[
+  {<span class="hljs-attr">"id"</span>:<span class="hljs-string">"call_00_EcNiTIfhDKI06ub0d9Zx9495"</span>,<span class="hljs-attr">"name"</span>:<span class="hljs-string">"Grep"</span>,<span class="hljs-attr">"arguments"</span>:{<span class="hljs-attr">"pattern"</span>:<span class="hljs-string">"warehouse scan retries exhausted"</span>,<span class="hljs-attr">"path"</span>:<span class="hljs-string">"src/warehouse"</span>}},
+  {<span class="hljs-attr">"id"</span>:<span class="hljs-string">"call_01_iYCY0dcDqikaRmIAgr3D7490"</span>,<span class="hljs-attr">"name"</span>:<span class="hljs-string">"Grep"</span>,<span class="hljs-attr">"arguments"</span>:{<span class="hljs-attr">"pattern"</span>:<span class="hljs-string">"retries exhausted|retries"</span>,<span class="hljs-attr">"path"</span>:<span class="hljs-string">"src/warehouse"</span>,<span class="hljs-attr">"mode"</span>:<span class="hljs-string">"files"</span>}}
+]</code></pre></div></figure>
+<p>上面节选了实际调用的 ID、工具名和解码后的参数。默认内容模式给出行号和原文，文件模式只列路径。两条结果返回的文件名相同，仍分别带自己的 <code>tool_call_id</code>。</p>
+<figure class="reasoning-figure">
+<figcaption>真实 API 与工具执行 · 下一次 Read 填什么？</figcaption>
+<div aria-label="真实 API 与工具执行 · 下一次 Read 填什么？" class="table-scroll" role="region" tabindex="0"><table><thead><tr><th scope="col">手里的材料</th><th scope="col">实际值</th></tr></thead><tbody>
+<tr><th scope="row">搜索参数</th><td><code>path=src/warehouse</code></td></tr>
+<tr><th scope="row">第一次 Grep</th><td><code>retry.py:5:        logger.warning('warehouse scan retries exhausted')</code></td></tr>
+<tr><th scope="row">同批另一次 Grep</th><td><code>retry.py</code></td></tr>
+<tr><th scope="row">读文件时的目录</th><td>合成仓库根也有一个旧的 <code>retry.py</code>，它的阈值是 9。</td></tr>
+</tbody></table></div>
+</figure>
+<details class="answer-box"><summary>核对下一次实际调用</summary><div><p>把搜索根补回去，读取 <code>src/warehouse/retry.py</code>。模型随后发出的调用 ID 是 <code>call_00_Te12QG2KDg1wc2RYlcyv8487</code>，参数是 <code>{"path":"src/warehouse/retry.py"}</code>。直接传 <code>retry.py</code> 会读到合成仓库根的旧文件。</p></div></details>
+<p>第二次请求带回两条 Grep 的结果后，Read 读到了下面的原文。第三次请求将这份带行号的结果交给模型。</p>
+<figure class="ruocun-code" data-language="text">
+<figcaption class="ruocun-code-caption"><span>输出</span><span>7 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span><span data-line="2"></span><span data-line="3"></span><span data-line="4"></span><span data-line="5"></span><span data-line="6"></span><span data-line="7"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-text">1	DELIVERY_RETRY_LIMIT = 4
+2	
+3	def record_exhausted(logger, attempts):
+4	    if attempts &gt;= DELIVERY_RETRY_LIMIT:
+5	        logger.warning('warehouse scan retries exhausted')
+6	        return True
+7	    return False</code></pre></div></figure>
+<p>模型报告了文件、命中行和阈值 4。源码能证明这段函数在 <code>attempts &gt;= 4</code> 时记录告警，整条扫描流程是否还能进行下一次尝试，要继续找调用者。额外发出的文件模式 Grep 只补了候选列表，本题从第一条命中就可以直接走到 Read。遇到类似任务，把搜索与取证的关系讲清后就能判断哪些工具是必要的。</p>
+</section></section>
+<section class="v2-topic-group" id="semantic-hints">
+<header class="v2-group-heading"><span>06</span><h2>结构摘要与语义导航</h2></header><div class="design-section">
+</div><section class="design-section" id="semantic-hints-1"><h3>6.1 RepoMap 缩小入口，LSP 沿符号定位</h3>
+<p>如果线索是“文件编辑的模块在哪里”，可以先读 RepoMap。把它想成目录和函数、类名称组成的一份索引。它在 <code>cwd</code> 或工作区根构造支持语言的结构摘要，再按模型计量文本用的 token 预算挑符号展示。扫描到上限会提示覆盖范围。<code>max_tokens</code> 可指定预算，schema 也接收 <code>refresh</code>，当前处理器没有读取它，不能靠这个字段保证重扫。先用摘要选目录，再找完整定义。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/repo_map.py#L10" rel="noopener" target="_blank">src/ruocun/tools/repo_map.py · 第 10–20 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>11 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="10"></span><span data-line="11"></span><span data-line="12"></span><span data-line="13"></span><span data-line="14"></span><span data-line="15"></span><span data-line="16"></span><span data-line="17"></span><span data-line="18"></span><span data-line="19"></span><span data-line="20"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">_handler</span>(args: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any], ctx: ToolContext) -&gt; <span class="hljs-built_in">str</span>:
+    root = ctx.cwd or ctx.workspaceRoot
+    budget = args.get(<span class="hljs-string">"</span><span class="hljs-string">max_tokens</span><span class="hljs-string">"</span>, repoMapTokenBudget(ctx.notificationEnv))
+    result = <span class="hljs-keyword">await</span> buildRepoMap(root, budget, signal=ctx.signal)
+    english = ctx.lang == <span class="hljs-string">"</span><span class="hljs-string">en</span><span class="hljs-string">"</span>
+    <span class="hljs-keyword">if</span> not result.text:
+        <span class="hljs-keyword">return</span> (<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">No supported-language source files found under </span><span class="hljs-string">{</span>root<span class="hljs-string">}</span><span class="hljs-string"> (supported: TS/JS/Python/Go/Rust/Java).</span><span class="hljs-string">"</span>
+                <span class="hljs-keyword">if</span> english <span class="hljs-keyword">else</span> <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">在 </span><span class="hljs-string">{</span>root<span class="hljs-string">}</span><span class="hljs-string"> 下没找到支持语言的源文件(支持:TS/JS/Python/Go/Rust/Java)。</span><span class="hljs-string">"</span>)
+    footer = (<span class="hljs-string">"</span><span class="hljs-string">\n</span><span class="hljs-string">(Scan limit reached. This map covers the files indexed so far.)</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> english
+              <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">\n</span><span class="hljs-string">(注:仓库文件数超过扫描上限,地图只覆盖前一批)</span><span class="hljs-string">"</span>) <span class="hljs-keyword">if</span> result.truncated <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">"</span>
+    <span class="hljs-keyword">return</span> wrapRepoMapNotice(result.text, english, result.fileCount) + footer</code></pre></div></figure>
+<p>具体到 <code>checkReadBaseline</code>，Grep 匹配同名文字，遇到两个模块各有一个同名函数还要继续判断。编辑器里“跳到定义”常通过 LSP（语言服务器协议）请求一个理解源码的程序，让它按光标位置找到实际引用的定义。RuoCun 的调用同样可以在实际调用位置传文件、行、列，用 <code>goToDefinition</code> 追定义，或在定义位置用 <code>findReferences</code> 找引用。<code>workspaceSymbol</code> 需要 <code>query</code>，<code>filePath</code> 供选择服务器，<code>documentSymbol</code> 列文件内符号而无需行列。服务不可用时，回到文本搜索和源码阅读。语义结果也需要用 Read 查看上下文，才能判断调用在哪个分支发生。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/lsp.py#L16" rel="noopener" target="_blank">src/ruocun/tools/lsp.py · 第 16–33 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>18 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="16"></span><span data-line="17"></span><span data-line="18"></span><span data-line="19"></span><span data-line="20"></span><span data-line="21"></span><span data-line="22"></span><span data-line="23"></span><span data-line="24"></span><span data-line="25"></span><span data-line="26"></span><span data-line="27"></span><span data-line="28"></span><span data-line="29"></span><span data-line="30"></span><span data-line="31"></span><span data-line="32"></span><span data-line="33"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">_handler</span>(args: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any], ctx: ToolContext) -&gt; <span class="hljs-built_in">str</span>:
+    <span class="hljs-keyword">if</span> ctx.lsp is <span class="hljs-keyword">None</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"</span><span class="hljs-string">当前环境不支持 LSP。</span><span class="hljs-string">"</span>
+    resolved = ctx.lsp.resolve(args[<span class="hljs-string">"</span><span class="hljs-string">filePath</span><span class="hljs-string">"</span>])
+    <span class="hljs-keyword">if</span> <span class="hljs-string">"</span><span class="hljs-string">error</span><span class="hljs-string">"</span> in resolved:
+        <span class="hljs-keyword">return</span> <span class="hljs-built_in">str</span>(resolved[<span class="hljs-string">"</span><span class="hljs-string">error</span><span class="hljs-string">"</span>])
+    client: LspClient = resolved[<span class="hljs-string">"</span><span class="hljs-string">client</span><span class="hljs-string">"</span>]
+    operation = args[<span class="hljs-string">"</span><span class="hljs-string">operation</span><span class="hljs-string">"</span>]
+    <span class="hljs-keyword">if</span> operation == <span class="hljs-string">"</span><span class="hljs-string">workspaceSymbol</span><span class="hljs-string">"</span>:
+        <span class="hljs-keyword">if</span> not args.get(<span class="hljs-string">"</span><span class="hljs-string">query</span><span class="hljs-string">"</span>):
+            <span class="hljs-keyword">return</span> <span class="hljs-string">"</span><span class="hljs-string">workspaceSymbol 需要 query 参数。</span><span class="hljs-string">"</span>
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">await</span> client.workspaceSymbol(args[<span class="hljs-string">"</span><span class="hljs-string">query</span><span class="hljs-string">"</span>], signal=ctx.signal)
+    <span class="hljs-keyword">if</span> operation == <span class="hljs-string">"</span><span class="hljs-string">documentSymbol</span><span class="hljs-string">"</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">await</span> client.documentSymbol(args[<span class="hljs-string">"</span><span class="hljs-string">filePath</span><span class="hljs-string">"</span>], signal=ctx.signal)
+    <span class="hljs-keyword">if</span> <span class="hljs-string">"</span><span class="hljs-string">line</span><span class="hljs-string">"</span> not in args or <span class="hljs-string">"</span><span class="hljs-string">character</span><span class="hljs-string">"</span> not in args:
+        <span class="hljs-keyword">return</span> <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">{</span>operation<span class="hljs-string">}</span><span class="hljs-string"> 需要 line 和 character 参数。</span><span class="hljs-string">"</span>
+    method: Callable[..., Awaitable[<span class="hljs-built_in">str</span>]] = <span class="hljs-built_in">getattr</span>(client, _METHODS.get(operation, operation))
+    <span class="hljs-keyword">return</span> <span class="hljs-keyword">await</span> method(args[<span class="hljs-string">"</span><span class="hljs-string">filePath</span><span class="hljs-string">"</span>], args[<span class="hljs-string">"</span><span class="hljs-string">line</span><span class="hljs-string">"</span>], args[<span class="hljs-string">"</span><span class="hljs-string">character</span><span class="hljs-string">"</span>], signal=ctx.signal)</code></pre></div></figure>
+</section></section>
+<section class="v2-topic-group" id="article-assessment">
+<header class="v2-group-heading"><span>07</span><h2>学习效果检测</h2></header><div class="design-section">
+</div><section class="design-section" id="article-assessment-1">
+<h3>7.1 根据搜索结果选择下一步定位</h3>
+<p><strong>1．</strong> 会话在仓库根。助手发出两次 Grep，<code>g8</code> 搜 <code>src/api</code>，<code>g3</code> 搜 <code>src/worker</code>。两个回包都显示 <code>retry.py:12</code>，其中报告“队列超时”的回包标着 <code>g3</code>。要读这条告警前后的条件，应把哪一份搜索参数带回来？请写下一次 Read。</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>沿 <code>tool_call_id=g3</code> 找到搜索根 <code>path=src/worker</code>。Read 从仓库根开始，传 <code>{"path":"src/worker/retry.py","offset":8,"limit":10}</code> 就能看到命中处及前后条件。仅凭短文件名或行号区分不了两份源码。</p></div></details>
+<p><strong>2．</strong>为什么在 Grep 里用 <code>glob="tools/*.py"</code> 反而找不到？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>这里匹配的是文件名末段，例如 <code>paths.py</code>。用 <code>path</code> 约束目录，再用 <code>glob="*.py"</code> 或 <code>type="py"</code> 过滤候选。</p></div></details>
+<p><strong>3．</strong>看到 Grep 打印出了准确的旧文本，可以直接 Edit 吗？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>还应 Read 建立基线并读清上下文，随后使用无展示行号的原文及必要上下文构造编辑调用。</p></div></details>
+</section><div class="design-section">
+</div></section>
+<section class="v2-topic-group" id="article-interview">
+<header class="v2-group-heading"><span>08</span><h2>模拟面试官提问</h2></header><div class="design-section">
+</div><section class="design-section" id="article-interview-1"><h3>8.1 Agent 开发实习</h3>
+<h4>独立核心题</h4>
+<p><strong>只给一条报错，怎样找到该看的实现？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p><strong>口述回答。</strong>我先用 Grep 搜内容，把命中当成定位线索，再 Read 报错之前的函数和条件，最后搜函数引用并核对实际调用分支。RuoCun 这条外部改动错误出现在 <code>checkReadBaseline()</code>，Edit 和 Write 都会用到这项检查。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>知道完整报错，在预计的目录搜却没结果，你从哪里查起？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>检查正则、相对目录、Glob 匹配对象、文件类型和跳过数量，随后有针对性地放宽条件。</p></div></details>
+<p><strong>追问 1</strong> 放宽目录后一口气返回大量结果，其中还截断了。怎样重新定位？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>用较小路径范围或更特异的符号缩小查询。要看长行尾部就用匹配片段，要理解控制流就读原文件。</p></div></details>
+<p><strong>追问 2</strong> 同一段报错出现在测试和工具实现两个文件，怎么找实际入口？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>先读出各自所在函数和条件，再沿生产调用位置追到实际派发路径。测试能展示一种输入会发生什么，调用点能解释这个分支在何时介入。</p></div></details>
+</section><section class="design-section" id="article-interview-2"><h3>8.2 Agent harness 岗位</h3>
+<h4>独立核心题</h4>
+<p><strong>为什么区分搜索预览和真正读文件？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p><strong>口述回答。</strong>搜索为模型挑候选并控制回包大小，Read 让模型看到所需上下文，还会建立写前校验需要的元数据。用临时文本文件验证，可分别比对 Grep 后和 Read 后的已读状态，以及外部修改后 Edit 的拒绝结果。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>给 Grep 加前后文后为什么不能按显示行数翻页？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>上下文产生多行输出，<code>offset</code> 却数命中项。先确定接口的分页单位。</p></div></details>
+<p><strong>追问 1</strong> 下一页找到了正确的文件和行号，Read 为什么仍可能选错文件？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>结果路径相对搜索根，Read 相对执行上下文。明确保存搜索根，转换后再读。</p></div></details>
+<p><strong>追问 2</strong> 若没有可用的语言服务器，怎样确认这个文件里的函数被调用？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>用 Grep 找符号的定义、导入和引用，再用 Read 核对调用表达式及所在分支。命中列表只负责缩小阅读范围。</p></div></details>
+</section></section>
+<section class="v2-topic-group" id="article-takeaways">
+<header class="v2-group-heading"><span>09</span><h2>这一篇带走什么</h2></header><div class="design-section">
+<p>代码定位从已有线索选择搜索入口，用命中缩小范围，再读出条件和调用关系，确认真正负责行为的实现。</p>
+<ul class="pilot-takeaways">
+<li>路径模式与内容正则对应不同对象。跨调用传递相对路径时，把它的搜索根交代清楚。</li>
+<li>遇到空结果或截断，先查扫描范围、过滤器和计数单位，再决定重搜或分页。</li>
+<li>命中只定位值得看的位置。准备改文件时用 Read 核对上下文并建立基线，用实际调用点或语义引用验证责任。</li>
+</ul>
+<p>现在已经能找到哪段源码拒绝了写入，手里还有实际原文和读取基线。接着回到 <code>prices.mjs</code>，看<a href="01-文件编辑可靠性-精致教材预览.html#real-edit" rel="noopener" target="_blank">文件编辑篇</a>怎样用这些材料找准修改目标，并在文件中途更新时保留他人的改动。</p>
+</div></section>
+</article></main>
+</body>
+</html>

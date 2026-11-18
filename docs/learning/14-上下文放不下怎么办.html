@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>上下文放不下怎么办：预算、完整工具组与摘要提交 · RuoCun 设计学习</title>
+<link href="assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="assets/ruocun-code.css" rel="stylesheet"/>
+<link href="assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="assets/ruocun-article.css" rel="stylesheet"/>
+<link href="assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="assets/ruocun-textbook.js"></script>
+</head>
+<body class="textbook-read">
+<a class="textbook-skip" href="#context-compaction">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#context-compaction">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航">
+<a href="课程学习地图.html" rel="noopener" target="_blank">学习地图</a>
+<a class="textbook-original" href="#article-takeaways">这一篇带走什么</a>
+</nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title">上下文放不下怎么办</div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc" open="">
+<summary>展开文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#cut-through-read"><span class="v2-toc-number">1</span><span>为了省窗口，能从两条 Read 回包中间切开吗？</span></a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#request-budget"><span class="v2-toc-number">2</span><span>请求窗口、输出预留与压缩阈值</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#wire-budget"><span class="v2-toc-number">2.1</span><span>预算从真正要发出的请求体算起</span></a></li><li><a class="v2-toc-child-link" href="#output-headroom"><span class="v2-toc-number">2.2</span><span>输出与估算误差占用同一窗口</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#candidate-strategy"><span class="v2-toc-number">3</span><span>工具结果裁剪与完整工具组</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#shrink-tool-text"><span class="v2-toc-number">3.1</span><span>先裁剪长回包，保留回包身份和原文入口</span></a></li><li><a class="v2-toc-child-link" href="#balanced-boundary"><span class="v2-toc-number">3.2</span><span>以调用 ID 计算合法切点</span></a></li><li><a class="v2-toc-child-link" href="#tail-and-anchors"><span class="v2-toc-number">3.3</span><span>近期工作、未处理输入与有效待办</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#summary-and-publication"><span class="v2-toc-number">4</span><span>原始前缀摘要与候选提交</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#summary-uses-original"><span class="v2-toc-number">4.1</span><span>摘要读取连续旧前缀，候选再重组</span></a></li><li><a class="v2-toc-child-link" href="#confirm-candidate"><span class="v2-toc-number">4.2</span><span>确认归档和检查点后才替换活会话</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-assessment"><span class="v2-toc-number">5</span><span>学习效果检测</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#article-assessment-1"><span class="v2-toc-number">5.1</span><span>判断预算、合法切点和候选提交</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-interview"><span class="v2-toc-number">6</span><span>模拟面试官提问</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#intern-interview"><span class="v2-toc-number">6.1</span><span>Agent 开发实习</span></a></li><li><a class="v2-toc-child-link" href="#harness-interview"><span class="v2-toc-number">6.2</span><span>Agent harness 岗位</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways"><span class="v2-toc-number">7</span><span>这一篇带走什么</span></a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper course-lesson" id="context-compaction"><header class="design-hero">
+<h1>上下文放不下怎么办</h1><p class="article-subtitle">预算、完整工具组与摘要提交</p>
+<p class="target">选一个能保持工具配对的切点，看看裁剪、摘要和提交分别解决哪一步。</p>
+</header>
+<section class="v2-topic-group" id="cut-through-read">
+<header class="v2-group-heading"><span>01</span><h2>为了省窗口，能从两条 Read 回包中间切开吗？</h2></header><div class="design-section">
+<p>会员折扣已经改到第三轮验证。模型一次发出两条 Read，分别读取规则和测试日志。下一轮请求快到窗口上限。一个简单策略是原样保留最后两条消息，再把更早的内容写成摘要。先在这个候选切点看一眼：仅靠右侧原文，还能找到发起日志读取的那条调用吗？</p>
+<figure class="reasoning-figure">
+<figcaption>源码推演 · 只保留最后两条时，切点在哪</figcaption>
+<div class="reasoning-grid">
+<section><h4>切点左侧 · 交给摘要</h4><p>① <code>assistant</code> 同时请求 <code>r-rule</code>、<code>r-log</code><br/>② <code>tool(r-rule)</code>：会员规则</p></section>
+<section data-outcome="failure"><h4>切点右侧 · 保留原文</h4><p>③ <code>tool(r-log)</code>：测试日志<br/>④ <code>user</code>：再核对一个过期会员</p></section>
+</div>
+</figure>
+<details class="answer-box"><summary>首读自检 · 第二条工具回包前能否切？如果尾部必须保留它，应该向哪边挪？</summary><div><p>这个位置仍欠 <code>r-log</code> 的配对，尾部只剩回复，已经找不到发起它的 assistant 调用。向前移到发起两个调用之前，整组在尾部留下，用户的新输入也一起保留。</p></div></details>
+<p>第 13 篇的<a href="13-重活交给子代理.html#fork-context" rel="noopener" target="_blank">Fork</a>用过同一条配对规则。那里要跳过一条还没等到回包的父调用，这里整组本来已经齐了，要防的是压缩把它拆开。图中右侧少了助手调用，即使摘要写“读过日志”，协议也无法据此重新配对。此后把 system、摘要和保留下来的消息拼成下一次发给模型的历史，这份可变的消息列表称为模型投影。</p>
+</div></section>
+<section class="v2-topic-group" id="request-budget">
+<header class="v2-group-heading"><span>02</span><h2>请求窗口、输出预留与压缩阈值</h2></header><div class="design-section">
+</div><section class="design-section" id="wire-budget"><h3>2.1 预算从真正要发出的请求体算起</h3>
+<p>第 9 篇在模型服务报超限后才进入<a href="09-请求出错怎样继续.html#request-session" rel="noopener" target="_blank">压缩恢复</a>。这里先算一遍：能不能在发请求前看到窗口已经吃紧？即使屏幕上对话只有几行，工具列表新增一组能力、历史有截图时，外发请求也会比几行问答长得多。只数人类输入会漏掉已经占用模型窗口的字段。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/context_runtime.py#L167" rel="noopener" target="_blank">src/ruocun/agent/context_runtime.py · 第 167–182 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>16 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="167"></span><span data-line="168"></span><span data-line="169"></span><span data-line="170"></span><span data-line="171"></span><span data-line="172"></span><span data-line="173"></span><span data-line="174"></span><span data-line="175"></span><span data-line="176"></span><span data-line="177"></span><span data-line="178"></span><span data-line="179"></span><span data-line="180"></span><span data-line="181"></span><span data-line="182"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">request_body</span>(<span class="hljs-built_in">self</span>, options: StreamChatOptions) -&gt; <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">object</span>]:
+        <span class="hljs-string">"""沿用客户端的 Chat 或 Responses 请求体构造逻辑，估算常规流式请求的预算。"""</span>
+        routed = usesResponses(options.get(<span class="hljs-string">"</span><span class="hljs-string">baseUrl</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">"</span>), options.get(<span class="hljs-string">"</span><span class="hljs-string">model</span><span class="hljs-string">"</span>, <span class="hljs-built_in">self</span>.session.model))
+        body = buildRequestBody(options, env=<span class="hljs-built_in">self</span>.env, use_responses=routed)
+        <span class="hljs-keyword">return</span> cast(<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">object</span>], buildResponsesRequest(body) <span class="hljs-keyword">if</span> routed <span class="hljs-keyword">else</span> body)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title">needs_compaction</span>(<span class="hljs-built_in">self</span>, options: StreamChatOptions) -&gt; <span class="hljs-built_in">bool</span>:
+        prepared = <span class="hljs-built_in">self</span>.prepare_request(options)
+        body = <span class="hljs-built_in">self</span>.request_body(prepared)
+        budget = <span class="hljs-built_in">self</span>.request_budget(prepared)
+        <span class="hljs-keyword">return</span> estimateRequestTokens(body) &gt;= budget.threshold_tokens
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title">request_budget</span>(<span class="hljs-built_in">self</span>, options: StreamChatOptions) -&gt; CompactionBudget:
+        body = <span class="hljs-built_in">self</span>.request_body(options)
+        output = body.get(<span class="hljs-string">"</span><span class="hljs-string">max_output_tokens</span><span class="hljs-string">"</span>, body.get(<span class="hljs-string">"</span><span class="hljs-string">max_completion_tokens</span><span class="hljs-string">"</span>, body.get(<span class="hljs-string">"</span><span class="hljs-string">max_tokens</span><span class="hljs-string">"</span>)))
+        <span class="hljs-keyword">return</span> resolveCompactionBudget(<span class="hljs-built_in">int</span>(<span class="hljs-built_in">self</span>.context_window), cast(<span class="hljs-built_in">int</span>, output), env=<span class="hljs-built_in">self</span>.env)</code></pre></div></figure>
+<p>程序用客户端的 Chat 或 Responses 步骤构造实际请求体形状，估算 <code>messages</code> 或 <code>input</code>、消息开销、工具定义和 <code>instructions</code>。图片块按固定 1024 估算，避免把编码后的整段 base64 当文字计费。文字估价按 UTF-16 长度换算，只做压缩决策。精确用量和服务端是否接受由回包给出。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/compaction_policy.py#L88" rel="noopener" target="_blank">src/ruocun/agent/compaction_policy.py · 第 88–100 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>13 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="88"></span><span data-line="89"></span><span data-line="90"></span><span data-line="91"></span><span data-line="92"></span><span data-line="93"></span><span data-line="94"></span><span data-line="95"></span><span data-line="96"></span><span data-line="97"></span><span data-line="98"></span><span data-line="99"></span><span data-line="100"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">estimateRequestTokens</span>(body: Mapping[<span class="hljs-built_in">str</span>, Any]) -&gt; <span class="hljs-built_in">int</span>:
+    <span class="hljs-string">"""粗估最终 Chat 或 Responses 请求的输入 token，计入消息结构与工具定义。
+
+    输出上限与图片的 base64 字节不计入输入估算。调用方仍需处理模型服务实际返回的上下文超限。
+    """</span>
+    messages = body.get(<span class="hljs-string">"</span><span class="hljs-string">messages</span><span class="hljs-string">"</span>, body.get(<span class="hljs-string">"</span><span class="hljs-string">input</span><span class="hljs-string">"</span>, []))
+    <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(messages, <span class="hljs-built_in">list</span>):
+        used = <span class="hljs-built_in">sum</span>(<span class="hljs-number">4</span> + _price(message) <span class="hljs-keyword">for</span> message in messages)
+    <span class="hljs-keyword">else</span>:
+        used = <span class="hljs-number">4</span> + _price(messages)
+    tools = body.get(<span class="hljs-string">"</span><span class="hljs-string">tools</span><span class="hljs-string">"</span>, [])
+    schema_tokens = _price(json.dumps(tools, ensure_ascii=<span class="hljs-keyword">False</span>, separators=(<span class="hljs-string">"</span><span class="hljs-string">,</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">:</span><span class="hljs-string">"</span>))) <span class="hljs-keyword">if</span> tools <span class="hljs-keyword">else</span> <span class="hljs-number">0</span>
+    <span class="hljs-keyword">return</span> used + schema_tokens + _price(body.get(<span class="hljs-string">"</span><span class="hljs-string">instructions</span><span class="hljs-string">"</span>))</code></pre></div></figure>
+</section><section class="design-section" id="output-headroom"><h3>2.2 输出与估算误差占用同一窗口</h3>
+<p>例子用一组方便心算的参数。窗口为 20,000，外发输出上限为 5,000。默认配置在剩余 15,000 中再留 8%，也就是 1,200 的动态余量。默认的 80% 压力线是 16,000，扣实际输出和余量以后只剩 13,800。阈值取较小的 13,800。即使消息正文估计只有 12,000，合上 2,000 的工具定义和消息结构之后达到 14,000，也该压缩。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/compaction_policy.py#L55" rel="noopener" target="_blank">src/ruocun/agent/compaction_policy.py · 第 55–72 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>18 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="55"></span><span data-line="56"></span><span data-line="57"></span><span data-line="58"></span><span data-line="59"></span><span data-line="60"></span><span data-line="61"></span><span data-line="62"></span><span data-line="63"></span><span data-line="64"></span><span data-line="65"></span><span data-line="66"></span><span data-line="67"></span><span data-line="68"></span><span data-line="69"></span><span data-line="70"></span><span data-line="71"></span><span data-line="72"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    output = output_limit <span class="hljs-keyword">if</span> output_explicit <span class="hljs-keyword">else</span> <span class="hljs-built_in">min</span>(output_limit, window // <span class="hljs-number">4</span>)
+    <span class="hljs-keyword">if</span> output &lt;= <span class="hljs-number">0</span> or output &gt;= window:
+        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"</span><span class="hljs-string">output limit must leave a positive message budget</span><span class="hljs-string">"</span>)
+    settings = {} <span class="hljs-keyword">if</span> env is <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> env
+    available = window - output
+    headroom = _integer(settings, <span class="hljs-string">"</span><span class="hljs-string">RUOCUN_COMPACT_HEADROOM_TOKENS</span><span class="hljs-string">"</span>,
+                        <span class="hljs-built_in">min</span>(<span class="hljs-number">65536</span>, <span class="hljs-built_in">max</span>(<span class="hljs-number">32</span>, math.floor(<span class="hljs-number">.08</span> * available))), minimum=<span class="hljs-number">0</span>)
+    threshold = math.floor(<span class="hljs-built_in">min</span>(_ratio(settings, <span class="hljs-string">"</span><span class="hljs-string">RUOCUN_COMPACT_THRESHOLD_RATIO</span><span class="hljs-string">"</span>, <span class="hljs-number">.8</span>) * window,
+                               available - headroom))
+    <span class="hljs-keyword">if</span> <span class="hljs-string">"</span><span class="hljs-string">RUOCUN_COMPACT_RETAIN_TOKENS</span><span class="hljs-string">"</span> in settings and <span class="hljs-string">"</span><span class="hljs-string">RUOCUN_COMPACT_RETAIN_RATIO</span><span class="hljs-string">"</span> in settings:
+        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"</span><span class="hljs-string">RUOCUN_COMPACT_RETAIN_TOKENS and RETAIN_RATIO are mutually exclusive</span><span class="hljs-string">"</span>)
+    retain = _integer(settings, <span class="hljs-string">"</span><span class="hljs-string">RUOCUN_COMPACT_RETAIN_TOKENS</span><span class="hljs-string">"</span>,
+                      math.floor(_ratio(settings, <span class="hljs-string">"</span><span class="hljs-string">RUOCUN_COMPACT_RETAIN_RATIO</span><span class="hljs-string">"</span>, <span class="hljs-number">.16</span>) * available))
+    <span class="hljs-keyword">if</span> threshold &lt;= <span class="hljs-number">0</span> or not <span class="hljs-number">0</span> &lt; retain &lt; threshold:
+        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"</span><span class="hljs-string">compaction headroom and retention leave no usable message budget</span><span class="hljs-string">"</span>)
+    <span class="hljs-keyword">return</span> CompactionBudget(window, output, headroom, threshold,
+                            retain, _integer(settings, <span class="hljs-string">"</span><span class="hljs-string">RUOCUN_COMPACT_SUMMARY_MAX_TOKENS</span><span class="hljs-string">"</span>,
+                                             <span class="hljs-built_in">min</span>(<span class="hljs-number">8192</span>, <span class="hljs-built_in">max</span>(<span class="hljs-number">128</span>, threshold // <span class="hljs-number">4</span>))))</code></pre></div></figure>
+<p>默认或隐式输出上限可以按窗口缩小，实际请求会使用预检写回的 <code>maxTokens</code>。显式配置的上限参与预算，超出可用空间时会拒绝。自动预检至多做两次压缩，要求每次提交后的完整请求确实变短。仍超过阈值就保存已确认进展并停止；服务端回超限时还可沿<a href="09-请求出错怎样继续.html" rel="noopener" target="_blank">请求恢复</a>的专门路径处理。</p>
+</section></section>
+<section class="v2-topic-group" id="candidate-strategy">
+<header class="v2-group-heading"><span>03</span><h2>工具结果裁剪与完整工具组</h2></header><div class="design-section">
+</div><section class="design-section" id="shrink-tool-text"><h3>3.1 先裁剪长回包，保留回包身份和原文入口</h3>
+<p>那份过长测试日志的中间记录大多是逐项运行过程。先把文本裁剪为开头 4,096 字符、结尾 1,024 字符，补省略标记和归档 ID，仍能保留“跑了哪个检查”和“最后输出什么”。单个工具结果的文本合计超过 8,192 字符才裁剪。图片等非文本内容留在原位置，<code>tool_call_id</code> 不改。TaskWait 回包和明确受保护的位置跳过裁剪，等待和交付事实将继续参与后面的决策。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/compact.py#L157" rel="noopener" target="_blank">src/ruocun/agent/compact.py · 第 157–176 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>20 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="157"></span><span data-line="158"></span><span data-line="159"></span><span data-line="160"></span><span data-line="161"></span><span data-line="162"></span><span data-line="163"></span><span data-line="164"></span><span data-line="165"></span><span data-line="166"></span><span data-line="167"></span><span data-line="168"></span><span data-line="169"></span><span data-line="170"></span><span data-line="171"></span><span data-line="172"></span><span data-line="173"></span><span data-line="174"></span><span data-line="175"></span><span data-line="176"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">_pruneTools</span>(
+    messages: <span class="hljs-built_in">list</span>[ChatMessage], opts: CompactOptions,
+) -&gt; <span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">list</span>[ChatMessage], <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">int</span>, <span class="hljs-built_in">str</span>]]:
+    candidate = <span class="hljs-built_in">list</span>(messages)
+    replacements: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">int</span>, <span class="hljs-built_in">str</span>] = {}
+    names = {call[<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>]: call.get(<span class="hljs-string">"</span><span class="hljs-string">function</span><span class="hljs-string">"</span>, {}).get(<span class="hljs-string">"</span><span class="hljs-string">name</span><span class="hljs-string">"</span>)
+             <span class="hljs-keyword">for</span> message in messages <span class="hljs-keyword">for</span> call in message.get(<span class="hljs-string">"</span><span class="hljs-string">tool_calls</span><span class="hljs-string">"</span>) or ()}
+    protected = opts.get(<span class="hljs-string">"</span><span class="hljs-string">protectedIndices</span><span class="hljs-string">"</span>, <span class="hljs-built_in">set</span>())
+    <span class="hljs-keyword">for</span> index, message in <span class="hljs-built_in">enumerate</span>(messages):
+        content = message.get(<span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> (message.get(<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>) != <span class="hljs-string">"</span><span class="hljs-string">tool</span><span class="hljs-string">"</span> or index in protected
+                or names.get(message.get(<span class="hljs-string">"</span><span class="hljs-string">tool_call_id</span><span class="hljs-string">"</span>)) == <span class="hljs-string">"</span><span class="hljs-string">TaskWait</span><span class="hljs-string">"</span>):
+            <span class="hljs-keyword">continue</span>
+        archive_id = _archiveId(messages, (index,), <span class="hljs-string">"</span><span class="hljs-string">prune</span><span class="hljs-string">"</span>, opts)
+        pruned = _pruneContent(content, archive_id)
+        <span class="hljs-keyword">if</span> pruned is <span class="hljs-keyword">None</span>:
+            <span class="hljs-keyword">continue</span>
+        candidate[index] = {**message, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: pruned}
+        replacements[index] = archive_id
+    <span class="hljs-keyword">return</span> candidate, replacements</code></pre></div></figure>
+<p>这种裁剪是确定性的，不要为能从日志节省出来的空间先额外请求模型。如果裁剪后满足候选条件，就直接提交短回包投影。裁掉的是当前模型直接看到的文本；读到归档指针后还可以按需回查。若中间那一行恰好是诊断证据，只有看归档才能继续定位。</p>
+</section><section class="design-section" id="balanced-boundary"><h3>3.2 以调用 ID 计算合法切点</h3>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/compact.py#L95" rel="noopener" target="_blank">src/ruocun/agent/compact.py · 第 95–115 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>21 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="95"></span><span data-line="96"></span><span data-line="97"></span><span data-line="98"></span><span data-line="99"></span><span data-line="100"></span><span data-line="101"></span><span data-line="102"></span><span data-line="103"></span><span data-line="104"></span><span data-line="105"></span><span data-line="106"></span><span data-line="107"></span><span data-line="108"></span><span data-line="109"></span><span data-line="110"></span><span data-line="111"></span><span data-line="112"></span><span data-line="113"></span><span data-line="114"></span><span data-line="115"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">_balancedCuts</span>(messages: <span class="hljs-built_in">list</span>[ChatMessage]) -&gt; <span class="hljs-built_in">list</span>[<span class="hljs-built_in">bool</span>]:
+    pending: <span class="hljs-built_in">set</span>[<span class="hljs-built_in">str</span>] = <span class="hljs-built_in">set</span>()
+    seen: <span class="hljs-built_in">set</span>[<span class="hljs-built_in">str</span>] = <span class="hljs-built_in">set</span>()
+    balanced = [<span class="hljs-keyword">True</span>]
+    <span class="hljs-keyword">for</span> message in messages:
+        <span class="hljs-keyword">if</span> message.get(<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>) == <span class="hljs-string">"</span><span class="hljs-string">assistant</span><span class="hljs-string">"</span>:
+            <span class="hljs-keyword">for</span> call in message.get(<span class="hljs-string">"</span><span class="hljs-string">tool_calls</span><span class="hljs-string">"</span>) or ():
+                call_id = call.get(<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>)
+                <span class="hljs-keyword">if</span> not <span class="hljs-built_in">isinstance</span>(call_id, <span class="hljs-built_in">str</span>) or not call_id or call_id in seen:
+                    <span class="hljs-keyword">raise</span> CompactionError(<span class="hljs-string">"</span><span class="hljs-string">工具调用身份重复或无效，原上下文保留。</span><span class="hljs-string">"</span>)
+                pending.add(call_id)
+                seen.add(call_id)
+        <span class="hljs-keyword">elif</span> message.get(<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>) == <span class="hljs-string">"</span><span class="hljs-string">tool</span><span class="hljs-string">"</span>:
+            call_id = message.get(<span class="hljs-string">"</span><span class="hljs-string">tool_call_id</span><span class="hljs-string">"</span>)
+            <span class="hljs-keyword">if</span> call_id not in pending:
+                <span class="hljs-keyword">raise</span> CompactionError(<span class="hljs-string">"</span><span class="hljs-string">工具结果缺少匹配调用，原上下文保留。</span><span class="hljs-string">"</span>)
+            pending.remove(call_id)
+        balanced.append(not pending)
+    <span class="hljs-keyword">if</span> pending:
+        <span class="hljs-keyword">raise</span> CompactionError(<span class="hljs-string">"</span><span class="hljs-string">工具结果尚未配对，原上下文保留。</span><span class="hljs-string">"</span>)
+    <span class="hljs-keyword">return</span> balanced</code></pre></div></figure>
+<p>从开场例子往下算。发起两条 Read 时，待配对集合加入 <code>r-rule</code>、<code>r-log</code>。第一条回包从集合拿走 <code>r-rule</code>，集合仍有 <code>r-log</code>。第二条回包后集合才空，可以在它之后切。若这个位置已经越过要保护的近期材料，代码从初选切点向前退到最近合法边界，两条调用和回包作为一个整体留在近期尾部。<strong>「完整工具组是历史的切分单位」</strong>。遇到重复调用 ID、无调用的回包或结束后仍欠回包时，现有历史连合法切点都没法确定，程序保留原上下文并报错。</p>
+</section><section class="design-section" id="tail-and-anchors"><h3>3.3 近期工作、未处理输入与有效待办</h3>
+<p>初选切点从尾部往前累计预算。默认近期材料预算为扣掉输出后的可用量的 16%，它影响起始位置，最终边界还要服从工具配对和保护要求。程序从尾部找最近一条 <code>role=user</code> 消息，跳过<a href="02-模型收到什么.html#model-input-first-check" rel="noopener" target="_blank">程序追加的执行目录事实</a>，如果其后没有助手消息，就留在尾部。恢复、等待或后台事件标记命中相应的 <code>system</code> 消息，也会保护。第 12 篇的后台投递另有 <code>role=user</code> 的数据包装，读到它要先看内容前缀，再知道记录是谁生成的。这一段的保护条件可以帮助判断哪些事实默认保留，不能给所有后台数据推定同一种保留规则。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/compact.py#L223" rel="noopener" target="_blank">src/ruocun/agent/compact.py · 第 223–239 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>17 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="223"></span><span data-line="224"></span><span data-line="225"></span><span data-line="226"></span><span data-line="227"></span><span data-line="228"></span><span data-line="229"></span><span data-line="230"></span><span data-line="231"></span><span data-line="232"></span><span data-line="233"></span><span data-line="234"></span><span data-line="235"></span><span data-line="236"></span><span data-line="237"></span><span data-line="238"></span><span data-line="239"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    retain = opts.get(<span class="hljs-string">"</span><span class="hljs-string">retainTokens</span><span class="hljs-string">"</span>, <span class="hljs-built_in">max</span>(<span class="hljs-number">1</span>, math.floor(before * <span class="hljs-number">.16</span>)))
+    <span class="hljs-keyword">if</span> <span class="hljs-built_in">type</span>(retain) is not <span class="hljs-built_in">int</span> or retain &lt; <span class="hljs-number">0</span>:
+        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"</span><span class="hljs-string">retainTokens must be a nonnegative integer</span><span class="hljs-string">"</span>)
+    accumulated, cut = <span class="hljs-number">0</span>, <span class="hljs-built_in">len</span>(messages)
+    <span class="hljs-keyword">for</span> index in <span class="hljs-built_in">reversed</span>(history):
+        accumulated += price([working[index]]) - framing
+        cut = index
+        <span class="hljs-keyword">if</span> accumulated &gt;= retain:
+            <span class="hljs-keyword">break</span>
+    <span class="hljs-keyword">for</span> index in opts.get(<span class="hljs-string">"</span><span class="hljs-string">protectedIndices</span><span class="hljs-string">"</span>, <span class="hljs-built_in">set</span>()):
+        <span class="hljs-keyword">if</span> not <span class="hljs-number">0</span> &lt;= index &lt; <span class="hljs-built_in">len</span>(messages):
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"</span><span class="hljs-string">protected message index is outside the current projection</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> index not in anchors:
+            cut = <span class="hljs-built_in">min</span>(cut, index)
+    <span class="hljs-keyword">while</span> cut &gt; <span class="hljs-number">0</span> and not balanced[cut]:
+        cut -= <span class="hljs-number">1</span>
+    selected = <span class="hljs-built_in">tuple</span>(index <span class="hljs-keyword">for</span> index in history <span class="hljs-keyword">if</span> index &lt; cut)</code></pre></div></figure>
+<p>构造候选时，首条 system 和识别出的会话启动 Hook 作为锚点；待办从当前清单或已确认的历史更新回收。旧投影可能有一份置顶清单，其后又有被确认的 TodoWrite 更新。恢复应按实际更新顺序取最新有效清单，显式空数组也清除旧清单。候选只追加有效待办，避免过时状态在多个摘要之间反复出现。</p>
+</section></section>
+<section class="v2-topic-group" id="summary-and-publication">
+<header class="v2-group-heading"><span>04</span><h2>原始前缀摘要与候选提交</h2></header><div class="design-section">
+</div><section class="design-section" id="summary-uses-original"><h3>4.1 摘要读取连续旧前缀，候选再重组</h3>
+<p>若裁剪仍不够，RuoCun 把确定的切点之前的原始连续历史送去生成摘要。以开场的两个 Read 为例，若完整工具组在切点之前，即使已经能生成它的裁剪版本，摘要仍读取旧回包。保留原连续前缀有助于请求复用，也让归档如实记录摘要看过哪些材料。摘要请求与压缩后发给主模型的请求各按自身预算判断。前缀太长无法做摘要时停止，保留已有投影。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/compact.py#L246" rel="noopener" target="_blank">src/ruocun/agent/compact.py · 第 246–265 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>20 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="246"></span><span data-line="247"></span><span data-line="248"></span><span data-line="249"></span><span data-line="250"></span><span data-line="251"></span><span data-line="252"></span><span data-line="253"></span><span data-line="254"></span><span data-line="255"></span><span data-line="256"></span><span data-line="257"></span><span data-line="258"></span><span data-line="259"></span><span data-line="260"></span><span data-line="261"></span><span data-line="262"></span><span data-line="263"></span><span data-line="264"></span><span data-line="265"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-comment"># 摘要请求沿用原始的连续前缀，让模型服务有机会命中缓存。</span>
+    <span class="hljs-comment"># 裁剪旧消息和移动控制锚点只应用到压缩后的模型上下文。</span>
+    summary_sources = <span class="hljs-built_in">tuple</span>(<span class="hljs-built_in">range</span>(cut))
+    summary = (<span class="hljs-keyword">await</span> opts[<span class="hljs-string">"</span><span class="hljs-string">summarize</span><span class="hljs-string">"</span>](copy.deepcopy(messages[:cut]))).strip()
+    <span class="hljs-keyword">if</span> not summary:
+        <span class="hljs-keyword">raise</span> CompactionError(<span class="hljs-string">"</span><span class="hljs-string">摘要为空，原上下文保留。</span><span class="hljs-string">"</span>)
+    archive_id = _archiveId(messages, summary_sources, <span class="hljs-string">"</span><span class="hljs-string">summary</span><span class="hljs-string">"</span>, opts)
+    checkpoint: ChatMessage = {<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">system</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>:
+        <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">[早期对话摘要]</span><span class="hljs-string">\n</span><span class="hljs-string">{</span>summary<span class="hljs-string">}</span><span class="hljs-string">\n</span><span class="hljs-string">[原文归档:</span><span class="hljs-string">{</span>archive_id<span class="hljs-string">}</span><span class="hljs-string">；需要细节时用 ArchiveRead。]</span><span class="hljs-string">"</span>}
+    <span class="hljs-keyword">if</span> price([checkpoint]) &gt;= price([messages[index] <span class="hljs-keyword">for</span> index in selected]):
+        <span class="hljs-keyword">raise</span> CompactionError(<span class="hljs-string">"</span><span class="hljs-string">摘要未严格缩小被替换区段，原上下文保留。</span><span class="hljs-string">"</span>)
+    tail = [index <span class="hljs-keyword">for</span> index in history <span class="hljs-keyword">if</span> index &gt;= cut]
+    result = [*[working[index] <span class="hljs-keyword">for</span> index in anchors], checkpoint, *[working[index] <span class="hljs-keyword">for</span> index in tail]]
+    origins: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">int</span> | <span class="hljs-keyword">None</span>] = [*anchors, <span class="hljs-keyword">None</span>, *[<span class="hljs-keyword">None</span> <span class="hljs-keyword">if</span> index in pruned <span class="hljs-keyword">else</span> index <span class="hljs-keyword">for</span> index in tail]]
+    <span class="hljs-keyword">if</span> pinned and pinned.strip():
+        result.append({<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">system</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">[当前任务清单]</span><span class="hljs-string">\n</span><span class="hljs-string">{</span>pinned<span class="hljs-string">}</span><span class="hljs-string">"</span>})
+        origins.append(<span class="hljs-keyword">None</span>)
+    after = price(result)
+    <span class="hljs-keyword">if</span> after &gt;= before:
+        <span class="hljs-keyword">raise</span> CompactionError(<span class="hljs-string">"</span><span class="hljs-string">压缩候选未降低请求压力，原上下文保留。</span><span class="hljs-string">"</span>)</code></pre></div></figure>
+<p>最终排列可能是常驻 system、启动时 Hook 附加的约定、带归档 ID 的一份早期摘要、近期原文及清单。新摘要整合旧历史时，也会读到被选中的早期摘要。要省下请求空间，新摘要须严格小于实际被替换的区段，整份候选也要确认缩小。保留下来的 system 仍占原有空间。至于哪段摘要请求和主请求能复用相同输入，留给<a href="16-前缀缓存怎样配合请求.html#summary-prefix" rel="noopener" target="_blank">前缀缓存篇的请求对照</a>。</p>
+</section><section class="design-section" id="confirm-candidate"><h3>4.2 确认归档和检查点后才替换活会话</h3>
+<p>沿用第 10 篇<a href="10-工具可能已经执行.html#durable-commit" rel="noopener" target="_blank">检查点确认后才发布的规则</a>。摘要刚返回时只是一份候选。取消、截断、空内容或含调用请求的响应都会使这次构造停止。生成候选后，Conversation 仍要核对当前投影和做摘要时看到的原投影一致。这里同次提交要多带一项：新摘要究竟来自哪些旧消息。</p>
+<figure class="reasoning-figure" id="summary-checkpoint-contrast">
+<figcaption>源码推演 · 归档提交未确认时，下一轮该取哪份历史</figcaption>
+<div class="reasoning-grid">
+<section><h4>原投影</h4><p>已确认的检查点含日志原文和两条 Read 回包，内存也还指向它。</p></section>
+<section><h4>候选投影</h4><p>有新摘要“会员日志已保留，检查通过”，以及示意归档 ID <code>summary-demo-2</code>。写入尚在等回执。</p></section>
+<section><h4>回执返回前中断</h4><p>这一刻只知道新摘要已生成。还要查归档引用与新检查点是否同次提交。</p></section>
+</div>
+</figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/session/conversation.py#L339" rel="noopener" target="_blank">src/ruocun/session/conversation.py · 第 339–349 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>11 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="339"></span><span data-line="340"></span><span data-line="341"></span><span data-line="342"></span><span data-line="343"></span><span data-line="344"></span><span data-line="345"></span><span data-line="346"></span><span data-line="347"></span><span data-line="348"></span><span data-line="349"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">compact_context</span>(<span class="hljs-built_in">self</span>, session: Session, messages: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any]], *,
+                              rewrite: ArchiveRewrite) -&gt; <span class="hljs-keyword">None</span>:
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> <span class="hljs-built_in">self</span>._checkpoint_lock:
+            <span class="hljs-built_in">self</span>._require_paired(session)
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">tuple</span>(session.messages) != rewrite.expected_messages or not messages or messages[<span class="hljs-number">0</span>] != session.messages[<span class="hljs-number">0</span>]:
+                <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"</span><span class="hljs-string">压缩准备后的模型投影已变化，拒绝提交旧候选。</span><span class="hljs-string">"</span>)
+            candidate = copy.deepcopy(messages)
+            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._commit(session, candidate, <span class="hljs-built_in">self</span>._accepted_inputs, archive_rewrite=rewrite)
+            session.messages = candidate
+            session.lastPromptTokens = <span class="hljs-keyword">None</span>
+            session.lastSentLength = <span class="hljs-number">0</span></code></pre></div></figure>
+<p><code>await self._commit(...)</code> 返回确认前，<code>candidate</code> 只是局部副本。若先换 <code>session.messages</code>、保存后来失败，下一次模型就可能拿着一个还没有入库的归档 ID 去找证据。开头也会核对原投影，防止生成摘要期间刚合入的新输入被旧快照覆盖。<strong>「先确认原文和投影的提交，再让模型看到新摘要」</strong>。拿不到回执时，停下来检查真实存储结果，核实下一次该恢复哪一份投影。</p>
+</section></section>
+<section class="v2-topic-group" id="article-assessment">
+<header class="v2-group-heading"><span>05</span><h2>学习效果检测</h2></header><div class="design-section">
+</div><section class="design-section" id="article-assessment-1">
+<h3>5.1 判断预算、合法切点和候选提交</h3>
+<p><strong>1．</strong> 窗口 20,000 token，输出预留 5,000，动态余量 1,200，压力线取窗口的 80%。请求原本估算 13,500。用户一个字没加，程序却新公布了占 600 token 的工具定义。前后哪次应开始压缩？只看聊天框会漏算什么？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>压力线为 16,000，给输出和余量留位后剩 13,800，实际阈值取两者中较小的 13,800。第一次 13,500 在阈值之下；第二次外发请求估算 14,100，已经越线。排查时比较真正发出的工具定义和消息，消息不变仍可能增加输入。</p></div></details>
+<p><strong>2．</strong>工具裁剪已生成一份候选，随后仍要调用模型摘要。摘要能看到裁掉的日志中段吗？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>那条日志若处于摘要的原始连续前缀，摘要仍能读取未裁剪的当前历史。若之前另一次压缩已提交并缩短了这条消息，当前投影只有缩短版，先前原文仍从归档读取。</p></div></details>
+<p><strong>3．</strong>摘要生成后有新消息改变了会话的原投影。应直接替换吗？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>提交会按预期旧投影检查。已变动就拒绝旧候选。用变化后的投影重新核定预算和安全切点，否则旧候选可能覆盖新进展。</p></div></details>
+<p id="review-history-cut"><strong>4． 设计评审</strong> 候选切点刚好落在同批两个 Read 的回包之间。第一条很长，第二条含下一步必须逐字核对的失败断言。你会往哪边移切点？若两条结果都已用完，移向另一边能换来什么？请像评审改动一样说明取舍。</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>我会退到助手发起调用之前，让整组留在近期原文。只留第二个回包会使它失去原调用；把整组交给有损摘要，又可能抹掉马上要逐字核对的断言。代价是暂时多占窗口，可先缩减其他长输出，再核算能否发出。</p><p>如果整组已用完且保护条件允许，在组后切也是配对完整的设计选项，能把更多原文收进摘要；要恢复细节可能得再查归档。项目当前会从初选位置向前回退到合法切点。两种设计都要遵守完整配对与实际预算。</p></div></details>
+</section><div class="design-section">
+</div></section>
+<section class="v2-topic-group" id="article-interview">
+<header class="v2-group-heading"><span>06</span><h2>模拟面试官提问</h2></header><div class="design-section">
+</div><section class="design-section" id="intern-interview"><h3>6.1 Agent 开发实习</h3>
+<h4>独立核心题</h4>
+<p><strong>长任务怎样继续，同时把日志丢失的影响降到最小？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>先按要发出的请求算预算，长工具回包可以保留头尾并留下归档 ID。如果还不够，就摘要完整的旧区段，把近期原文、待处理输入和任务清单继续带给模型。</p><p>判断日志中段是否有关键证据要看后续用途。按需归档回查是一项额外能力，负责弥补当前上下文的有损取舍。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>怎么设计触发阈值？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>我会先给输出预留空间，再给估算误差留余量，把最终要发送的输入按路由估价。</p></div></details>
+<p><strong>追问 1</strong> 如果用户加载新工具而没有多说一句话呢？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>工具定义膨胀可能使同一段历史触发压缩。</p></div></details>
+<p><strong>追问 2</strong> 如果预估仍在阈值内，模型服务说输入太长呢？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>处理服务返回的真实超限，按对应恢复路径压缩并重新核定请求。</p></div></details>
+</section><section class="design-section" id="harness-interview"><h3>6.2 Agent harness 岗位</h3>
+<h4>独立核心题</h4>
+<p><strong>怎样让压缩保持工具关系和归档可追溯？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>我先用调用和结果的 ID 找合法切点，再生成候选和它引用的原消息位置。事务中确认归档来源和新投影，完成后才发布内存会话。</p><p>调用组配对与持久化分别挡两种故障，前者避免送出错误历史，后者避免运行时引用还不能回查的原文指针。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>对压缩写入注入一次失败，你想观察什么？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>我会固定同一组历史与摘要响应，比较失败后的活投影、归档指针以及下一次模型是否被派发。</p></div></details>
+<p><strong>追问 1</strong> 确认持久化失败时呢？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>旧内存保持，当前回合停止，也没有把新指针交给模型。</p></div></details>
+<p><strong>追问 2</strong> 如果确认丢失但事务可能完成呢？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>保留现场并按持久状态恢复。把未确认直接按失败重发会损坏候选与旧投影的对应关系。</p></div></details>
+</section></section>
+<section class="v2-topic-group" id="article-takeaways">
+<header class="v2-group-heading"><span>07</span><h2>这一篇带走什么</h2></header><div class="design-section">
+<p>RuoCun 按真实请求估算窗口压力，先裁剪长回包，再按完整工具组摘要旧历史，最后确认新投影和原文归档才继续模型回合。</p>
+<ul class="pilot-takeaways">
+<li>预算从实际外发表示计算，先留输出和误差。工具 schema、图片及指令也会挤占窗口。</li>
+<li>切分时用调用 ID 找完整工具组边界，再保护近期事实和有效清单。按消息个数截尾很容易把回包留在它的调用之外。</li>
+<li>有损裁剪和摘要都需要能回查的原文来源。候选严格缩小并经持久提交后才可作为当前会话使用。</li>
+</ul>
+<p>假设图中的摘要已成功提交。模型读到“检查通过”和 <code>summary-demo-2</code>，下一步要<a href="15-摘要丢了细节怎样回查.html#same-text-different-evidence" rel="noopener" target="_blank">找出真正支持过期会员规则的那条回包</a>。</p>
+</div></section>
+</article></main>
+</body>
+</html>

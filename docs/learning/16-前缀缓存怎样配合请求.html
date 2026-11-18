@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>前缀缓存怎样配合请求：稳定布局、摘要与命中观察 · RuoCun 设计学习</title>
+<link href="assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="assets/ruocun-code.css" rel="stylesheet"/>
+<link href="assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="assets/ruocun-article.css" rel="stylesheet"/>
+<link href="assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="assets/ruocun-textbook.js"></script>
+</head>
+<body class="textbook-read">
+<a class="textbook-skip" href="#prefix-cache">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#prefix-cache">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航">
+<a href="课程学习地图.html" rel="noopener" target="_blank">学习地图</a>
+<a class="textbook-original" href="#article-takeaways">这一篇带走什么</a>
+</nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title">前缀缓存怎样配合请求</div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc" open="">
+<summary>展开文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#which-prefix-moved"><span class="v2-toc-number">1</span><span>两次请求的 system 一样，为什么缓存用量会变？</span></a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#wire-layout"><span class="v2-toc-number">2</span><span>请求布局与实际外发表示</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#prefix-material"><span class="v2-toc-number">2.1</span><span>分别比较模型、工具、system 与有序历史</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#summary-prefix"><span class="v2-toc-number">3</span><span>同模型摘要、异模型摘要和最终投影</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#preserve-pre-summary"><span class="v2-toc-number">3.1</span><span>把摘要指令加在原始连续前缀之后</span></a></li><li><a class="v2-toc-child-link" href="#schema-without-dispatch"><span class="v2-toc-number">3.2</span><span>摘要沿用工具定义，处理器只接收摘要文本</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#measure-and-explain"><span class="v2-toc-number">4</span><span>命中用量、指纹与差异位置</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#usage-versus-layout"><span class="v2-toc-number">4.1</span><span>供应商用量回答命中多少，本地指纹帮助找到变化</span></a></li><li><a class="v2-toc-child-link" href="#read-three-observations"><span class="v2-toc-number">4.2</span><span>从三组数据逐步缩小解释</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-assessment"><span class="v2-toc-number">5</span><span>学习效果检测</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#article-assessment-1"><span class="v2-toc-number">5.1</span><span>比较请求前缀与服务回报</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-interview"><span class="v2-toc-number">6</span><span>模拟面试官提问</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#intern-interview"><span class="v2-toc-number">6.1</span><span>Agent 开发实习</span></a></li><li><a class="v2-toc-child-link" href="#harness-interview"><span class="v2-toc-number">6.2</span><span>Agent harness 岗位</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways"><span class="v2-toc-number">7</span><span>这一篇带走什么</span></a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper course-lesson" id="prefix-cache"><header class="design-hero">
+<h1>前缀缓存怎样配合请求</h1><p class="article-subtitle">稳定布局、摘要与命中观察</p>
+<p class="target">并排看正常请求、两种摘要请求和压缩后的请求，学会用首处变化和命中用量解释发生了什么。</p>
+</header>
+<section class="v2-topic-group" id="which-prefix-moved">
+<header class="v2-group-heading"><span>01</span><h2>两次请求的 system 一样，为什么缓存用量会变？</h2></header><div class="design-section">
+<p><a href="15-摘要丢了细节怎样回查.html#raw-sequence" rel="noopener" target="_blank">归档里的原文序号</a>用来找回某一次操作的证据。发送模型请求时，还要看发送过去的输入从开头连续相同了多长。模型服务可能保留这段输入已经算出的中间状态。服务端通常将其中的键和值称为 KV，复用这部分计算就是这里讨论的前缀缓存。</p>
+<p>定价会话刚跑完一组长检查。下一次切到工作树，仍用同一模型和工具，程序在历史末尾补了一条新的目录说明。再下一次请求前，工具列表的顺序变了。三次请求的 system 文字一样。把工具数组与消息数组放在各自一列，逐项比较 A 到 B、B 到 C。</p>
+<div aria-label="示意 · 同一路由与模型下的三个请求片段" class="table-scroll" role="region" tabindex="0"><table id="prefix-request-diff">
+<caption>示意 · 同一路由与模型下的三个请求片段</caption>
+<thead><tr><th scope="col">请求</th><th scope="col">实际工具顺序</th><th scope="col">按顺序发送的消息</th></tr></thead>
+<tbody>
+<tr><td>A · 原目录</td><td><code>Read</code> → <code>Edit</code></td><td>同一 system → 目录 A → 已配对的测试调用和长结果</td></tr>
+<tr><td>B · 切到工作树</td><td><code>Read</code> → <code>Edit</code></td><td>同一 system → 目录 A → 已配对的测试调用和长结果 → 新目录 B</td></tr>
+<tr><td>C · 工具重排</td><td><code>Edit</code> → <code>Read</code></td><td>同一 system → 目录 A → 已配对的测试调用和长结果 → 新目录 B</td></tr>
+</tbody>
+</table></div>
+<details class="answer-box"><summary>首读自检 · A 到 B 保留了哪段连续消息？B 到 C 的第一个工具还相同吗？</summary><div><p>A 的全部消息仍是 B 的消息前缀。B 到 C 的消息相同，但工具数组从开头就变了。只比 system 找不到任何一个差异。这些是本地对照线索，哪个请求实际命中多少还要看服务回包。</p></div></details>
+<p>试把新目录事实放到历史开头附近。它前面仍相同，插入点之后即使还能找到一样的消息，也已经超出这段共同前缀。这就是比较位置比搜索重复文字更有用的原因。</p>
+</div></section>
+<section class="v2-topic-group" id="wire-layout">
+<header class="v2-group-heading"><span>02</span><h2>请求布局与实际外发表示</h2></header><div class="design-section">
+</div><section class="design-section" id="prefix-material"><h3>2.1 分别比较模型、工具、system 与有序历史</h3>
+<p>回到<a href="02-模型收到什么.html#directory-snapshot-when" rel="noopener" target="_blank">目录事实的追加条件</a>。本例 A 到 B 变化的是末尾的目录说明。如果还重建了 system，或加载了新工具，先检查这次真正变动的位置。重建动作和最终文本变化是两份证据。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/loop.py#L314" rel="noopener" target="_blank">src/ruocun/agent/loop.py · 第 314–331 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>18 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="314"></span><span data-line="315"></span><span data-line="316"></span><span data-line="317"></span><span data-line="318"></span><span data-line="319"></span><span data-line="320"></span><span data-line="321"></span><span data-line="322"></span><span data-line="323"></span><span data-line="324"></span><span data-line="325"></span><span data-line="326"></span><span data-line="327"></span><span data-line="328"></span><span data-line="329"></span><span data-line="330"></span><span data-line="331"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        opts = cast(StreamChatOptions, <span class="hljs-built_in">dict</span>(options))
+        opts[<span class="hljs-string">"</span><span class="hljs-string">model</span><span class="hljs-string">"</span>] = session.model
+        opts[<span class="hljs-string">"</span><span class="hljs-string">messages</span><span class="hljs-string">"</span>] = copy.deepcopy(session.messages)
+        opts[<span class="hljs-string">"</span><span class="hljs-string">tools</span><span class="hljs-string">"</span>] = api_tools() <span class="hljs-keyword">if</span> api_tools is not <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> registry.toApiTools()
+        <span class="hljs-keyword">if</span> opts[<span class="hljs-string">"</span><span class="hljs-string">tools</span><span class="hljs-string">"</span>]:
+            opts[<span class="hljs-string">"</span><span class="hljs-string">parallelToolCalls</span><span class="hljs-string">"</span>] = <span class="hljs-keyword">True</span>
+        opts[<span class="hljs-string">"</span><span class="hljs-string">extra</span><span class="hljs-string">"</span>] = {**options.get(<span class="hljs-string">"</span><span class="hljs-string">extra</span><span class="hljs-string">"</span>, {}), <span class="hljs-string">"</span><span class="hljs-string">reasoning_effort</span><span class="hljs-string">"</span>: reasoning_effort}
+        forced = retry_reasoning and not forcing_unsupported
+        <span class="hljs-keyword">if</span> retry_reasoning:
+            opts[<span class="hljs-string">"</span><span class="hljs-string">extra</span><span class="hljs-string">"</span>][<span class="hljs-string">"</span><span class="hljs-string">reasoning_effort</span><span class="hljs-string">"</span>] = <span class="hljs-string">"</span><span class="hljs-string">low</span><span class="hljs-string">"</span>
+            opts[<span class="hljs-string">"</span><span class="hljs-string">maxTokens</span><span class="hljs-string">"</span>] = cast(<span class="hljs-built_in">int</span>, empty_retry_max_tokens)
+            <span class="hljs-keyword">if</span> forced:
+                productive = [tool <span class="hljs-keyword">for</span> tool in opts[<span class="hljs-string">"</span><span class="hljs-string">tools</span><span class="hljs-string">"</span>] <span class="hljs-keyword">if</span> tool[<span class="hljs-string">"</span><span class="hljs-string">function</span><span class="hljs-string">"</span>][<span class="hljs-string">"</span><span class="hljs-string">name</span><span class="hljs-string">"</span>] in _FORCED_TOOLS]
+                opts[<span class="hljs-string">"</span><span class="hljs-string">tools</span><span class="hljs-string">"</span>] = productive or opts[<span class="hljs-string">"</span><span class="hljs-string">tools</span><span class="hljs-string">"</span>]
+                opts[<span class="hljs-string">"</span><span class="hljs-string">extra</span><span class="hljs-string">"</span>][<span class="hljs-string">"</span><span class="hljs-string">tool_choice</span><span class="hljs-string">"</span>] = <span class="hljs-string">"</span><span class="hljs-string">required</span><span class="hljs-string">"</span>
+        <span class="hljs-keyword">if</span> request_preflight is not <span class="hljs-keyword">None</span>:
+            <span class="hljs-keyword">try</span>:
+                opts = <span class="hljs-keyword">await</span> request_preflight(opts)</code></pre></div></figure>
+<p>用于比较的请求材料要以实际发送的请求体为准，下文把它简称为 wire。<a href="03-模型响应怎样变成调用.html#wire-shapes" rel="noopener" target="_blank">同一历史的 Chat 与 Responses 投影</a>已经举了两种形状。这里新增的判断是找最后一处覆盖。Chat 构造请求时，<code>extra</code> 可以覆盖前面构造的字段，因此要比较应用覆盖后的值。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/client/client.py#L153" rel="noopener" target="_blank">src/ruocun/client/client.py · 第 153–179 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>27 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="153"></span><span data-line="154"></span><span data-line="155"></span><span data-line="156"></span><span data-line="157"></span><span data-line="158"></span><span data-line="159"></span><span data-line="160"></span><span data-line="161"></span><span data-line="162"></span><span data-line="163"></span><span data-line="164"></span><span data-line="165"></span><span data-line="166"></span><span data-line="167"></span><span data-line="168"></span><span data-line="169"></span><span data-line="170"></span><span data-line="171"></span><span data-line="172"></span><span data-line="173"></span><span data-line="174"></span><span data-line="175"></span><span data-line="176"></span><span data-line="177"></span><span data-line="178"></span><span data-line="179"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    messages = <span class="hljs-built_in">list</span>(opts.get(<span class="hljs-string">"</span><span class="hljs-string">messages</span><span class="hljs-string">"</span>, []))
+    wire_messages = buildWireMessages(messages, use_responses=use_responses)
+    tools = opts.get(<span class="hljs-string">"</span><span class="hljs-string">tools</span><span class="hljs-string">"</span>)
+    extra = opts.get(<span class="hljs-string">"</span><span class="hljs-string">extra</span><span class="hljs-string">"</span>)
+    effective_tools = extra.get(<span class="hljs-string">"</span><span class="hljs-string">tools</span><span class="hljs-string">"</span>, tools) <span class="hljs-keyword">if</span> extra <span class="hljs-keyword">else</span> tools
+    <span class="hljs-keyword">if</span> (not use_responses and effective_tools and opts.get(<span class="hljs-string">"</span><span class="hljs-string">provider</span><span class="hljs-string">"</span>) == <span class="hljs-string">"</span><span class="hljs-string">deepseek</span><span class="hljs-string">"</span>
+            and urlsplit(opts[<span class="hljs-string">"</span><span class="hljs-string">baseUrl</span><span class="hljs-string">"</span>]).hostname == <span class="hljs-string">"</span><span class="hljs-string">api.deepseek.com</span><span class="hljs-string">"</span>):
+        <span class="hljs-comment"># 官方 Chat 请求携带工具时，已结束的普通轮也要保留历史推理。</span>
+        <span class="hljs-keyword">for</span> message, wire in <span class="hljs-built_in">zip</span>(messages, wire_messages, strict=<span class="hljs-keyword">True</span>):
+            reasoning = message.get(<span class="hljs-string">"</span><span class="hljs-string">reasoningContent</span><span class="hljs-string">"</span>)
+            <span class="hljs-keyword">if</span> message.get(<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>) == <span class="hljs-string">"</span><span class="hljs-string">assistant</span><span class="hljs-string">"</span> and <span class="hljs-built_in">isinstance</span>(reasoning, <span class="hljs-built_in">str</span>):
+                wire.pop(<span class="hljs-string">"</span><span class="hljs-string">reasoningContent</span><span class="hljs-string">"</span>, <span class="hljs-keyword">None</span>)
+                wire[<span class="hljs-string">"</span><span class="hljs-string">reasoning_content</span><span class="hljs-string">"</span>] = reasoning
+    body: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any] = {
+        <span class="hljs-string">"</span><span class="hljs-string">model</span><span class="hljs-string">"</span>: opts[<span class="hljs-string">"</span><span class="hljs-string">model</span><span class="hljs-string">"</span>],
+        <span class="hljs-string">"</span><span class="hljs-string">messages</span><span class="hljs-string">"</span>: wire_messages,
+        <span class="hljs-string">"</span><span class="hljs-string">stream</span><span class="hljs-string">"</span>: <span class="hljs-keyword">True</span>,
+        <span class="hljs-string">"</span><span class="hljs-string">stream_options</span><span class="hljs-string">"</span>: {<span class="hljs-string">"</span><span class="hljs-string">include_usage</span><span class="hljs-string">"</span>: <span class="hljs-keyword">True</span>},
+        field: max_tokens,
+    }
+    <span class="hljs-keyword">if</span> tools is not <span class="hljs-keyword">None</span>:
+        body[<span class="hljs-string">"</span><span class="hljs-string">tools</span><span class="hljs-string">"</span>] = tools
+    parallel = opts.get(<span class="hljs-string">"</span><span class="hljs-string">parallelToolCalls</span><span class="hljs-string">"</span>)
+    <span class="hljs-keyword">if</span> parallel is not <span class="hljs-keyword">None</span>:
+        body[<span class="hljs-string">"</span><span class="hljs-string">parallel_tool_calls</span><span class="hljs-string">"</span>] = parallel
+    <span class="hljs-keyword">if</span> extra:
+        body.update(extra)</code></pre></div></figure>
+<p>表格的两列是可独立核对的请求材料，服务端如何拼出模型输入由对应路由和服务实现决定。先固定路由、模型和生效选项，再分别核对实际工具数组及连续消息项。HTTP JSON 在列表变长时连闭合符号也会变化。共同字符数只用来定位变化，命中输入量还要读服务回包。</p>
+</section></section>
+<section class="v2-topic-group" id="summary-prefix">
+<header class="v2-group-heading"><span>03</span><h2>同模型摘要、异模型摘要和最终投影</h2></header><div class="design-section">
+</div><section class="design-section" id="preserve-pre-summary"><h3>3.1 把摘要指令加在原始连续前缀之后</h3>
+<p><a href="14-上下文放不下怎么办.html#summary-uses-original" rel="noopener" target="_blank">压缩篇</a>已分清交给摘要模型的旧原文和确认后交给主模型的新历史。这里用这两份材料比较连续前缀。普通请求曾带着完整长日志，若现在先重排 Hook 或删去日志中段，摘要请求从相应位置就失去共同前缀。</p>
+<div aria-label="示意 · 同一路由中连续消息项与工具选项如何对齐" class="table-scroll" role="region" tabindex="0"><table>
+<caption>示意 · 同一路由中连续消息项与工具选项如何对齐</caption>
+<thead><tr><th scope="col">请求</th><th scope="col">有效模型与工具</th><th scope="col">消息顺序</th></tr></thead>
+<tbody>
+<tr><td>普通请求</td><td>M，<code>Read, Edit</code></td><td>system、Hook、测试调用和完整长日志、近期历史</td></tr>
+<tr><td>同模型摘要</td><td>M，<code>Read, Edit</code></td><td>system、Hook、测试调用和完整长日志、末尾摘要指令</td></tr>
+<tr><td>显式异模型摘要</td><td>N，移除工具，采用摘要侧思考设定</td><td>原始连续旧前缀、末尾摘要指令</td></tr>
+<tr><td>压缩后继续主任务</td><td>M，恢复本次主轮工具</td><td>system、Hook、新摘要、近期历史、有效待办</td></tr>
+</tbody>
+</table></div>
+<p>在这组例子中，普通请求与同模型摘要在旧组结束处之前的消息相等。压缩后的新请求从原工具组变成摘要的位置开始不同，之后可以为新的连续历史形成缓存。同模型摘要通过深拷贝本次有效请求保留连接、工具定义及顺序、并行工具设置和已有思考模式，同时移除主轮强制工具选择及冲突的输出上限，以摘要自己的输出上限执行。显式异模型同样尊重配置，清除工具并禁用思考。对照这两种情况，要先核实实际生效模型和请求格式。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/context_runtime.py#L300" rel="noopener" target="_blank">src/ruocun/agent/context_runtime.py · 第 300–322 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>23 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="300"></span><span data-line="301"></span><span data-line="302"></span><span data-line="303"></span><span data-line="304"></span><span data-line="305"></span><span data-line="306"></span><span data-line="307"></span><span data-line="308"></span><span data-line="309"></span><span data-line="310"></span><span data-line="311"></span><span data-line="312"></span><span data-line="313"></span><span data-line="314"></span><span data-line="315"></span><span data-line="316"></span><span data-line="317"></span><span data-line="318"></span><span data-line="319"></span><span data-line="320"></span><span data-line="321"></span><span data-line="322"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        raw_options = copy.deepcopy(<span class="hljs-built_in">dict</span>(source))
+        <span class="hljs-keyword">for</span> key in (<span class="hljs-string">"</span><span class="hljs-string">onFinishReason</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">onEmptyTruncation</span><span class="hljs-string">"</span>):
+            raw_options.pop(key, <span class="hljs-keyword">None</span>)
+        extra = copy.deepcopy(source.get(<span class="hljs-string">"</span><span class="hljs-string">extra</span><span class="hljs-string">"</span>, {}))
+        <span class="hljs-keyword">for</span> key in (<span class="hljs-string">"</span><span class="hljs-string">tool_choice</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">max_tokens</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">max_completion_tokens</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">max_output_tokens</span><span class="hljs-string">"</span>):
+            extra.pop(key, <span class="hljs-keyword">None</span>)
+        <span class="hljs-keyword">if</span> model != source_model:
+            <span class="hljs-comment"># 换模型生成摘要时，原模型的 KV 缓存无法复用。</span>
+            raw_options.pop(<span class="hljs-string">"</span><span class="hljs-string">tools</span><span class="hljs-string">"</span>, <span class="hljs-keyword">None</span>)
+            raw_options.pop(<span class="hljs-string">"</span><span class="hljs-string">parallelToolCalls</span><span class="hljs-string">"</span>, <span class="hljs-keyword">None</span>)
+            extra = {<span class="hljs-string">"</span><span class="hljs-string">thinking</span><span class="hljs-string">"</span>: {<span class="hljs-string">"</span><span class="hljs-string">type</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">disabled</span><span class="hljs-string">"</span>}, <span class="hljs-string">"</span><span class="hljs-string">temperature</span><span class="hljs-string">"</span>: <span class="hljs-number">0</span>}
+        options = cast(StreamChatOptions, {**raw_options, <span class="hljs-string">"</span><span class="hljs-string">model</span><span class="hljs-string">"</span>: model,
+            <span class="hljs-string">"</span><span class="hljs-string">messages</span><span class="hljs-string">"</span>: [*copy.deepcopy(messages), {<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">user</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: COMPACT_INSTRUCTION}],
+            <span class="hljs-string">"</span><span class="hljs-string">extra</span><span class="hljs-string">"</span>: extra, <span class="hljs-string">"</span><span class="hljs-string">onUsage</span><span class="hljs-string">"</span>: on_usage})
+        <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>._summary_limit is not <span class="hljs-keyword">None</span>:
+            options[<span class="hljs-string">"</span><span class="hljs-string">maxTokens</span><span class="hljs-string">"</span>] = <span class="hljs-built_in">self</span>._summary_limit
+        body = <span class="hljs-built_in">self</span>.request_body(options)
+        output_limit = body.get(<span class="hljs-string">"</span><span class="hljs-string">max_output_tokens</span><span class="hljs-string">"</span>, body.get(<span class="hljs-string">"</span><span class="hljs-string">max_completion_tokens</span><span class="hljs-string">"</span>, body.get(<span class="hljs-string">"</span><span class="hljs-string">max_tokens</span><span class="hljs-string">"</span>)))
+        window = <span class="hljs-built_in">self</span>.context_window <span class="hljs-keyword">if</span> model == <span class="hljs-built_in">self</span>.session.model <span class="hljs-keyword">else</span> contextWindowFor(
+            model, cast(Provider | <span class="hljs-keyword">None</span>, options.get(<span class="hljs-string">"</span><span class="hljs-string">provider</span><span class="hljs-string">"</span>)), options.get(<span class="hljs-string">"</span><span class="hljs-string">baseUrl</span><span class="hljs-string">"</span>))
+        <span class="hljs-keyword">if</span> (<span class="hljs-built_in">type</span>(output_limit) is not <span class="hljs-built_in">int</span> or output_limit &lt;= <span class="hljs-number">0</span>
+                or estimateRequestTokens(body) + output_limit &gt;= window):
+            <span class="hljs-keyword">raise</span> CompactionFailed(<span class="hljs-string">"</span><span class="hljs-string">摘要原始前缀超过目标窗口，原上下文已保留；请调整摘要模型或预算。</span><span class="hljs-string">"</span>)</code></pre></div></figure>
+<p>假设原窗口 20,000，待摘要的原始请求估计 18,000，摘要输出上限 2,400。直接裁掉长日志中段或许放得进去，但会从那条工具消息开始改变送去摘要的连续前缀，也改变摘要实际能用的证据。RuoCun 对已经选中的摘要输入保留原文，代价是这个请求算出来要 20,400，超出窗口时保留原投影并停止。切点、候选和持久化细节见<a href="14-上下文放不下怎么办.html" rel="noopener" target="_blank">上下文压缩</a>。</p>
+</section><section class="design-section" id="schema-without-dispatch"><h3>3.2 摘要沿用工具定义，处理器只接收摘要文本</h3>
+<p>如果有效主请求带工具，保留它们能尽量维持请求模式。有人会同时设置 <code>tool_choice=none</code>，但这会改变选择模式。RuoCun 清除主轮的强制选择，不额外强制一个新模式，在摘要返回处把关。它独立调用摘要模型，没有走工具派发循环。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/context_runtime.py#L343" rel="noopener" target="_blank">src/ruocun/agent/context_runtime.py · 第 343–360 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>18 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="343"></span><span data-line="344"></span><span data-line="345"></span><span data-line="346"></span><span data-line="347"></span><span data-line="348"></span><span data-line="349"></span><span data-line="350"></span><span data-line="351"></span><span data-line="352"></span><span data-line="353"></span><span data-line="354"></span><span data-line="355"></span><span data-line="356"></span><span data-line="357"></span><span data-line="358"></span><span data-line="359"></span><span data-line="360"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-built_in">self</span>._recordUsage(received_usage <span class="hljs-keyword">if</span> received_usage is not <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> cast(Usage | <span class="hljs-keyword">None</span>, response.usage), model, options)
+        <span class="hljs-keyword">if</span> response.cancelled or <span class="hljs-built_in">self</span>.ctx.signal.is_set():
+            <span class="hljs-keyword">raise</span> InterruptedError(<span class="hljs-string">"</span><span class="hljs-string">上下文压缩已取消，原上下文已保留。</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> (response.status != <span class="hljs-string">"</span><span class="hljs-string">complete</span><span class="hljs-string">"</span> or response.error
+                or response.finish_reason in {<span class="hljs-string">"</span><span class="hljs-string">length</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">max_tokens</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">max_output_tokens</span><span class="hljs-string">"</span>}):
+            <span class="hljs-keyword">raise</span> CompactionFailed(<span class="hljs-string">"</span><span class="hljs-string">上下文摘要未完成，原上下文已保留；本轮已停止。</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> (response.message.get(<span class="hljs-string">"</span><span class="hljs-string">tool_calls</span><span class="hljs-string">"</span>) or response.finish_reason == <span class="hljs-string">"</span><span class="hljs-string">tool_calls</span><span class="hljs-string">"</span>
+                or <span class="hljs-built_in">any</span>(delta.get(<span class="hljs-string">"</span><span class="hljs-string">kind</span><span class="hljs-string">"</span>) == <span class="hljs-string">"</span><span class="hljs-string">tool_call</span><span class="hljs-string">"</span> <span class="hljs-keyword">for</span> delta in response.deltas)):
+            <span class="hljs-keyword">raise</span> CompactionFailed(<span class="hljs-string">"</span><span class="hljs-string">上下文摘要返回工具调用，未执行工具；原上下文已保留，本轮停止。</span><span class="hljs-string">"</span>)
+        output = <span class="hljs-string">"</span><span class="hljs-string">"</span>.join(<span class="hljs-built_in">str</span>(delta.get(<span class="hljs-string">"</span><span class="hljs-string">text</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">"</span>)) <span class="hljs-keyword">for</span> delta in response.deltas <span class="hljs-keyword">if</span> delta.get(<span class="hljs-string">"</span><span class="hljs-string">kind</span><span class="hljs-string">"</span>) == <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>).strip()
+        <span class="hljs-keyword">if</span> not output:
+            content = response.message.get(<span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>)
+            output = content <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(content, <span class="hljs-built_in">str</span>) <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">"</span>
+        match = re.search(<span class="hljs-string">r</span><span class="hljs-string">"</span><span class="hljs-string">&lt;摘要&gt;([</span><span class="hljs-string">\</span><span class="hljs-string">s</span><span class="hljs-string">\</span><span class="hljs-string">S]*?)&lt;/摘要&gt;</span><span class="hljs-string">"</span>, output)
+        summary = (match[<span class="hljs-number">1</span>] <span class="hljs-keyword">if</span> match <span class="hljs-keyword">else</span> re.sub(<span class="hljs-string">r</span><span class="hljs-string">"</span><span class="hljs-string">&lt;分析&gt;[</span><span class="hljs-string">\</span><span class="hljs-string">s</span><span class="hljs-string">\</span><span class="hljs-string">S]*?&lt;/分析&gt;</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">"</span>, output)).strip()
+        <span class="hljs-keyword">if</span> not summary:
+            <span class="hljs-comment"># 空摘要占位没有可替换旧上下文的有效内容，保留原上下文。</span>
+            <span class="hljs-keyword">raise</span> CompactionFailed(<span class="hljs-string">"</span><span class="hljs-string">上下文摘要为空，原上下文已保留；本轮已停止。</span><span class="hljs-string">"</span>)</code></pre></div></figure>
+<p>假设摘要模型回了一条 Read 请求。即使同名工具在请求中公布，程序也会检查完成消息、结束原因及分片，发现调用就停止。会话保留原上下文，并记录收到的用量。完整、未截断、有正文且没有工具调用的摘要才继续参与候选缩小和提交。<strong>「摘要请求可以公布工具，返回的调用仍不得进入派发」</strong>。这让保护旧前缀与控制运行行为各有自己的落点。</p>
+</section></section>
+<section class="v2-topic-group" id="measure-and-explain">
+<header class="v2-group-heading"><span>04</span><h2>命中用量、指纹与差异位置</h2></header><div class="design-section">
+</div><section class="design-section" id="usage-versus-layout"><h3>4.1 供应商用量回答命中多少，本地指纹帮助找到变化</h3>
+<p>要判断实际命中，读回包用量。原生 <code>prompt_cache_hit_tokens</code> 优先，缺该字段时尝试从 <code>prompt_tokens_details.cached_tokens</code> 补齐，并用 <code>prompt_tokens</code> 减去它估出未命中输入。输入总量为正时，审计以命中 token 除以总输入得到比率。用量字段缺失时保留观测缺口，报告默认值不能替供应商解释缓存是否启用。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/client/client.py#L183" rel="noopener" target="_blank">src/ruocun/client/client.py · 第 183–195 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>13 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="183"></span><span data-line="184"></span><span data-line="185"></span><span data-line="186"></span><span data-line="187"></span><span data-line="188"></span><span data-line="189"></span><span data-line="190"></span><span data-line="191"></span><span data-line="192"></span><span data-line="193"></span><span data-line="194"></span><span data-line="195"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">normalizeUsage</span>(raw: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any]) -&gt; <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any]:
+    <span class="hljs-string">"""优先采用原生缓存字段，缺失时用 details.cached_tokens 补齐。"""</span>
+    <span class="hljs-keyword">if</span> <span class="hljs-string">"</span><span class="hljs-string">prompt_cache_hit_tokens</span><span class="hljs-string">"</span> in raw:
+        <span class="hljs-keyword">return</span> <span class="hljs-built_in">dict</span>(raw)
+    details = raw.get(<span class="hljs-string">"</span><span class="hljs-string">prompt_tokens_details</span><span class="hljs-string">"</span>)
+    cached = details.get(<span class="hljs-string">"</span><span class="hljs-string">cached_tokens</span><span class="hljs-string">"</span>) <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(details, <span class="hljs-built_in">dict</span>) <span class="hljs-keyword">else</span> <span class="hljs-keyword">None</span>
+    <span class="hljs-keyword">if</span> not <span class="hljs-built_in">isinstance</span>(cached, <span class="hljs-built_in">int</span>):
+        <span class="hljs-keyword">return</span> <span class="hljs-built_in">dict</span>(raw)
+    <span class="hljs-keyword">return</span> {
+        **raw,
+        <span class="hljs-string">"</span><span class="hljs-string">prompt_cache_hit_tokens</span><span class="hljs-string">"</span>: cached,
+        <span class="hljs-string">"</span><span class="hljs-string">prompt_cache_miss_tokens</span><span class="hljs-string">"</span>: <span class="hljs-built_in">max</span>(<span class="hljs-number">0</span>, raw.get(<span class="hljs-string">"</span><span class="hljs-string">prompt_tokens</span><span class="hljs-string">"</span>, <span class="hljs-number">0</span>) - cached),
+    }</code></pre></div></figure>
+<p>要定位可能原因，主循环在预检后记录模型、system、工具指纹；启用审计后，有用量的轮次还可按执行身份记录各维度以及消息指纹。主循环这里使用预检后的选项和消息，摘要记录由其请求体构造器取得字段。它们是本地对照线索。检查供应商真正接到的结构时，还要核对实际外发、路由投影和覆盖项。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/session/cache_audit.py#L108" rel="noopener" target="_blank">src/ruocun/session/cache_audit.py · 第 108–125 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>18 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="108"></span><span data-line="109"></span><span data-line="110"></span><span data-line="111"></span><span data-line="112"></span><span data-line="113"></span><span data-line="114"></span><span data-line="115"></span><span data-line="116"></span><span data-line="117"></span><span data-line="118"></span><span data-line="119"></span><span data-line="120"></span><span data-line="121"></span><span data-line="122"></span><span data-line="123"></span><span data-line="124"></span><span data-line="125"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">record</span>(<span class="hljs-built_in">self</span>, inp: CacheAuditInput) -&gt; <span class="hljs-keyword">None</span>:
+        key = <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">{</span>inp[<span class="hljs-string">'</span><span class="hljs-string">agent</span><span class="hljs-string">'</span>]<span class="hljs-string">}</span><span class="hljs-string">:</span><span class="hljs-string">{</span>inp.get(<span class="hljs-string">'</span><span class="hljs-string">subId</span><span class="hljs-string">'</span>, <span class="hljs-string">'</span><span class="hljs-string">'</span>)<span class="hljs-string">}</span><span class="hljs-string">:</span><span class="hljs-string">{</span>inp[<span class="hljs-string">'</span><span class="hljs-string">depth</span><span class="hljs-string">'</span>]<span class="hljs-string">}</span><span class="hljs-string">"</span>
+        current = {<span class="hljs-string">"</span><span class="hljs-string">model</span><span class="hljs-string">"</span>: inp[<span class="hljs-string">"</span><span class="hljs-string">model</span><span class="hljs-string">"</span>], <span class="hljs-string">"</span><span class="hljs-string">sys</span><span class="hljs-string">"</span>: inp[<span class="hljs-string">"</span><span class="hljs-string">sys</span><span class="hljs-string">"</span>], <span class="hljs-string">"</span><span class="hljs-string">tools</span><span class="hljs-string">"</span>: inp[<span class="hljs-string">"</span><span class="hljs-string">tools</span><span class="hljs-string">"</span>], <span class="hljs-string">"</span><span class="hljs-string">tail</span><span class="hljs-string">"</span>: inp[<span class="hljs-string">"</span><span class="hljs-string">tail</span><span class="hljs-string">"</span>]}
+        previous = <span class="hljs-built_in">self</span>.previous.get(key)
+        changed: <span class="hljs-built_in">list</span>[<span class="hljs-built_in">str</span>] = []
+        delta: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, CacheAuditDelta] = {}
+        <span class="hljs-keyword">if</span> previous is not <span class="hljs-keyword">None</span>:
+            <span class="hljs-keyword">for</span> dimension in (<span class="hljs-string">"</span><span class="hljs-string">model</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">sys</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">tools</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">tail</span><span class="hljs-string">"</span>):
+                <span class="hljs-keyword">if</span> _cheapHash(current[dimension]) != _cheapHash(previous[dimension]):
+                    changed.append(dimension)
+                    <span class="hljs-keyword">if</span> dimension != <span class="hljs-string">"</span><span class="hljs-string">model</span><span class="hljs-string">"</span>:
+                        difference = divergence(previous[dimension], current[dimension])
+                        delta[dimension] = {
+                            <span class="hljs-string">"</span><span class="hljs-string">fromLen</span><span class="hljs-string">"</span>: <span class="hljs-built_in">len</span>(_utf16(previous[dimension])) // <span class="hljs-number">2</span>,
+                            <span class="hljs-string">"</span><span class="hljs-string">toLen</span><span class="hljs-string">"</span>: <span class="hljs-built_in">len</span>(_utf16(current[dimension])) // <span class="hljs-number">2</span>,
+                            <span class="hljs-string">"</span><span class="hljs-string">firstDiffAt</span><span class="hljs-string">"</span>: difference[<span class="hljs-string">"</span><span class="hljs-string">firstDiffAt</span><span class="hljs-string">"</span>], <span class="hljs-string">"</span><span class="hljs-string">sample</span><span class="hljs-string">"</span>: difference[<span class="hljs-string">"</span><span class="hljs-string">sample</span><span class="hljs-string">"</span>],
+                        }
+        <span class="hljs-built_in">self</span>.previous[key] = current</code></pre></div></figure>
+<p>审计按 <code>agent</code>、子任务 ID 和深度分组比较模型、system、工具、<code>tail</code> 四维。本例的 CWD 在消息尾部，主轮记录的 <code>tail</code> 字段是空串，目录改变会影响主轮的 <code>msgs</code> 指纹，但未必出现在 <code>changed</code> 的四维列表。变动维度提供 <code>firstDiffAt</code> 和上下文样本，单位是 UTF-16 代码单元。比如本地比较短字符串 <code>Read,Edit</code> 和 <code>Edit,Read</code>，第 0 位就不同。实际审计比较序列化后的工具定义，首个不同位置通常在两者共同的 JSON 结构之后。<code>msgs</code> 的专门差异位置在 distill 对照最近主请求时计算，摘要和常规轮的完整前缀需要另行把消息项逐条对齐。</p>
+</section><section class="design-section" id="read-three-observations"><h3>4.2 从三组数据逐步缩小解释</h3>
+<div aria-label="示意用量 · 模型和工具相同的请求也会有不同命中" class="table-scroll" role="region" tabindex="0"><table>
+<caption>示意用量 · 模型和工具相同的请求也会有不同命中</caption>
+<thead><tr><th scope="col">请求</th><th scope="col">共同输入观察</th><th scope="col">输入 / 命中</th><th scope="col">当前能说什么</th></tr></thead>
+<tbody>
+<tr><td>首次普通请求</td><td>作为比较基准</td><td>8,000 / 0</td><td>本轮报告没有命中</td></tr>
+<tr><td>同模型，原前缀加摘要指令</td><td>工具同序，旧消息段连续相等</td><td>8,400 / 8,000</td><td>本轮报告命中约 95.2%</td></tr>
+<tr><td>同模型，工具顺序调整</td><td>system 同值，工具定义顺序变化</td><td>8,400 / 1,000</td><td>本轮约 11.9%，本地工具变化提供排查线索</td></tr>
+</tbody>
+</table></div>
+<p>表里第三次已经找到工具顺序变化。如果另一次四维都稳、命中率仍低，先审消息和实际外发请求，再看空闲时长。报告在四维未变、低命中、输入达到一定体量且空闲超过阈值时提示“TTL 过期”。TTL 指一份缓存能留存的时间。这里是在用本地阈值猜测缓存可能已失效，服务端没回报实际失效时间。<strong>「指纹用来找首处变化，回包用量才报告这次实际命中」</strong>。固定请求布局能增加复用机会，命中还受服务端状态影响。</p>
+<p>项目已有一组受控渠道观察。三次首次摘要使用相同类别的合成历史，固定预热和等待条件，逐次记录同模型新路径的命中输入与总输入，分别为 <code>28032 / 28559</code>、<code>28032 / 28559</code> 和 <code>28288 / 28766</code>，加权约 <code>98.22%</code>。固定的旧摘要控制路径在这三组报告为零。这个观察支持所测请求形状和服务条件下的输入命中收益。读取摘要时仍要检验语义，成本要同时考虑输出及各自单价，见<a href="22-怎样判断任务真的完成.html" rel="noopener" target="_blank">完成证据与资源取舍</a>。</p>
+</section></section>
+<section class="v2-topic-group" id="article-assessment">
+<header class="v2-group-heading"><span>05</span><h2>学习效果检测</h2></header><div class="design-section">
+</div><section class="design-section" id="article-assessment-1">
+<h3>5.1 比较请求前缀与服务回报</h3>
+<p><strong>1．</strong>cwd 变化只追加尾部消息，应该预期 system 指纹、消息指纹怎样变化？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>旧 system 保持时它的指纹不变。目录消息改变整体消息文本，通常会改消息指纹。逐条比较可见先前消息完整保留为前缀。若另有 system 刷新或路由变化，应单独核对。</p></div></details>
+<p><strong>2．</strong>同模型摘要为什么读取旧长日志而不直接使用这次产生的裁剪文本？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>这次裁剪只针对压缩候选与最终投影。摘要输入要保持旧消息在切点前连续原样，上游服务才有机会复用旧前缀。原始前缀放不下时会停止。</p></div></details>
+<p><strong>3．</strong>摘要完整返回，正文非空，但流中曾出现工具调用分片。能提交吗？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>不能。调用分片也会触发拒绝，即使最终文本不空。摘要只接受无工具调用的完备结果，不接通执行器，主会话保持原投影。</p></div></details>
+<p><strong>4．</strong> 同一模型两次请求的 system、工具指纹相同。甲的服务回包给出输入 10,000、命中 8,000；乙只报告输入 12,000，没有任何缓存用量字段。同事把乙记成“命中率 0%”。你能确认哪次的比率？下一步查哪份原始数据？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>甲可算出 80%。乙只有总输入，命中量缺失，不能填作零。先查看乙的原始用量和兼容的 cached_tokens 字段；仍缺就标未知。要再调查为什么可能变化，再核对路由、模型选项、实际输入顺序和首个差异位置。共同指纹给不了服务端实测比率。</p></div></details>
+</section><div class="design-section">
+</div></section>
+<section class="v2-topic-group" id="article-interview">
+<header class="v2-group-heading"><span>06</span><h2>模拟面试官提问</h2></header><div class="design-section">
+</div><section class="design-section" id="intern-interview"><h3>6.1 Agent 开发实习</h3>
+<h4>独立核心题</h4>
+<p><strong>目录频繁变化时，怎样仍有机会复用前缀？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>我会把稳定的系统内容和工具定义放到一致的请求结构中，目录变化时在消息尾部追加新事实，并让程序按真实目录执行。这样已有内容可以继续保持连续，之后再看服务实际报告的命中用量。</p><p>RuoCun 只在目录事实有变化时追加。若工具或 system 同时变化，需要在各自的请求字段里另找差异。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>一项请求布局改动的缓存效果怎样验证？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>我会先固定服务和模型，用同一套历史、工具、预热与等待条件对照外发结构和用量。</p></div></details>
+<p><strong>追问 1</strong> 换了一次 provider 后命中增加呢？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>先按两种不同运行条件记录，不能单独归因给布局。</p></div></details>
+<p><strong>追问 2</strong> 稳定命中增加但延迟更长呢？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>单独记录输出、思考模式和生成时间。输入复用有收益，但任务延迟受其他阶段影响。</p></div></details>
+</section><section class="design-section" id="harness-interview"><h3>6.2 Agent harness 岗位</h3>
+<h4>独立核心题</h4>
+<p><strong>如何让摘要复用主请求前缀，同时把可执行副作用留在主循环？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>我保持同一路由的有效模型、工具定义、模式和选定的原始连续消息。摘要指令放最后，调用方只接收摘要文本，一旦返回工具调用就停止候选发布。</p><p>摘要输出上限独立设置并执行完整请求预算检查。压缩后的正式会话投影可以重组，只要通过候选验证和持久化。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>为什么同模型摘要仍可能没命中？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>我先验证实际外发的前缀、工具模式和回包用量，再检查可复用材料占比和服务条件。</p></div></details>
+<p><strong>追问 1</strong> 提示低命中和空闲过久，能否说服务端 TTL 是五分钟？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>不能从这个数据推断，提示阈值只是本地诊断口径。</p></div></details>
+<p><strong>追问 2</strong> 如果共同前缀确实很长，但最终压缩请求的命中降低呢？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>查候选提交后旧组替换成摘要的第一处变化，这是与摘要本身独立的请求。</p></div></details>
+</section></section>
+<section class="v2-topic-group" id="article-takeaways">
+<header class="v2-group-heading"><span>07</span><h2>这一篇带走什么</h2></header><div class="design-section">
+<p>稳定的请求布局保留可复用的连续前缀，摘要沿用原始旧段，压缩后用提交过的新投影继续，并由服务回包反映实际命中。</p>
+<ul class="pilot-takeaways">
+<li>把变化频繁的目录事实追加在尾部。比较时固定有效模型和路由，再查看工具定义顺序、系统内容和完整消息前缀。</li>
+<li>需要复用摘要前缀时保留实际请求模式，把工具执行留给明确的派发路径。摘要调用用自己的预算检查和纯文本结果门槛。</li>
+<li>用回包用量度量命中，用指纹和首差定位本地变化。推断原因需要控制请求条件，质量、延迟和费用各自核对。</li>
+</ul>
+<p>缓存复用的是已经计算的输入。到了新任务，程序还可以从记忆库找相关记录。<a href="17-经验怎样用到当前任务.html#memory-case" rel="noopener" target="_blank">下一篇</a>用一条旧测试建议，看看哪些经验值得带进新请求。</p>
+</div></section>
+</article></main>
+</body>
+</html>

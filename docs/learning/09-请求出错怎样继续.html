@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>请求出错怎样继续：断流、限流、超限与空回答 · RuoCun 设计学习</title>
+<link href="assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="assets/ruocun-code.css" rel="stylesheet"/>
+<link href="assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="assets/ruocun-article.css" rel="stylesheet"/>
+<link href="assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="assets/ruocun-textbook.js"></script>
+</head>
+<body class="textbook-read">
+<a class="textbook-skip" href="#request-recovery">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#request-recovery">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航">
+<a href="课程学习地图.html" rel="noopener" target="_blank">学习地图</a>
+<a class="textbook-original" href="#article-takeaways">这一篇带走什么</a>
+</nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title">请求出错怎样继续</div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc" open="">
+<summary>展开文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#request-start"><span class="v2-toc-number">1</span><span>同样是断流，为什么第二次要停下来？</span></a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#request-transport"><span class="v2-toc-number">2</span><span>传输重试</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#request-transport-1"><span class="v2-toc-number">2.1</span><span>看有效增量，不看有没有收到字节</span></a></li><li><a class="v2-toc-child-link" href="#request-transport-2"><span class="v2-toc-number">2.2</span><span>产出前用有限退避和一次非流式兜底</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#request-session"><span class="v2-toc-number">3</span><span>会话恢复</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#request-session-1"><span class="v2-toc-number">3.1</span><span>429、上下文超限和持续不可用走不同路径</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#request-empty"><span class="v2-toc-number">4</span><span>空回答与取消</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#request-empty-1"><span class="v2-toc-number">4.1</span><span>正常结束但没有可用输出，空重试也要有上限</span></a></li><li><a class="v2-toc-child-link" href="#request-empty-2"><span class="v2-toc-number">4.2</span><span>请求令牌挡住同一回合的迟到显示</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-assessment"><span class="v2-toc-number">5</span><span>学习效果检测</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#article-assessment-1"><span class="v2-toc-number">5.1</span><span>预测恢复动作和记录变化</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-interview"><span class="v2-toc-number">6</span><span>模拟面试官提问</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#article-interview-1"><span class="v2-toc-number">6.1</span><span>Agent 开发实习</span></a></li><li><a class="v2-toc-child-link" href="#article-interview-2"><span class="v2-toc-number">6.2</span><span>Agent harness 岗位</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways"><span class="v2-toc-number">7</span><span>这一篇带走什么</span></a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper course-lesson" id="request-recovery"><header class="design-hero">
+<h1>请求出错怎样继续</h1><p class="article-subtitle">断流、限流、超限与空回答</p>
+<p class="target">用同一次价格检查对照几种异常，找出什么时候能再问模型，什么时候应保留已经拿到的内容。</p>
+</header>
+<section class="v2-topic-group" id="request-start">
+<header class="v2-group-heading"><span>01</span><h2>同样是断流，为什么第二次要停下来？</h2></header><div class="design-section">
+<p>上一章的权限裁决发生在派发前。把时间再往前挪，你要求核对“退款时是否沿用折扣”，模型本来要先 Read 一份测试文件，可<a href="03-模型响应怎样变成调用.html#complete-gate" rel="noopener" target="_blank">足以交给执行器的完整响应</a>还没到。现在在同一个请求上比较两种假设的断流时机。两边都没有完整响应，客户端的重试额度仍有剩余。</p>
+<figure class="reasoning-figure" id="stream-cut-evidence">
+<figcaption>源码推演 · 连接断开时，解析器已经把什么交给上层</figcaption>
+<div class="reasoning-grid">
+<section><h4>A · 只收到半个事件</h4><p>传输层收过字节，但解析器还没有交出任何有效增量。界面没有新正文。</p></section>
+<section><h4>B · 正文已经交付</h4><p>界面显示“先检查退款测试”。Read 的参数目前只收到 <code>{"path":"tests/</code>，尚未结束。</p></section>
+</div>
+</figure>
+<details class="answer-box"><summary>哪边可在传输层重新请求？哪边要把正文留下？Read 会启动吗？</summary><div><p>A 可以退避后重新请求，因为没有有效增量已经交付。B 应收尾并保存这句正文。两边当前的未完成响应都没有派发工具的资格。</p></div></details>
+<p>假如两边都重发，B 的下一份响应可能又从“先检查退款测试”开头，甚至为另一个路径生成另一批调用。新请求无法接续已经交出的正文和那个半截参数。允许重新请求要以这次尝试尚未产出为条件。</p>
+</div></section>
+<section class="v2-topic-group" id="request-transport">
+<header class="v2-group-heading"><span>02</span><h2>传输重试</h2></header><div class="design-section">
+</div><section class="design-section" id="request-transport-1"><h3>2.1 看有效增量，不看有没有收到字节</h3>
+<p>沿<a href="03-模型响应怎样变成调用.html#sse-framing" rel="noopener" target="_blank">SSE 的事件边界</a>继续追。一个完整事件经过解析后，正文、推理或已交给上层的工具字段会形成 <code>StreamDelta</code>，也就是这次尝试新增的一小份模型内容。<code>_stateHadOutput</code> 看已交出的增量列表，仍在缓冲的字节或工具字段此时不计入。空闲计时器也是按有效增量续期，等候中可以由取消或空闲超时结束。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/client/resilient.py#L387" rel="noopener" target="_blank">src/ruocun/client/resilient.py · 第 387–401 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>15 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="387"></span><span data-line="388"></span><span data-line="389"></span><span data-line="390"></span><span data-line="391"></span><span data-line="392"></span><span data-line="393"></span><span data-line="394"></span><span data-line="395"></span><span data-line="396"></span><span data-line="397"></span><span data-line="398"></span><span data-line="399"></span><span data-line="400"></span><span data-line="401"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">_stateHadOutput</span>(state_out: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any]) -&gt; <span class="hljs-built_in">bool</span>:
+    <span class="hljs-comment"># 只有已经发出的有效 StreamDelta 才算产出，仍在缓冲的工具片段不计入。</span>
+    deltas = state_out.get(<span class="hljs-string">"</span><span class="hljs-string">deltas</span><span class="hljs-string">"</span>)
+    <span class="hljs-keyword">return</span> <span class="hljs-built_in">isinstance</span>(deltas, <span class="hljs-built_in">list</span>) and <span class="hljs-built_in">bool</span>(deltas)
+
+
+<span class="hljs-keyword">def</span> <span class="hljs-title">_partialFromState</span>(
+    state_out: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any],
+) -&gt; <span class="hljs-built_in">tuple</span>[<span class="hljs-built_in">list</span>[StreamDelta], <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any], <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any] | <span class="hljs-keyword">None</span>, <span class="hljs-built_in">str</span> | <span class="hljs-keyword">None</span>]:
+    acc = state_out.get(<span class="hljs-string">"</span><span class="hljs-string">acc</span><span class="hljs-string">"</span>)
+    deltas = state_out.get(<span class="hljs-string">"</span><span class="hljs-string">deltas</span><span class="hljs-string">"</span>)
+    items: <span class="hljs-built_in">list</span>[StreamDelta] = <span class="hljs-built_in">list</span>(deltas) <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(deltas, <span class="hljs-built_in">list</span>) <span class="hljs-keyword">else</span> []
+    <span class="hljs-keyword">if</span> acc is <span class="hljs-keyword">None</span>:
+        <span class="hljs-keyword">return</span> items, {<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">assistant</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: <span class="hljs-keyword">None</span>}, <span class="hljs-keyword">None</span>, <span class="hljs-keyword">None</span>
+    <span class="hljs-keyword">return</span> items, acc.buildMessage(), acc.last_usage, acc.finish_reason</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/client/resilient.py#L774" rel="noopener" target="_blank">src/ruocun/client/resilient.py · 第 774–797 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>24 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="774"></span><span data-line="775"></span><span data-line="776"></span><span data-line="777"></span><span data-line="778"></span><span data-line="779"></span><span data-line="780"></span><span data-line="781"></span><span data-line="782"></span><span data-line="783"></span><span data-line="784"></span><span data-line="785"></span><span data-line="786"></span><span data-line="787"></span><span data-line="788"></span><span data-line="789"></span><span data-line="790"></span><span data-line="791"></span><span data-line="792"></span><span data-line="793"></span><span data-line="794"></span><span data-line="795"></span><span data-line="796"></span><span data-line="797"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            <span class="hljs-comment"># 已经产出后长时间无有效增量，明确报告空闲错误，保留失败原因。</span>
+            <span class="hljs-keyword">if</span> idled_out and yielded_any:
+                deltas, message, usage, finish = _partialFromState(state_out)
+                <span class="hljs-keyword">return</span> emit(
+                    <span class="hljs-string">"</span><span class="hljs-string">failed</span><span class="hljs-string">"</span>, deltas=deltas, message=message, usage=usage,
+                    finish_reason=finish, error=idle_err_msg,
+                    error_exception=IdleTimeoutError(idle_err_msg, status), error_status=status,
+                    rec=mkrec(attempt, <span class="hljs-string">"</span><span class="hljs-string">stream</span><span class="hljs-string">"</span>, status, retry_after_ms,
+                              <span class="hljs-built_in">len</span>(deltas), had_output, <span class="hljs-string">"</span><span class="hljs-string">idle</span><span class="hljs-string">"</span>, <span class="hljs-keyword">True</span>,
+                              classification, idle_err_msg),
+                )
+
+            recoverable = _recoverable(err, idled_out, status, retry_after_ms)
+
+            <span class="hljs-comment"># 已经交付过部分内容，返回这些内容即可，避免重试重复输出。</span>
+            <span class="hljs-keyword">if</span> recoverable and yielded_any:
+                deltas, message, usage, finish = _partialFromState(state_out)
+                <span class="hljs-keyword">return</span> emit(
+                    <span class="hljs-string">"</span><span class="hljs-string">partial</span><span class="hljs-string">"</span>, deltas=deltas, message=message, usage=usage,
+                    finish_reason=finish,
+                    rec=mkrec(attempt, <span class="hljs-string">"</span><span class="hljs-string">stream</span><span class="hljs-string">"</span>, status, retry_after_ms,
+                              <span class="hljs-built_in">len</span>(deltas), had_output, <span class="hljs-string">"</span><span class="hljs-string">partial</span><span class="hljs-string">"</span>, <span class="hljs-keyword">False</span>,
+                              classification, err_text),
+                )</code></pre></div></figure>
+<p>A 的增量列表为空，<code>yielded_any</code> 仍为假，越过这段代码后才有机会重试。B 的正文已经出现在有效增量中，可恢复断流返回 <code>partial</code>。若 B 并未立即断开而是产出后长期无新增量，空闲分支返 <code>failed</code> 并带上错误原因、已有增量。两者都交给上层收尾。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/loop.py#L404" rel="noopener" target="_blank">src/ruocun/agent/loop.py · 第 404–420 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>17 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="404"></span><span data-line="405"></span><span data-line="406"></span><span data-line="407"></span><span data-line="408"></span><span data-line="409"></span><span data-line="410"></span><span data-line="411"></span><span data-line="412"></span><span data-line="413"></span><span data-line="414"></span><span data-line="415"></span><span data-line="416"></span><span data-line="417"></span><span data-line="418"></span><span data-line="419"></span><span data-line="420"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        message = copy.deepcopy(response.message) <span class="hljs-keyword">if</span> response is not <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> {}
+        content = message.get(<span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>) or <span class="hljs-string">"</span><span class="hljs-string">"</span>.join(streamed_text)
+        <span class="hljs-keyword">if</span> ctx.signal.is_set() or response is not <span class="hljs-keyword">None</span> and response.cancelled:
+            <span class="hljs-keyword">if</span> content:
+                <span class="hljs-comment"># 取消时保留已展示的部分文字，收集到的工具调用不再派发。</span>
+                session.messages.append({<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">assistant</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: content})
+            <span class="hljs-keyword">await</span> save()
+            <span class="hljs-keyword">return</span> TurnResult(<span class="hljs-string">"</span><span class="hljs-string">cancelled</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">本轮已取消。</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> response is <span class="hljs-keyword">None</span> or response.status != <span class="hljs-string">"</span><span class="hljs-string">complete</span><span class="hljs-string">"</span>:
+            failure = (response.error or <span class="hljs-string">"</span><span class="hljs-string">模型回答未完成，工具未执行。</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> response is not <span class="hljs-keyword">None</span>
+                       <span class="hljs-keyword">else</span> <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">模型请求失败：</span><span class="hljs-string">{</span><span class="hljs-built_in">type</span>(request_error).__name__<span class="hljs-string">}</span><span class="hljs-string">"</span>)
+            <span class="hljs-keyword">if</span> (exposed or content or message.get(<span class="hljs-string">"</span><span class="hljs-string">tool_calls</span><span class="hljs-string">"</span>) or
+                    response is not <span class="hljs-keyword">None</span> and (response.status == <span class="hljs-string">"</span><span class="hljs-string">partial</span><span class="hljs-string">"</span> or response.deltas)):
+                <span class="hljs-keyword">if</span> content:
+                    session.messages.append({<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">assistant</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: content})
+                <span class="hljs-keyword">await</span> save()
+                <span class="hljs-keyword">return</span> TurnResult(<span class="hljs-string">"</span><span class="hljs-string">failed</span><span class="hljs-string">"</span>, failure)</code></pre></div></figure>
+<p>把 B 的句子代入 <code>content</code>，主循环保存一条助手正文并结束本轮。原响应中的 Read 不进入历史的可派发调用组。只产出推理或有效工具增量、没有正文时，也可能进入停止分支，此时没有正文可追加。这个选择会让用户多一次明确的继续请求，但避免重发悄悄覆盖或重复已看见的结果。<strong>「有产出后保留现场，未完成的响应不进入派发」</strong>。</p>
+</section><section class="design-section" id="request-transport-2"><h3>2.2 产出前用有限退避和一次非流式兜底</h3>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/client/resilient.py#L799" rel="noopener" target="_blank">src/ruocun/client/resilient.py · 第 799–820 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>22 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="799"></span><span data-line="800"></span><span data-line="801"></span><span data-line="802"></span><span data-line="803"></span><span data-line="804"></span><span data-line="805"></span><span data-line="806"></span><span data-line="807"></span><span data-line="808"></span><span data-line="809"></span><span data-line="810"></span><span data-line="811"></span><span data-line="812"></span><span data-line="813"></span><span data-line="814"></span><span data-line="815"></span><span data-line="816"></span><span data-line="817"></span><span data-line="818"></span><span data-line="819"></span><span data-line="820"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            <span class="hljs-comment"># 只有产出前且可恢复时，才进入退避重试或非流式兜底。</span>
+            <span class="hljs-keyword">if</span> recoverable:
+                <span class="hljs-keyword">if</span> attempt &lt; max_retries:
+                    delay = (
+                        retry_after_ms <span class="hljs-keyword">if</span> retry_after_ms is not <span class="hljs-keyword">None</span>
+                        <span class="hljs-keyword">else</span> backoffMs(retry_delay_ms, attempt, ctx.jitter_ms())
+                    )
+                    ctx.sleep(delay / <span class="hljs-number">1000.0</span>)
+                    record = mkrec(
+                        attempt, <span class="hljs-string">"</span><span class="hljs-string">stream</span><span class="hljs-string">"</span>, status, retry_after_ms, <span class="hljs-number">0</span>, <span class="hljs-keyword">False</span>,
+                        <span class="hljs-string">"</span><span class="hljs-string">retry</span><span class="hljs-string">"</span>, idled_out, <span class="hljs-string">"</span><span class="hljs-string">no-output-before-failure</span><span class="hljs-string">"</span>, err_text,
+                    )
+                    attempts.append(record)
+                    <span class="hljs-keyword">if</span> ctx.on_attempt is not <span class="hljs-keyword">None</span>:
+                        ctx.on_attempt(record)
+                    <span class="hljs-keyword">continue</span>
+                fallback_used = <span class="hljs-keyword">True</span>
+                connections.clear()
+                sockets.clear()
+                fallback_watchdog = IdleWatchdog(
+                    timer_ms / <span class="hljs-number">1000.0</span>, ctx.clock, idle_err_msg, ctx.cancel,
+                )</code></pre></div></figure>
+<p>例如服务暂不可用（HTTP 503）且尚无有效产出，客户端可以按重试预算再发起一次 HTTP 请求。重发前等一段时间叫退避。传输层优先采用有效的 <code>Retry-After</code>，它把服务端给的秒数换为毫秒，最多取 120 秒。缺省改用线性递增等待并加少量随机扰动，让多个请求错开。次数达到 <code>maxRetries</code> 后，最多用一次非流式请求兜底。这层的多次网络尝试仍属于上层眼里的一次模型调用。</p>
+</section></section>
+<section class="v2-topic-group" id="request-session">
+<header class="v2-group-heading"><span>03</span><h2>会话恢复</h2></header><div class="design-section">
+</div><section class="design-section" id="request-session-1"><h3>3.1 429、上下文超限和持续不可用走不同路径</h3>
+<p>分层的理由是处理这些错误需要不同信息。客户端能看见状态、响应头与增量，却拿不到账号选择、压缩候选或对话状态；主循环有这些材料，但只在确认没有有效产出后尝试会话级恢复。</p>
+<div aria-label="源码推演 · 价格检查请求在产出前失败时的选择" class="table-scroll" role="region" tabindex="0"><table>
+<caption>源码推演 · 价格检查请求在产出前失败时的选择</caption>
+<thead><tr><th scope="col">现场</th><th scope="col">传输处理</th><th scope="col">轮内下一步</th></tr></thead>
+<tbody>
+<tr><th scope="row">429，带有效 Retry-After</th><td>可按响应头有限等待</td><td>若仍以限流交回，前台先保存，再决定等、切账号或停止</td></tr>
+<tr><th scope="row">429，没有 Retry-After</th><td>当前传输重试链直接交回</td><td>前台走限流决策，具备交互入口才会询问用户</td></tr>
+<tr><th scope="row">上下文超限</th><td>将错误交回会话层</td><td>已绑定压缩时最多尝试两次恢复，确认窗口已缩小才继续</td></tr>
+<tr><th scope="row">503 持续，低层未恢复</th><td>可重试后有一次非流式兜底</td><td>前台额外再补一次当前模型请求，仍失败则保留记录并返回 <code>model_unavailable</code></td></tr>
+</tbody>
+</table></div>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/loop.py#L421" rel="noopener" target="_blank">src/ruocun/agent/loop.py · 第 421–442 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>22 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="421"></span><span data-line="422"></span><span data-line="423"></span><span data-line="424"></span><span data-line="425"></span><span data-line="426"></span><span data-line="427"></span><span data-line="428"></span><span data-line="429"></span><span data-line="430"></span><span data-line="431"></span><span data-line="432"></span><span data-line="433"></span><span data-line="434"></span><span data-line="435"></span><span data-line="436"></span><span data-line="437"></span><span data-line="438"></span><span data-line="439"></span><span data-line="440"></span><span data-line="441"></span><span data-line="442"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            error = request_error or (response.error_exception <span class="hljs-keyword">if</span> response is not <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> <span class="hljs-keyword">None</span>) or RuntimeError(failure)
+            status = response.error_status <span class="hljs-keyword">if</span> response is not <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> <span class="hljs-built_in">getattr</span>(error, <span class="hljs-string">"</span><span class="hljs-string">status</span><span class="hljs-string">"</span>, <span class="hljs-keyword">None</span>)
+            <span class="hljs-keyword">if</span> isContextLengthError(error) or isContextLengthError(RuntimeError(failure)):
+                <span class="hljs-keyword">await</span> save()
+                <span class="hljs-keyword">if</span> compact and context_retries &lt; <span class="hljs-number">2</span>:
+                    context_retries += <span class="hljs-number">1</span>
+                    stopped = <span class="hljs-keyword">await</span> compress()
+                    <span class="hljs-keyword">if</span> stopped:
+                        <span class="hljs-keyword">return</span> stopped
+                    <span class="hljs-keyword">continue</span>
+                <span class="hljs-keyword">return</span> TurnResult(<span class="hljs-string">"</span><span class="hljs-string">context_limit</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">上下文仍达模型上限，记录已保留；请调整窗口或启动新会话。</span><span class="hljs-string">"</span>)
+            <span class="hljs-keyword">if</span> foreground and (status == <span class="hljs-number">429</span> or isRateLimitError(error)):
+                stopped = <span class="hljs-keyword">await</span> recover_rate_limit()
+                <span class="hljs-keyword">if</span> stopped is not <span class="hljs-keyword">None</span>:
+                    <span class="hljs-keyword">return</span> stopped
+                <span class="hljs-keyword">continue</span>
+            <span class="hljs-keyword">if</span> foreground and (isRetryable(error) or _TRANSIENT_MODEL_FAILURE.search(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">{</span><span class="hljs-built_in">type</span>(error).__name__<span class="hljs-string">}</span><span class="hljs-string"> </span><span class="hljs-string">{</span>error<span class="hljs-string">}</span><span class="hljs-string">"</span>)
+                               or <span class="hljs-built_in">isinstance</span>(status, <span class="hljs-built_in">int</span>) and <span class="hljs-number">500</span> &lt;= status &lt;= <span class="hljs-number">599</span>):
+                stopped = <span class="hljs-keyword">await</span> recover_unavailable()
+                <span class="hljs-keyword">if</span> stopped is not <span class="hljs-keyword">None</span>:
+                    <span class="hljs-keyword">return</span> stopped
+                <span class="hljs-keyword">continue</span></code></pre></div></figure>
+<p>限流时，要让人决定能不能换账号，程序先保存再询问；如果选择等，就用限流分支的等待规则，回合取消能中止等待。前台没有询问回调时使用有限重试。后台不套用这套前台交互，传输层还会对后台 529 直接交回。</p>
+<p>模型服务报告上下文超限，意思是这次发去的消息和工具定义等，加上输出需要的空间，超过模型可容纳的长度；一字不变地重发还是同一份超长材料。这里先保存现场，压缩成功且消息版本实际缩小后才继续。失败或取消保留原消息版本并停止本轮。对照<a href="14-上下文放不下怎么办.html#request-budget" rel="noopener" target="_blank">完整请求的窗口预算</a>可以看到哪些材料会一起占这个空间。</p>
+</section></section>
+<section class="v2-topic-group" id="request-empty">
+<header class="v2-group-heading"><span>04</span><h2>空回答与取消</h2></header><div class="design-section">
+</div><section class="design-section" id="request-empty-1"><h3>4.1 正常结束但没有可用输出，空重试也要有上限</h3>
+<p>设想模型完成流响应却没有正文和工具调用。它有配齐响应的终止结构，用户仍没有可用答案。主循环按 <code>empty_max_retries</code> 计数，超过上限就报告连续空回答。若这次 Chat 流是以 <code>length</code> 正常结束且无正文、无工具，客户端会报告空截断，表示输出额度耗尽，可能只花在思考上。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/client/client.py#L472" rel="noopener" target="_blank">src/ruocun/client/client.py · 第 472–479 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>8 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="472"></span><span data-line="473"></span><span data-line="474"></span><span data-line="475"></span><span data-line="476"></span><span data-line="477"></span><span data-line="478"></span><span data-line="479"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-comment"># 正常流已结束，推理若耗尽输出预算且没有正文和工具，交给上层切换重试上限。</span>
+    <span class="hljs-comment"># 中断的流走部分结果或错误路径，只有正常结束才确认空截断。</span>
+    message = acc.buildMessage()
+    <span class="hljs-keyword">if</span> (status == <span class="hljs-string">"</span><span class="hljs-string">complete</span><span class="hljs-string">"</span> and acc.finish_reason == <span class="hljs-string">"</span><span class="hljs-string">length</span><span class="hljs-string">"</span>
+            and not message[<span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>] and not message.get(<span class="hljs-string">"</span><span class="hljs-string">tool_calls</span><span class="hljs-string">"</span>)):
+        on_empty_truncation = opts.get(<span class="hljs-string">"</span><span class="hljs-string">onEmptyTruncation</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> on_empty_truncation is not <span class="hljs-keyword">None</span>:
+            on_empty_truncation()</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/loop.py#L320" rel="noopener" target="_blank">src/ruocun/agent/loop.py · 第 320–328 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>9 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="320"></span><span data-line="321"></span><span data-line="322"></span><span data-line="323"></span><span data-line="324"></span><span data-line="325"></span><span data-line="326"></span><span data-line="327"></span><span data-line="328"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        opts[<span class="hljs-string">"</span><span class="hljs-string">extra</span><span class="hljs-string">"</span>] = {**options.get(<span class="hljs-string">"</span><span class="hljs-string">extra</span><span class="hljs-string">"</span>, {}), <span class="hljs-string">"</span><span class="hljs-string">reasoning_effort</span><span class="hljs-string">"</span>: reasoning_effort}
+        forced = retry_reasoning and not forcing_unsupported
+        <span class="hljs-keyword">if</span> retry_reasoning:
+            opts[<span class="hljs-string">"</span><span class="hljs-string">extra</span><span class="hljs-string">"</span>][<span class="hljs-string">"</span><span class="hljs-string">reasoning_effort</span><span class="hljs-string">"</span>] = <span class="hljs-string">"</span><span class="hljs-string">low</span><span class="hljs-string">"</span>
+            opts[<span class="hljs-string">"</span><span class="hljs-string">maxTokens</span><span class="hljs-string">"</span>] = cast(<span class="hljs-built_in">int</span>, empty_retry_max_tokens)
+            <span class="hljs-keyword">if</span> forced:
+                productive = [tool <span class="hljs-keyword">for</span> tool in opts[<span class="hljs-string">"</span><span class="hljs-string">tools</span><span class="hljs-string">"</span>] <span class="hljs-keyword">if</span> tool[<span class="hljs-string">"</span><span class="hljs-string">function</span><span class="hljs-string">"</span>][<span class="hljs-string">"</span><span class="hljs-string">name</span><span class="hljs-string">"</span>] in _FORCED_TOOLS]
+                opts[<span class="hljs-string">"</span><span class="hljs-string">tools</span><span class="hljs-string">"</span>] = productive or opts[<span class="hljs-string">"</span><span class="hljs-string">tools</span><span class="hljs-string">"</span>]
+                opts[<span class="hljs-string">"</span><span class="hljs-string">extra</span><span class="hljs-string">"</span>][<span class="hljs-string">"</span><span class="hljs-string">tool_choice</span><span class="hljs-string">"</span>] = <span class="hljs-string">"</span><span class="hljs-string">required</span><span class="hljs-string">"</span></code></pre></div></figure>
+<p>空截断会在历史里保存一条收敛提示，并在下次请求降低思考力度，提高可用输出上限，尝试强制工具产出。服务端拒绝强制模式时，上层可撤掉该要求继续普通尝试；重试仍然需要在收到可用内容或调用时结束。</p>
+</section><section class="design-section" id="request-empty-2"><h3>4.2 请求令牌挡住同一回合的迟到显示</h3>
+<p>当用户取消时，客户端停止传输并交回已积累结果。业务线程中的流回调会向事件循环投递展示事件。事件已经排队也可能晚到，因此闭包捕获本次 <code>request_token</code>，交付前还要确认请求令牌、取消状态以及外层是否仍接收这一代的事件。请求完成或异常退出后，当前令牌清空。已经收到的正文可保存，工具派发时仍需满足完整响应和取消约束。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/agent/loop.py#L358" rel="noopener" target="_blank">src/ruocun/agent/loop.py · 第 358–375 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>18 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="358"></span><span data-line="359"></span><span data-line="360"></span><span data-line="361"></span><span data-line="362"></span><span data-line="363"></span><span data-line="364"></span><span data-line="365"></span><span data-line="366"></span><span data-line="367"></span><span data-line="368"></span><span data-line="369"></span><span data-line="370"></span><span data-line="371"></span><span data-line="372"></span><span data-line="373"></span><span data-line="374"></span><span data-line="375"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">def</span> <span class="hljs-title">receive_delta</span>(value: StreamDelta, request_token: <span class="hljs-built_in">object</span> = token) -&gt; <span class="hljs-keyword">None</span>:
+            <span class="hljs-keyword">nonlocal</span> exposed
+            <span class="hljs-keyword">if</span> value.get(<span class="hljs-string">"</span><span class="hljs-string">kind</span><span class="hljs-string">"</span>) in {<span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">reasoning</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">tool_call</span><span class="hljs-string">"</span>}:
+                exposed = <span class="hljs-keyword">True</span>
+            <span class="hljs-keyword">if</span> value.get(<span class="hljs-string">"</span><span class="hljs-string">kind</span><span class="hljs-string">"</span>) == <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span> and <span class="hljs-built_in">isinstance</span>(value.get(<span class="hljs-string">"</span><span class="hljs-string">text</span><span class="hljs-string">"</span>), <span class="hljs-built_in">str</span>):
+                streamed_text.append(value[<span class="hljs-string">"</span><span class="hljs-string">text</span><span class="hljs-string">"</span>])
+            <span class="hljs-keyword">if</span> on_delta is <span class="hljs-keyword">None</span>:
+                <span class="hljs-keyword">return</span>
+
+            <span class="hljs-keyword">def</span> <span class="hljs-title">deliver</span>() -&gt; <span class="hljs-keyword">None</span>:
+                <span class="hljs-keyword">if</span> (active_request is request_token and not ctx.signal.is_set()
+                        and (accepts_delta is <span class="hljs-keyword">None</span> or accepts_delta())):
+                    on_delta(value)
+            <span class="hljs-keyword">try</span>:
+                event_loop.call_soon_threadsafe(deliver)
+            <span class="hljs-keyword">except</span> RuntimeError:
+                <span class="hljs-comment"># 业务循环关闭后丢弃迟到的展示事件，可信结果由完成路径接收。</span>
+                <span class="hljs-keyword">pass</span></code></pre></div></figure>
+<p>请求令牌给本回合的这一次模型调用标身份，防止调用结束后排队中的旧增量继续显示。同一个用户回合可以发起多次模型调用。想知道整个回合被暂停后如何挡住迟到结果，可读<a href="11-任务在跑时用户又说话.html#interactive-generation" rel="noopener" target="_blank">调度器的运行代际</a>。</p>
+</section></section>
+<section class="v2-topic-group" id="article-assessment">
+<header class="v2-group-heading"><span>05</span><h2>学习效果检测</h2></header><div class="design-section">
+</div><section class="design-section" id="article-assessment-1">
+<h3>5.1 预测恢复动作和记录变化</h3>
+<p><strong>1．</strong> 两份日志都写“连接被重置”。甲只收到了不成帧的字节。乙已经交出一条正文增量“先看导出”，另有半个 Read 参数。两边均属可恢复断线且仍有传输重试额度。你会为哪边在传输层重试？还缺什么才能声称文件被读过？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>甲尚无有效产出，可以按预算在传输层重试。乙已有正文，把已有文字和中断状态交上层收尾；重发整次请求可能重复展示或生成另一套动作。两个现场都没有可派发的完整 Read。证明实际读取还要有完整调用及其配对的工具结果。</p></div></details>
+<p><strong>2．</strong>429 没有 <code>Retry-After</code>，当前是支持询问的前台回合，且没有文本和工具增量。用户选停，系统如何收尾？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>客户端直接交回，主循环先保存现场再询问。用户选择停止后，结束本轮，现有对话和任务记录可以继续核对。</p></div></details>
+<p><strong>3．</strong>一份 Chat 流以 length 结束，没有正文也没有工具调用。根据源码解释这个状态和半途断开的区别。</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>前者仍是完整流，满足空截断条件后进入有界补救；后者属于传输未完成。已有半途正文时先保存并停止，工具片段并不派发。</p></div></details>
+</section><div class="design-section">
+</div></section>
+<section class="v2-topic-group" id="article-interview">
+<header class="v2-group-heading"><span>06</span><h2>模拟面试官提问</h2></header><div class="design-section">
+</div><section class="design-section" id="article-interview-1"><h3>6.1 Agent 开发实习</h3>
+<h4>独立核心题</h4>
+<p><strong>用户看到模型说到一半停了，你会怎样续接？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>我会保留已经生成的文字，说明这一轮响应未完成，并避免执行响应里的工具片段。再次继续会发起完整的新请求，不能把它当作前一份流的尾部。</p><p>主循环收到 partial、已展示内容或相关证据时先保存文本并停止，完整响应才会进入工具组保存与派发。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>产出前 503 呢？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>有界退避重试，必要时做一次非流式兜底。</p></div></details>
+<p><strong>追问 1</strong> 服务端随后回 429 呢？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>有效的服务器等待信息可由传输层使用。传输层交回仍是限流时，前台会话先保存再决定是否等或换可用账号。</p></div></details>
+<p><strong>追问 2</strong> 用户在等待时取消又怎样？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>检查取消信号，停止后续请求。已经排队的展示事件投递时还要核对请求令牌。</p></div></details>
+</section><section class="design-section" id="article-interview-2"><h3>6.2 Agent harness 岗位</h3>
+<h4>独立核心题</h4>
+<p><strong>如何设计两个恢复层，让一次重试不会无限扩散？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>我会让传输恢复只看产出边界、可恢复错误和本次尝试预算；需要改会话的限流决策、压缩和持续不可用归上层。上层重新请求前查失败是否已有产出，并限制各恢复路径的次数。</p><p>例如无产出的超限最多两次压缩恢复，压缩没有产生更小投影时保留原文并停止。前台持续不可用额外只补一次当前模型请求。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>已有一个工具增量但无文字如何判定？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>区分解析器内部缓冲和已发布的工具增量。已有有效增量时保留现场，未完成调用不派发。</p></div></details>
+<p><strong>追问 1</strong> 若上次实际工具已经写盘呢？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>实际动作从工具意图和结果收据恢复，缺乏证据保持未知。</p></div></details>
+<p><strong>追问 2</strong> 如何检查限流配置不会造成多层无界重试？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>分别记录传输尝试、非流式兜底和会话级重发。交互限流反复等待来自人的决定，无交互入口时受配置次数限制。关联<a href="10-工具可能已经执行.html" rel="noopener" target="_blank">副作用的恢复约束</a>。</p></div></details>
+</section></section>
+<section class="v2-topic-group" id="article-takeaways">
+<header class="v2-group-heading"><span>07</span><h2>这一篇带走什么</h2></header><div class="design-section">
+<p>RuoCun 先按传输中已交付的有效增量判断能否重试，再由会话处理限流、压缩、空回答或取消。</p>
+<ul class="pilot-takeaways">
+<li>恢复流式请求要以有效增量为界。已经交付过内容时保留正文并停止，工具只在完整响应后进入派发。</li>
+<li>恢复需要状态归属。传输层能退避和切非流式，会话层才有账号选择及历史压缩的条件，各路径分别记录并限制自动重试。</li>
+<li>对完整但空的截断留一条有界补救路径，并用请求令牌隔离迟到显示。是否可再次执行真实工具仍要核对其结果记录。</li>
+</ul>
+<p>这篇问的是还能不能再问模型。若上一份模型响应已完整、Edit 也已经发出，但程序重启时缺了工具回包，就要判断还能不能再做同一个动作。下一篇从<a href="10-工具可能已经执行.html#durable-start" rel="noopener" target="_blank">同一文件现值对应的两份执行账本</a>开始。</p>
+</div></section>
+</article></main>
+</body>
+</html>

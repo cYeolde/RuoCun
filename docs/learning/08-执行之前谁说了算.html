@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>执行之前谁说了算：路径、模式与批准裁决 · RuoCun 设计学习</title>
+<link href="assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="assets/ruocun-code.css" rel="stylesheet"/>
+<link href="assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="assets/ruocun-article.css" rel="stylesheet"/>
+<link href="assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="assets/ruocun-textbook.js"></script>
+</head>
+<body class="textbook-read">
+<a class="textbook-skip" href="#permission-gates">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#permission-gates">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航">
+<a href="课程学习地图.html" rel="noopener" target="_blank">学习地图</a>
+<a class="textbook-original" href="#article-takeaways">这一篇带走什么</a>
+</nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title">执行之前谁说了算</div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc" open="">
+<summary>展开文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#permission-start"><span class="v2-toc-number">1</span><span>参数都对了，为什么文件还没改？</span></a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#permission-call"><span class="v2-toc-number">2</span><span>调用授权</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#permission-call-1"><span class="v2-toc-number">2.1</span><span>用最终参数匹配 deny、ask、allow</span></a></li><li><a class="v2-toc-child-link" href="#permission-call-2"><span class="v2-toc-number">2.2</span><span>PreToolUse 可以改参，审批以改后值为准</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#permission-plan"><span class="v2-toc-number">3</span><span>计划模式与派发复核</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#permission-plan-1"><span class="v2-toc-number">3.1</span><span>计划模式为何要在公布和派发各挡一次？</span></a></li><li><a class="v2-toc-child-link" href="#permission-plan-2"><span class="v2-toc-number">3.2</span><span>批量批准返回后重新检查取消与模式</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#permission-path"><span class="v2-toc-number">4</span><span>文件路径与实际写入</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#permission-path-1"><span class="v2-toc-number">4.1</span><span>从当前 cwd 解析路径，分别检查文件授权与编辑位置</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-assessment"><span class="v2-toc-number">5</span><span>学习效果检测</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#article-assessment-1"><span class="v2-toc-number">5.1</span><span>定位是哪个关口改变了结果</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-interview"><span class="v2-toc-number">6</span><span>模拟面试官提问</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#article-interview-1"><span class="v2-toc-number">6.1</span><span>Agent 开发实习</span></a></li><li><a class="v2-toc-child-link" href="#article-interview-2"><span class="v2-toc-number">6.2</span><span>Agent harness 岗位</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways"><span class="v2-toc-number">7</span><span>这一篇带走什么</span></a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper course-lesson" id="permission-gates"><header class="design-hero">
+<h1>执行之前谁说了算</h1><p class="article-subtitle">路径、模式与批准裁决</p>
+<p class="target">用同一个 Edit 分别走过参数、计划模式、授权和路径关口，找出真正让写入发生的条件。</p>
+</header>
+<section class="v2-topic-group" id="permission-start">
+<header class="v2-group-heading"><span>01</span><h2>参数都对了，为什么文件还没改？</h2></header><div class="design-section">
+<p><a href="07-命令运行很久.html#shell-cancel" rel="noopener" target="_blank">上一章的命令已经启动，取消后要查它的终态</a>。现在把取消提前到工具还在等待批准的时候。你在 <code>/shop</code> 里把商品标签从“普通价”改成“九折”。文件已经读过、只有一处匹配。工具调用 <code>edit-42</code> 参数齐全，命中需要人确认的规则。你打开批准框，程序还在等。</p>
+<figure class="ruocun-code" data-language="json">
+<figcaption class="ruocun-code-caption"><span>JSON</span><span>1 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-json">{<span class="hljs-attr">"path"</span>:<span class="hljs-string">"pricing.txt"</span>,<span class="hljs-attr">"old_string"</span>:<span class="hljs-string">"普通价"</span>,<span class="hljs-attr">"new_string"</span>:<span class="hljs-string">"九折"</span>}</code></pre></div></figure>
+<figure class="reasoning-figure" id="approval-arrival-order">
+<figcaption>源码推演 · edit-42 还没进入处理器，两种批准返回时机</figcaption>
+<div class="reasoning-grid">
+<section><h4>时机 A · 正常审批</h4><p>批准表 <code>{"edit-42":true}</code>。<br/>取消信号仍为 <code>false</code>。</p></section>
+<section><h4>时机 B · 同意晚到</h4><p>先取消这一回合，信号变为 <code>true</code>。<br/>批准表随后也给出 <code>{"edit-42":true}</code>。</p></section>
+</div>
+</figure>
+<details class="answer-box"><summary>哪个现场允许继续检查写入条件？另一个现场能确认文件没被这次调用修改吗？</summary><div><p>A 仍有资格继续检查路径和编辑条件。B 在批准返回后先发现取消，给 <code>edit-42</code> 记未执行的取消反馈，处理器没有开始。这个结论依赖本例中取消早于处理器启动。</p></div></details>
+<p>只读批准表的实现会给 A、B 同一个决定，甚至在你取消后开始写文件。这里需要在批准返回时读一次实时状态，等执行意图保存完、真正进处理器之前还要看一次。多过这道关，换来晚到的同意无法替已经取消的回合启动新操作。</p>
+</div></section>
+<section class="v2-topic-group" id="permission-call">
+<header class="v2-group-heading"><span>02</span><h2>调用授权</h2></header><div class="design-section">
+</div><section class="design-section" id="permission-call-1"><h3>2.1 用最终参数匹配 deny、ask、allow</h3>
+<p>本篇有三层状态。<code>normal</code> 和 <code>plan</code> 是当前会话的执行阶段，决定此时能否尝试写入。权限策略把工具名和参数判成允许、询问或拒绝。需要人工确认时，再由人对眼前这一次调用作决定。开篇的两张批准表都同意，变化发生在会话的实时状态。</p>
+<p>权限运行时拿到工具名、实际参数和工具的 <code>capability</code>。<code>Edit</code> 的 capability 是 <code>write</code>，因此规则匹配会考虑实际工具与目标，随后还要结合当前模式和风险判断。这里把三种结果理解为拒绝、等决策和允许进入后续阶段。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/permissions/rules.py#L169" rel="noopener" target="_blank">src/ruocun/permissions/rules.py · 第 169–175 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>7 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="169"></span><span data-line="170"></span><span data-line="171"></span><span data-line="172"></span><span data-line="173"></span><span data-line="174"></span><span data-line="175"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">evaluate</span>(rules: RuleSets, identity: CallIdentity) -&gt; Decision | <span class="hljs-keyword">None</span>:
+    <span class="hljs-keyword">if</span> identity[<span class="hljs-string">"</span><span class="hljs-string">ccTool</span><span class="hljs-string">"</span>] == <span class="hljs-string">"</span><span class="hljs-string">Bash</span><span class="hljs-string">"</span>:
+        <span class="hljs-keyword">return</span> _evaluateBash(rules, identity[<span class="hljs-string">"</span><span class="hljs-string">value</span><span class="hljs-string">"</span>], splitBashCommands(identity[<span class="hljs-string">"</span><span class="hljs-string">value</span><span class="hljs-string">"</span>]))
+    <span class="hljs-keyword">for</span> decision in (<span class="hljs-string">"</span><span class="hljs-string">deny</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">ask</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">allow</span><span class="hljs-string">"</span>):
+        <span class="hljs-keyword">if</span> <span class="hljs-built_in">any</span>(ruleMatches(parseRule(rule), identity) <span class="hljs-keyword">for</span> rule in rules[decision]):
+            <span class="hljs-keyword">return</span> decision
+    <span class="hljs-keyword">return</span> <span class="hljs-keyword">None</span></code></pre></div></figure>
+<p>以普通文件工具为例，同时命中拒绝和允许，<code>evaluate</code> 先返回 deny；匹配 ask 的调用交给批准流程。规则判断之外还有默认决策。如果是自动权限模式，普通且符合条件的 Edit 可以放行；明确要求询问的规则、危险性和敏感目标会改变决策。无明确规则的侧效应调用在非自动的普通策略下通常需要询问。所以会话模式 <code>normal</code> 要和选中的权限策略一起读。Shell 还要根据命令实际执行计划和方言分析参与裁决。</p>
+</section><section class="design-section" id="permission-call-2"><h3>2.2 PreToolUse 可以改参，审批以改后值为准</h3>
+<p id="permission-hook-arguments">Hook 是配置在某个执行时点的扩展程序。运行在工具之前的 <code>PreToolUse</code> 可以交回一份改过的参数。假设 <code>edit-42</code> 原本要改 <code>pricing.txt</code>，改参后要处理 <code>draft/pricing.txt</code>。如果先批准原文件再切换执行目标，这次决定就批错了对象。程序等前置扩展和参数检查结束，再用实际要执行的参数作裁决。<a href="21-执行前后怎样插入规则.html#hook-validate-after-rewrite" rel="noopener" target="_blank">Hooks 篇</a>会用完整参数与漏字段两份材料推演改参过程。</p>
+<details class="answer-box"><summary>查阅参数更新顺序</summary><div>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/tool_batch.py#L163" rel="noopener" target="_blank">src/ruocun/tools/tool_batch.py · 第 163–175 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>13 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="163"></span><span data-line="164"></span><span data-line="165"></span><span data-line="166"></span><span data-line="167"></span><span data-line="168"></span><span data-line="169"></span><span data-line="170"></span><span data-line="171"></span><span data-line="172"></span><span data-line="173"></span><span data-line="174"></span><span data-line="175"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            <span class="hljs-keyword">if</span> tool is not <span class="hljs-keyword">None</span> and hooks is not <span class="hljs-keyword">None</span>:
+                hook_ctx = RunCtx(hook_cwd, tool_name=name, args_json=raw, payload={<span class="hljs-string">"</span><span class="hljs-string">tool</span><span class="hljs-string">"</span>: name, <span class="hljs-string">"</span><span class="hljs-string">args</span><span class="hljs-string">"</span>: raw})
+                selected = hooks.matching(<span class="hljs-string">"</span><span class="hljs-string">PreToolUse</span><span class="hljs-string">"</span>, hook_ctx)
+                <span class="hljs-keyword">if</span> selected:
+                    outcome = <span class="hljs-keyword">await</span> _invoke_tool_hook(hooks, <span class="hljs-string">"</span><span class="hljs-string">PreToolUse</span><span class="hljs-string">"</span>, call_id, hook_ctx, ctx.signal, selected, journal)
+                    pre_hooks[call_id] = outcome
+                    decision = <span class="hljs-string">"</span><span class="hljs-string">deny</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> outcome.block <span class="hljs-keyword">else</span> outcome.permission_decision
+                    <span class="hljs-keyword">if</span> outcome.updated_input is not <span class="hljs-keyword">None</span>:
+                        raw = hookJSON(outcome.updated_input)
+                <span class="hljs-keyword">if</span> ctx.signal.is_set():
+                    results[call_id] = _message(call_id, _CANCELLED)
+                    <span class="hljs-keyword">continue</span>
+            args = registry.validate(name, raw)</code></pre></div></figure>
+</div></details>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/permissions/runtime.py#L382" rel="noopener" target="_blank">src/ruocun/permissions/runtime.py · 第 382–397 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>16 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="382"></span><span data-line="383"></span><span data-line="384"></span><span data-line="385"></span><span data-line="386"></span><span data-line="387"></span><span data-line="388"></span><span data-line="389"></span><span data-line="390"></span><span data-line="391"></span><span data-line="392"></span><span data-line="393"></span><span data-line="394"></span><span data-line="395"></span><span data-line="396"></span><span data-line="397"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            hook = call.hook_decision
+            <span class="hljs-keyword">if</span> hook == <span class="hljs-string">"</span><span class="hljs-string">deny</span><span class="hljs-string">"</span>:
+                decision = <span class="hljs-string">"</span><span class="hljs-string">deny</span><span class="hljs-string">"</span>
+            <span class="hljs-keyword">elif</span> (hook == <span class="hljs-string">"</span><span class="hljs-string">ask</span><span class="hljs-string">"</span> or sandbox_bypass) and decision != <span class="hljs-string">"</span><span class="hljs-string">deny</span><span class="hljs-string">"</span>:
+                decision = <span class="hljs-string">"</span><span class="hljs-string">ask</span><span class="hljs-string">"</span>
+                force_human.add(call.call_id)
+            <span class="hljs-keyword">if</span> decision != <span class="hljs-string">"</span><span class="hljs-string">ask</span><span class="hljs-string">"</span>:
+                decisions[call.call_id] = decision == <span class="hljs-string">"</span><span class="hljs-string">allow</span><span class="hljs-string">"</span>
+                <span class="hljs-keyword">continue</span>
+            dangerous = isDangerousCall(tool.name, raw)
+            <span class="hljs-keyword">if</span> plan is not <span class="hljs-keyword">None</span>:
+                dangerous = dangerous or <span class="hljs-built_in">self</span>._dangerousShell(plan)
+            sensitive = isSensitiveCall(tool.name, raw) or dangerous or sandbox_bypass
+            <span class="hljs-keyword">if</span> hook == <span class="hljs-string">"</span><span class="hljs-string">allow</span><span class="hljs-string">"</span> and not sensitive and (plan is <span class="hljs-keyword">None</span> or plan.analysis.known):
+                decisions[call.call_id] = <span class="hljs-keyword">True</span>
+                <span class="hljs-keyword">continue</span></code></pre></div></figure>
+<p>Hook 的 deny 可以拦住调用，ask 会将原本可继续且未被拒绝的调用推向人工确认。Hook 的 allow 在某些非敏感、可分析的 ask 路径可以促成允许，它不能翻转 deny。自动模式下启用的审批分类器也只参与满足条件的 ask，危险或强制人工的请求仍问用户；分类失败会转给人工，批准回复缺项按拒绝处理。更多改参、回执与回包规则见<a href="21-执行前后怎样插入规则.html" rel="noopener" target="_blank">Hooks 章节</a>。</p>
+</section></section>
+<section class="v2-topic-group" id="permission-plan">
+<header class="v2-group-heading"><span>03</span><h2>计划模式与派发复核</h2></header><div class="design-section">
+</div><section class="design-section" id="permission-plan-1"><h3>3.1 计划模式为何要在公布和派发各挡一次？</h3>
+<p><a href="04-工具调用怎样落地.html#tool-disclosure" rel="noopener" target="_blank">工具契约篇区分了注册与公布</a>。这里在可见清单上再叠当前会话模式。进入 <code>plan</code> 后，程序移除远端 MCP 工具和 <code>write</code>、<code>exec</code> 两类工具，引导模型只读和规划。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/tools_for_mode.py#L10" rel="noopener" target="_blank">src/ruocun/tools/tools_for_mode.py · 第 10–13 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>4 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="10"></span><span data-line="11"></span><span data-line="12"></span><span data-line="13"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">apiToolsForMode</span>(registry: ToolRegistry, mode: Mode, lang: <span class="hljs-built_in">str</span> | <span class="hljs-keyword">None</span> = <span class="hljs-keyword">None</span>) -&gt; <span class="hljs-built_in">list</span>[ApiTool]:
+    <span class="hljs-keyword">if</span> mode == <span class="hljs-string">"</span><span class="hljs-string">normal</span><span class="hljs-string">"</span>:
+        <span class="hljs-keyword">return</span> registry.toApiTools(<span class="hljs-keyword">lambda</span> tool: registry.isMcpVisible(tool.name), lang, hideUnactivatedDeferred=<span class="hljs-keyword">True</span>)
+    <span class="hljs-keyword">return</span> registry.toApiTools(<span class="hljs-keyword">lambda</span> tool: not tool.name.startswith(<span class="hljs-string">"</span><span class="hljs-string">mcp__</span><span class="hljs-string">"</span>) and tool.capability not in (<span class="hljs-string">"</span><span class="hljs-string">write</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">exec</span><span class="hljs-string">"</span>), lang, hideUnactivatedDeferred=<span class="hljs-keyword">True</span>)</code></pre></div></figure>
+<p>弱一点的办法是只改清单。但模型响应和人作决定都可能晚到，清单只是请求发出时的视图。程序自己的派发检查关心的是此刻：有没有取消信号，以及当前是否进入 plan。即使旧调用之前通过了筛选，也要再过这道关。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/tool_batch.py#L119" rel="noopener" target="_blank">src/ruocun/tools/tool_batch.py · 第 119–125 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>7 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="119"></span><span data-line="120"></span><span data-line="121"></span><span data-line="122"></span><span data-line="123"></span><span data-line="124"></span><span data-line="125"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">stop_reason</span>(tool: Tool) -&gt; <span class="hljs-built_in">str</span> | <span class="hljs-keyword">None</span>:
+        <span class="hljs-keyword">if</span> ctx.signal.is_set():
+            <span class="hljs-keyword">return</span> _CANCELLED
+        <span class="hljs-keyword">if</span> (permission_mode is not <span class="hljs-keyword">None</span> and permission_mode() == <span class="hljs-string">"</span><span class="hljs-string">plan</span><span class="hljs-string">"</span>
+                and (tool.capability in _EFFECTS or tool.name.startswith(<span class="hljs-string">"</span><span class="hljs-string">mcp__</span><span class="hljs-string">"</span>))):
+            <span class="hljs-keyword">return</span> _PLAN_DENIED
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">None</span></code></pre></div></figure>
+</section><section class="design-section" id="permission-plan-2"><h3>3.2 批量批准返回后重新检查取消与模式</h3>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/tool_batch.py#L328" rel="noopener" target="_blank">src/ruocun/tools/tool_batch.py · 第 328–341 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>14 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="328"></span><span data-line="329"></span><span data-line="330"></span><span data-line="331"></span><span data-line="332"></span><span data-line="333"></span><span data-line="334"></span><span data-line="335"></span><span data-line="336"></span><span data-line="337"></span><span data-line="338"></span><span data-line="339"></span><span data-line="340"></span><span data-line="341"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    incomplete = <span class="hljs-keyword">False</span>
+    <span class="hljs-keyword">try</span>:
+        <span class="hljs-keyword">if</span> authorize_batch is not <span class="hljs-keyword">None</span> and ready:
+            <span class="hljs-keyword">try</span>:
+                approved = <span class="hljs-keyword">await</span> authorize_batch(<span class="hljs-built_in">tuple</span>(ready.values()))
+            <span class="hljs-keyword">except</span> Exception <span class="hljs-keyword">as</span> exc:
+                <span class="hljs-keyword">raise</span> _ApprovalIncomplete <span class="hljs-keyword">from</span> exc
+            <span class="hljs-keyword">for</span> call_id in ready:
+                <span class="hljs-keyword">if</span> ctx.signal.is_set():
+                    results[call_id] = _message(call_id, _CANCELLED)
+                <span class="hljs-keyword">elif</span> not approved.get(call_id, <span class="hljs-keyword">False</span>) or ready[call_id].hook_decision == <span class="hljs-string">"</span><span class="hljs-string">deny</span><span class="hljs-string">"</span>:
+                    call = ready[call_id]
+                    results[call_id] = _message(call_id, hook_denied(call))
+                    <span class="hljs-keyword">await</span> audit(call, <span class="hljs-string">"</span><span class="hljs-string">hook-deny</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> call.hook_decision == <span class="hljs-string">"</span><span class="hljs-string">deny</span><span class="hljs-string">"</span> <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">denied</span><span class="hljs-string">"</span>)</code></pre></div></figure>
+<p>把第一节的 <code>edit-42</code> 代入。<code>authorize_batch</code> 返回后，循环先读 <code>ctx.signal</code>，B 直接进 <code>results</code> 得到取消反馈，不再进入执行队列。A 仍待派发，重查当前模式和取消信号，意图落盘后还会在进处理器前再查一次。若工具已经进入处理器，取消转交真正执行侧处理，具体结算见<a href="10-工具可能已经执行.html" rel="noopener" target="_blank">工具恢复章节</a>。<strong>「批准绑定具体调用，开始执行仍要检查实时状态」</strong>。</p>
+</section></section>
+<section class="v2-topic-group" id="permission-path">
+<header class="v2-group-heading"><span>04</span><h2>文件路径与实际写入</h2></header><div class="design-section">
+</div><section class="design-section" id="permission-path-1"><h3>4.1 从当前 cwd 解析路径，分别检查文件授权与编辑位置</h3>
+<p>同一组文本换到 <code>/shared/pricing.txt</code> 后，调用层的批准只解决这类动作可进入派发。<a href="02-模型收到什么.html#actual-path-and-result" rel="noopener" target="_blank">第二篇已经由当前目录算出了工具实际要打开的路径</a>。这一关继续查范围。先看规范后的路径是否在工作区内，根存在时再沿目录或文件别名查到真实位置，看它是否仍在里面。返回值是处理器接下来操作的绝对路径。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/paths.py#L31" rel="noopener" target="_blank">src/ruocun/tools/paths.py · 第 31–42 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>12 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="31"></span><span data-line="32"></span><span data-line="33"></span><span data-line="34"></span><span data-line="35"></span><span data-line="36"></span><span data-line="37"></span><span data-line="38"></span><span data-line="39"></span><span data-line="40"></span><span data-line="41"></span><span data-line="42"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">classifyPath</span>(workspaceRoot: <span class="hljs-built_in">str</span>, p: <span class="hljs-built_in">str</span>) -&gt; ClassifiedPath:
+    root = os.path.abspath(workspaceRoot)
+    suspicious = unicodedata.normalize(<span class="hljs-string">"</span><span class="hljs-string">NFKC</span><span class="hljs-string">"</span>, p) != p or <span class="hljs-built_in">any</span>(
+        char not in <span class="hljs-string">"</span><span class="hljs-string">\t</span><span class="hljs-string">\n</span><span class="hljs-string">\r</span><span class="hljs-string">"</span> and unicodedata.category(char) in {<span class="hljs-string">"</span><span class="hljs-string">Cf</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">Co</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">Cn</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">Cc</span><span class="hljs-string">"</span>}
+        <span class="hljs-keyword">for</span> char in p
+    )
+    absolute = os.path.abspath(os.path.join(root, p.replace(<span class="hljs-string">"</span><span class="hljs-string">\0</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">"</span>)))
+    external = suspicious or not _within(os.path.normcase(root), os.path.normcase(absolute))
+    <span class="hljs-keyword">if</span> os.path.exists(root):
+        external |= not _within(os.path.normcase(os.path.realpath(root)),
+                                os.path.normcase(os.path.realpath(absolute)))
+    <span class="hljs-keyword">return</span> ClassifiedPath(absolute, external)</code></pre></div></figure>
+<p>普通路径策略下，外部访问走读或写的独立回调。项目可能已有适用的目录或会话授权；否则交互通道请求批准，缺少批准能力时会拒绝。启用 Windows 沙箱路径政策时，内置写工具检查受保护位置和可写范围，可写根之外的合规目标需要本次确认。受保护位置在请求额外目录前已经被拒绝。Shell 进程的沙箱执行边界由它自己的计划与执行后端落实。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/course/tools/paths.py#L81" rel="noopener" target="_blank">src/ruocun/tools/paths.py · 第 81–96 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>16 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="81"></span><span data-line="82"></span><span data-line="83"></span><span data-line="84"></span><span data-line="85"></span><span data-line="86"></span><span data-line="87"></span><span data-line="88"></span><span data-line="89"></span><span data-line="90"></span><span data-line="91"></span><span data-line="92"></span><span data-line="93"></span><span data-line="94"></span><span data-line="95"></span><span data-line="96"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">if</span> write and policy is not <span class="hljs-keyword">None</span>:
+        original = os.path.abspath(os.path.join(ctx.cwd or ctx.workspaceRoot, p))
+        <span class="hljs-comment"># 原始路径和解析后的目标都要检查，以免经由别名绕过受保护目录。</span>
+        <span class="hljs-keyword">if</span> policy.isProtected(original) or policy.isProtected(absolute):
+            <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">Error: </span><span class="hljs-string">{</span>p<span class="hljs-string">}</span><span class="hljs-string"> 属于沙箱受保护路径，未授权写入。</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> not policy.allowsWrite(absolute):
+            <span class="hljs-keyword">if</span> ctx.approveSandboxWrite is <span class="hljs-keyword">None</span> or not <span class="hljs-keyword">await</span> ctx.approveSandboxWrite(absolute):
+                <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">Error: </span><span class="hljs-string">{</span>p<span class="hljs-string">}</span><span class="hljs-string"> 不在沙箱写入范围内，未获本次授权。</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> ctx.signal.is_set():
+            <span class="hljs-keyword">raise</span> InterruptedError(<span class="hljs-string">"</span><span class="hljs-string">工具调用已取消</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">return</span> absolute
+    <span class="hljs-keyword">if</span> external:
+        approve = ctx.approveExternalWrite <span class="hljs-keyword">if</span> write <span class="hljs-keyword">else</span> ctx.approveExternalRead
+        <span class="hljs-keyword">if</span> approve is <span class="hljs-keyword">None</span> or not <span class="hljs-keyword">await</span> approve(absolute):
+            <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">Error: </span><span class="hljs-string">{</span>p<span class="hljs-string">}</span><span class="hljs-string"> 在工作区之外,未获授权访问。</span><span class="hljs-string">"</span>)
+    <span class="hljs-keyword">return</span> absolute</code></pre></div></figure>
+<p>最后接上<a href="01-文件编辑可靠性-精致教材预览.html#stale-observation" rel="noopener" target="_blank">文件编辑篇的读取基线</a>。外部许可可以让 Edit 开始检查。工具随后要在路径锁内核对读过的状态和文本匹配，两项均符合才写入。路径申请失败和读后文件变更会给出不同反馈，修正动作也不同。</p>
+</section></section>
+<section class="v2-topic-group" id="article-assessment">
+<header class="v2-group-heading"><span>05</span><h2>学习效果检测</h2></header><div class="design-section">
+</div><section class="design-section" id="article-assessment-1">
+<h3>5.1 定位是哪个关口改变了结果</h3>
+<p><strong>1．</strong>同一普通 Edit 同时命中 deny 和 allow，Hook 给 allow，工具会开始吗？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>调用授权先得到 deny；Hook 的 allow 只可能作用在符合条件的 ask 上。原调用收到拒绝反馈，处理器不会开始。</p></div></details>
+<p><strong>2．</strong> 一份旧请求在普通模式发出，当时工具清单有 Edit，用户也同意了那次改动。等轮到派发，程序已切到只做规划的 <code>plan</code> 模式，文件仍是原值。审查记录时，该先看哪一刻的模式？这份旧批准能证明文件写过吗？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>先查派发前复核时的实际模式。当前处于 plan，写工具在执行关口受到限制。旧清单说明当时能提出这个调用，旧批准记录当时的决定，文件现值也不能证明处理器执行过。沿原调用 ID 找派发结果，向用户说明本轮停止在哪一步。</p></div></details>
+<p><strong>3．</strong>工具批次审批等待中取消回合，随后 UI 返回同意。读 <code>authorize_batch</code> 的片段，找出结果给谁、处理器是否开始。</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>批次在同一个调用 ID 上记取消消息。这个 ID 已在结果集合，后续派发会跳过它；旧批准无法启动那次调用。</p></div></details>
+</section><div class="design-section">
+</div></section>
+<section class="v2-topic-group" id="article-interview">
+<header class="v2-group-heading"><span>06</span><h2>模拟面试官提问</h2></header><div class="design-section">
+</div><section class="design-section" id="article-interview-1"><h3>6.1 Agent 开发实习</h3>
+<h4>独立核心题</h4>
+<p><strong>模型说工具有权限，为什么编辑还是失败？你如何帮用户定位？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>我会从调用反馈找真正拦住的位置。合法参数可以进入权限判断；模式、规则和批准决定能否开始。进入文件工具后还要核对实际路径与读过的内容。比如用户同意编辑却没有外部写许可，应该解释目标位置，而不是让模型重填相同 JSON。</p><p><code>executeToolBatch</code> 处理调用授权，<code>approvedPath</code> 按当前目录和路径策略进入相应文件访问判断。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>文件移到子目录后该检查什么？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>先确认相对路径是否以当前 cwd 解释，以及改后调用到底审的是哪个路径。</p></div></details>
+<p><strong>追问 1</strong> 指向外部位置的别名会怎样？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>检查真实目标的包含关系和适用的外部写或沙箱限制。</p></div></details>
+<p><strong>追问 2</strong> 有写许可但重新读到原文变了呢？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>再次读取并重新构造匹配原文。旧批准不能恢复过期的内容基线。关联<a href="01-文件编辑可靠性-精致教材预览.html" rel="noopener" target="_blank">文件编辑可靠性</a>。</p></div></details>
+</section><section class="design-section" id="article-interview-2"><h3>6.2 Agent harness 岗位</h3>
+<h4>独立核心题</h4>
+<p><strong>如何避免一个晚到的授权响应覆盖状态已经变化的回合？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div><p>我会让调用 ID 关联批准结果，再在从等待醒来、实际派发和进入处理器前核对当前模式及取消信号。只有三个条件仍有效才开始有副作用的操作。这样即使对话或批准界面与执行异步，也能守住用户刚切换的边界。</p><p>具体证据是批授权返回后的信号分支、<code>stop_reason</code> 及落盘意图后的再次检查。</p></div></details>
+<h4>重点追问链</h4>
+<p><strong>如果此前只过滤 API 清单呢？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p>清单来自早前的请求，旧响应仍可携带工具。派发必须看当前状态。</p></div></details>
+<p><strong>追问 1</strong> Hook 在批准前更换了路径呢？</p>
+<details class="answer-box"><summary>展开追问 1 回答</summary><div><p>以 Hook 改写的参数重新校验并授权，权限显示和实际派发都看最终参数。</p></div></details>
+<p><strong>追问 2</strong> 如果信号到来时写入已开始呢？</p>
+<details class="answer-box"><summary>展开追问 2 回答</summary><div><p>进入执行后的取消需要结算该调用的结果，不能根据延迟的 UI 回执直接假设磁盘没变化。关联<a href="11-任务在跑时用户又说话.html" rel="noopener" target="_blank">在途输入、等待和批准</a>。</p></div></details>
+</section></section>
+<section class="v2-topic-group" id="article-takeaways">
+<header class="v2-group-heading"><span>07</span><h2>这一篇带走什么</h2></header><div class="design-section">
+<p>一次文件编辑要让最终参数经过校验和调用授权，派发前确认运行状态，再由文件工具按实际目标路径落实写入边界。</p>
+<ul class="pilot-takeaways">
+<li>让批准看到实际执行参数。Hook 改参后按改后值校验、匹配规则和派发，省下原值与执行值不一致的歧义。</li>
+<li>只读规划要在请求清单与执行关口都落地。等待批准之后用当前取消信号和模式复核，迟到响应可能已经越过本轮的执行窗口。</li>
+<li>工具调用放行后，文件工具仍要解析真实目标并核对该位置的读写许可，再独立验证编辑基线。出错时沿这几类证据定位。</li>
+</ul>
+<p>这次取消发生在派发之前，工具可以明确回报“未执行”。还有一种更早的中断发生在模型响应尚未收齐时。下一篇<a href="09-请求出错怎样继续.html#request-start" rel="noopener" target="_blank">比较断流前有没有有效产出</a>，再决定是否重新请求模型。</p>
+</div></section>
+</article></main>
+</body>
+</html>

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head><meta charset="utf-8"/><meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>一次任务怎样跑完：模型、工具与结果回流 · RuoCun设计学习</title>
+<link href="assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="assets/ruocun-code.css" rel="stylesheet"/><link href="assets/ruocun-textbook.css" rel="stylesheet"/><link href="assets/ruocun-article.css" rel="stylesheet"/><link href="assets/task-loop.css" rel="stylesheet"/>
+<script defer="" src="assets/ruocun-textbook.js"></script></head>
+<body class="textbook-read"><a class="textbook-skip" href="#task-loop">跳到正文</a>
+<header class="textbook-masthead"><div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#task-loop"><svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg><span>RuoCun <span>设计学习</span></span></a>
+<nav aria-label="文章导航"><a href="课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a class="textbook-original" href="#article-takeaways">这一篇带走什么</a></nav></div></header>
+<main class="reading-layout"><aside class="reading-nav"><div class="textbook-nav-title">一次任务怎样跑完</div><p class="textbook-nav-caption">文章目录</p><details class="v2-course-toc" open=""><summary>展开文章目录</summary><nav><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#price-walkthrough"><span class="v2-toc-number">1</span><span>跟着一次失败的编辑走一圈</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#price-input"><span class="v2-toc-number">1.1</span><span>一行旧文，碰到了两个价格函数</span></a></li><li><a class="v2-toc-child-link" href="#price-actions"><span class="v2-toc-number">1.2</span><span>拒绝怎样变成下一次模型请求的一部分</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#actors-and-inputs"><span class="v2-toc-number">2</span><span>模型请求与工具执行</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#model-program-tools"><span class="v2-toc-number">2.1</span><span>模型提交 Read 调用，程序校验后读文件</span></a></li><li><a class="v2-toc-child-link" href="#request-inputs"><span class="v2-toc-number">2.2</span><span>每次请求从会话取消息，附上当前工具接口</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#loop-and-history"><span class="v2-toc-number">3</span><span>会话历史与结果回流</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#save-call-before-action"><span class="v2-toc-number">3.1</span><span>先保存助手的调用，再派发工具</span></a></li><li><a class="v2-toc-child-link" href="#result-back-to-history"><span class="v2-toc-number">3.2</span><span>工具结果写回历史，再发下一次请求</span></a></li><li><a class="v2-toc-child-link" href="#growing-history"><span class="v2-toc-number">3.3</span><span>从读取到试算，调用与结果逐轮累积</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#call-result-identity"><span class="v2-toc-number">4</span><span>调用 ID 与结果配对</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#two-read-calls"><span class="v2-toc-number">4.1</span><span>同名 Read 用各自的调用 ID 区分</span></a></li><li><a class="v2-toc-child-link" href="#pairing-in-program"><span class="v2-toc-number">4.2</span><span>按调用 ID 配对，按原调用顺序回填</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#feedback-changes-action"><span class="v2-toc-number">5</span><span>中断、拒绝与结果未确认</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#rejection-is-information"><span class="v2-toc-number">5.1</span><span>明确拒绝带原因回传，结果未确认则停下</span></a></li><li><a class="v2-toc-child-link" href="#incomplete-response"><span class="v2-toc-number">5.2</span><span>响应未收完整，主循环先拦住工具派发</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#finish-and-evidence"><span class="v2-toc-number">6</span><span>回合停止与任务验收</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#completion-is-not-acceptance"><span class="v2-toc-number">6.1</span><span>无调用可结束回合，两种价格由试算核对</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#learning-check"><span class="v2-toc-number">7</span><span>学习效果检测</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#learning-questions"><span class="v2-toc-number">7.1</span><span>判断工具回传、调用身份与回合状态</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#interview-practice"><span class="v2-toc-number">8</span><span>模拟面试官提问</span></a><ol class="v2-toc-children"><li><a class="v2-toc-child-link" href="#interview-agent-development"><span class="v2-toc-number">8.1</span><span>Agent 开发实习</span></a></li><li><a class="v2-toc-child-link" href="#interview-agent-harness"><span class="v2-toc-number">8.2</span><span>Agent harness 岗位</span></a></li></ol></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways"><span class="v2-toc-number">9</span><span>这一篇带走什么</span></a></li></ol></nav></details></aside><article class="lesson-paper v2-paper pilot-paper" id="task-loop"><header class="design-hero">
+<h1>一次任务怎样跑完</h1>
+<p class="task-loop-subtitle">模型、工具与结果回流</p>
+<p class="target">模型让 <code>Edit</code> 给普通价打折，工具却说同一行出现了两次。下一次请求会带上什么，才让模型有依据改对？</p>
+</header>
+<section class="v2-topic-group" id="price-walkthrough">
+<header class="v2-group-heading"><span>01</span><h2>跟着一次失败的编辑走一圈</h2></header>
+<section class="design-section" id="price-input">
+<h3>1.1 一行旧文，碰到了两个价格函数</h3>
+<p>你要把普通价打九折，会员价保持原样。数量为 2、单价为 100 时，两个函数应该分别算出 <strong>180 和 200</strong>。下文把程序里接起模型、执行工具和保存结果的这套运行机制称为 <em>harness</em>。先看 <code>prices.mjs</code> 的原文。</p>
+<figure class="ruocun-code" data-language="javascript">
+<figcaption class="ruocun-code-caption"><span>JavaScript</span><span>7 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span><span data-line="2"></span><span data-line="3"></span><span data-line="4"></span><span data-line="5"></span><span data-line="6"></span><span data-line="7"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-javascript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">function</span> standardTotal(count, price) {
+  <span class="hljs-keyword">return</span> count * price;
+}
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">function</span> memberTotal(count, price) {
+  <span class="hljs-keyword">return</span> count * price;
+}</code></pre></div></figure>
+<p>假设模型先通过 <code>Read</code> 拿到源码，再让 <code>Edit</code> 把 <code>return count * price;</code> 换成 <code>return count * price * 0.9;</code>。看两个函数的返回值，工具能只凭这一行确定该改哪处吗？</p>
+<div class="design-trace"><strong>Edit 拒绝（工具演示）</strong><pre><code class="language-text">old_string 在 prices.mjs 出现 2 次，不唯一。只改一处时，把周围未改动的文字同时带入 old_string 和 new_string。要替换所有匹配时请使用 replace_all。</code></pre></div>
+<p>两处都匹配，工具在写入前停下了。文件里的两段原文仍然保留。模型想纠正下一步，先得知道上一次改动被拒绝了。</p>
+</section>
+<section class="design-section" id="price-actions">
+<h3>1.2 拒绝怎样变成下一次模型请求的一部分</h3>
+<p>设这次编辑的调用编号（ID）为 <code>edit_short</code>。顺着图看，先找这次行动，再找执行结果与原任务在哪里汇合。</p>
+<figure class="textbook-diagram task-loop-figure" id="edit-feedback-diagram">
+<figcaption><span>图 1</span><strong>一次编辑拒绝怎样回到模型</strong></figcaption>
+<div aria-label="编辑拒绝回流图" class="textbook-diagram-scroll" role="region" tabindex="0"><img alt="模型提出编号 edit_short 的 Edit，程序发现旧文匹配两处并拒绝。下一次请求包含原任务、已有 Read 结果，以及同一编号的 Edit 请求和拒绝反馈。" height="340" src="diagram/task-loop-flow.svg" width="840"/></div>
+</figure>
+<p>RuoCun 把拒绝写成工具消息，并附上同一个 <code>edit_short</code>。这条消息加入本次任务的历史以后，还会随下一次请求发给模型。模型看到<strong>旧文重复</strong>和<strong>只改普通价</strong>这两件事，才有理由在旧文和新文里都带上 <code>standardTotal</code> 的函数声明，缩小到一个目标。它也可能作出别的选择。</p>
+<p><strong>先判断一下。</strong>假如终端打印了这个拒绝，但程序随后把读取文件时那份旧历史又发给模型，模型少了什么？</p>
+<details class="answer-box"><summary>核对答案</summary><div><p>它还看不到 <code>edit_short</code> 对应的拒绝，因而缺少匹配了两次、编辑尚未写入这两项事实。需要把对应的工具消息加进历史，再让请求带上这份更新过的历史。</p></div></details>
+<p>接着走剩下的步骤。模型发起一次新的 Edit，把完整的普通价函数作为旧文，工具返回差异。模型再让 <code>Bash</code> 运行检查，查看两个价格，最后给用户一段回答。每次运行工具之后，刚才的行动和结果都为下次判断提供新依据。</p>
+<div class="design-trace"><strong>用数量 2、单价 100 试算的实际输出</strong><pre><code class="language-json">{"standardTotal_2_100":180,"memberTotal_2_100":200}</code></pre></div>
+</section>
+</section>
+<section class="v2-topic-group" id="actors-and-inputs">
+<header class="v2-group-heading"><span>02</span><h2>模型请求与工具执行</h2></header>
+<section class="design-section" id="model-program-tools">
+<h3>2.1 模型提交 Read 调用，程序校验后读文件</h3>
+<p>回到第一次读文件。模型把工具名和参数写在响应的 <code>tool_calls</code> 中，请程序调用 <code>Read</code>，并把 <code>path</code> 填为 <code>prices.mjs</code>。程序找到本地读文件的实现，也就是 <code>Read</code> 的处理器。参数和执行条件通过检查，文件内容才由处理器读出。</p>
+<div class="design-trace"><strong>Read 返回的原文（工具演示）</strong><pre><code class="language-text">1	export function standardTotal(count, price) {
+2	  return count * price;
+3	}
+4	
+5	export function memberTotal(count, price) {
+6	  return count * price;
+7	}
+8	</code></pre></div>
+<p>模型可以根据这份原文选下一步。程序负责读取、检查和执行，所以即使模型在文字里说“我已修改”，磁盘是否变化也要回到工具做了什么来核对。读文件的 <code>Read</code>、按旧文替换的 <code>Edit</code>、运行命令的 <code>Bash</code> 都通过这个接口接起来。工具的定义、注册和执行条件由<a href="04-工具调用怎样落地.html" rel="noopener" target="_blank">《工具调用怎样落地》</a>展开。</p>
+</section>
+<section class="design-section" id="request-inputs">
+<h3>2.2 每次请求从会话取消息，附上当前工具接口</h3>
+<p>最开始，模型需要先知道目标和可用工具。读完价格文件，它又需要看到真实函数。主循环每次准备请求时，从同一份会话历史取当时的消息，再放入本轮可用的工具定义。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/task-loop/loop.py#L316" rel="noopener" target="_blank">loop.py:316 · 本次请求的历史与工具</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>2 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="316"></span><span data-line="317"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        opts[<span class="hljs-string">"</span><span class="hljs-string">messages</span><span class="hljs-string">"</span>] = copy.deepcopy(session.messages)
+        opts[<span class="hljs-string">"</span><span class="hljs-string">tools</span><span class="hljs-string">"</span>] = api_tools() <span class="hljs-keyword">if</span> api_tools is not <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> registry.toApiTools()</code></pre></div></figure>
+<p><code>messages</code> 是这一刻的消息副本，有任务、过去的行动和结果。<code>tools</code> 则给出这次可调用的接口。读文件之前，消息里只有请求已有的信息。读回原文并记入历史以后，再请求模型时就能把原文也带过去。规则和工作目录等信息怎样加入这份输入，见<a href="02-模型收到什么.html" rel="noopener" target="_blank">《模型收到什么：system 装配、项目指令与动态事实》</a>。</p>
+</section>
+</section>
+<section class="v2-topic-group" id="loop-and-history">
+<header class="v2-group-heading"><span>03</span><h2>会话历史与结果回流</h2></header>
+<section class="design-section" id="save-call-before-action">
+<h3>3.1 先保存助手的调用，再派发工具</h3>
+<p>程序收完模型响应后，先把助手消息留在会话里。以读价格文件为例，后面会有一条带源码的工具消息，历史也得记下当时请求了哪个工具、传了哪个文件。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/task-loop/loop.py#L475" rel="noopener" target="_blank">loop.py:475 · 助手消息入历史</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>11 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="475"></span><span data-line="476"></span><span data-line="477"></span><span data-line="478"></span><span data-line="479"></span><span data-line="480"></span><span data-line="481"></span><span data-line="482"></span><span data-line="483"></span><span data-line="484"></span><span data-line="485"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        assistant: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any] = message
+        assistant[<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>] = <span class="hljs-string">"</span><span class="hljs-string">assistant</span><span class="hljs-string">"</span>
+        assistant[<span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>] = content
+        <span class="hljs-keyword">if</span> saved_calls:
+            assistant[<span class="hljs-string">"</span><span class="hljs-string">tool_calls</span><span class="hljs-string">"</span>] = saved_calls
+        session.messages.append(assistant)
+        <span class="hljs-keyword">await</span> save()
+        <span class="hljs-keyword">if</span> on_assistant_saved is not <span class="hljs-keyword">None</span>:
+            on_assistant_saved(assistant)
+        <span class="hljs-keyword">if</span> not calls:
+            <span class="hljs-keyword">return</span> TurnResult(<span class="hljs-string">"</span><span class="hljs-string">complete</span><span class="hljs-string">"</span>)</code></pre></div></figure>
+<p><code>append</code> 把助手消息加进当前列表，<code>save</code> 处理这份历史的保存。没有调用的最终答复也会记录，然后才从 <code>if not calls</code> 结束本回合。有工具调用时，程序接着派发，等它们返回。</p>
+</section>
+<section class="design-section" id="result-back-to-history">
+<h3>3.2 工具结果写回历史，再发下一次请求</h3>
+<p>批执行器 <code>executeToolBatch</code> 处理本次响应提出的一批调用。Read 给出的是文件文本，Edit 可能给出差异或拒绝。主循环从批结果中取回工具消息，追加到同一份历史。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/task-loop/loop.py#L487" rel="noopener" target="_blank">loop.py:487 · 派发工具与接回结果</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>9 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="487"></span><span data-line="488"></span><span data-line="489"></span><span data-line="490"></span><span data-line="491"></span><span data-line="492"></span><span data-line="493"></span><span data-line="494"></span><span data-line="495"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">try</span>:
+            <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> tool_batch_scope <span class="hljs-keyword">if</span> tool_batch_scope is not <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> nullcontext():
+                batch = <span class="hljs-keyword">await</span> executeToolBatch(
+                    calls, registry, ctx, approve=approve, journal=journal, authorize=authorize,
+                    authorize_batch=authorize_batch, call_scope=call_scope, permission_mode=permission_mode,
+                )
+        <span class="hljs-keyword">except</span> UnknownToolOutcome <span class="hljs-keyword">as</span> exc:
+            <span class="hljs-keyword">return</span> TurnResult(<span class="hljs-string">"</span><span class="hljs-string">outcome_unknown</span><span class="hljs-string">"</span>, <span class="hljs-built_in">str</span>(exc))
+        session.messages.extend(batch.messages)</code></pre></div></figure>
+<p>图 1 的拒绝就进入了 <code>batch.messages</code>。<code>extend</code> 把它接到对应的助手调用之后。保存完再回到循环开头，复制更新后的 <code>session.messages</code> 到新请求。远端模型这时才收到拒绝原因。</p>
+</section>
+<section class="design-section" id="growing-history">
+<h3>3.3 从读取到试算，调用与结果逐轮累积</h3>
+<p>把刚才这条路线展开。左栏是程序即将发给模型的请求，中栏是那一刻新知道的事。读完一行，可以先猜右栏的下一步。</p>
+<div aria-label="价格任务的多次模型请求" class="table-scroll" role="region" tabindex="0"><table><thead><tr><th>发给模型之前</th><th>历史中新增了什么</th><th>本例的下一步</th></tr></thead><tbody>
+<tr><td>任务刚开始</td><td>普通价九折，会员价保持原样。</td><td>请求 <code>Read</code> 取得文件。</td></tr>
+<tr><td>Read 返回</td><td>两个函数的原文。</td><td>尝试把那一行乘以 <code>0.9</code>。</td></tr>
+<tr><td>第一次 Edit 返回</td><td>匹配两处，文件未改。</td><td>用整个 <code>standardTotal</code> 定位，再次编辑。</td></tr>
+<tr><td>第二次 Edit 返回</td><td>普通价函数的差异。</td><td>请求 <code>Bash</code> 运行试算。</td></tr>
+<tr><td>试算返回</td><td>相同输入下，普通价 <code>180</code>，会员价 <code>200</code>。</td><td>说明改动和检查结果。</td></tr>
+</tbody></table></div>
+<p>表里五次请求都在推进同一个目标。从程序接手开始，到给出答复、等待或停止为止，这段执行叫一个回合，由 <code>run_turn</code> 负责。一次模型请求只占回合里的一步，它的响应还可以带一批工具调用。多次回合又能共享同一份会话历史，所以以后看到“这次请求”“这次回合”和“这次会话”，要先确认代码在说哪一层。</p>
+</section>
+</section>
+<section class="v2-topic-group" id="call-result-identity">
+<header class="v2-group-heading"><span>04</span><h2>调用 ID 与结果配对</h2></header>
+<section class="design-section" id="two-read-calls">
+<h3>4.1 同名 Read 用各自的调用 ID 区分</h3>
+<p>把价格例子变一下。价格实现放在 <code>prices.mjs</code>，断言放在 <code>prices.test.mjs</code>。模型在同一个助手响应里要求各读一次，程序判断这两次读取能否并行。假设测试文件先读完，猜猜它的内容在下一次请求里应该跟哪个 ID。</p>
+<figure class="textbook-diagram task-loop-figure" id="read-pairing-diagram">
+<figcaption><span>图 2</span><strong>按 ID 配对，按原调用顺序列出结果</strong></figcaption>
+<div aria-label="两次独立读取的调用与结果配对" class="textbook-diagram-scroll" role="region" tabindex="0"><img alt="实现先请求、测试后请求，假设测试先完成。工具结果仍用 read_impl 和 read_test 分别关联实现和测试，并按原调用顺序汇入历史。" height="334" src="diagram/call-result-pairing.svg" width="840"/></div>
+</figure>
+<p>图里 <code>Read</code> 是工具名，<code>read_impl</code> 和 <code>read_test</code> 才能指到具体行动。助手消息中的 <code>id</code> 与工具消息中的 <code>tool_call_id</code> 要一致，由 <code>content</code> 承载这次读取的结果。</p>
+<figure class="ruocun-code" data-language="json">
+<figcaption class="ruocun-code-caption"><span>JSON</span><span>4 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span><span data-line="2"></span><span data-line="3"></span><span data-line="4"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-json">[
+  {<span class="hljs-attr">"role"</span>:<span class="hljs-string">"tool"</span>,<span class="hljs-attr">"tool_call_id"</span>:<span class="hljs-string">"read_impl"</span>,<span class="hljs-attr">"content"</span>:<span class="hljs-string">"实现文件的内容"</span>},
+  {<span class="hljs-attr">"role"</span>:<span class="hljs-string">"tool"</span>,<span class="hljs-attr">"tool_call_id"</span>:<span class="hljs-string">"read_test"</span>,<span class="hljs-attr">"content"</span>:<span class="hljs-string">"测试文件的内容"</span>}
+]</code></pre></div></figure>
+<p><strong>再判断一处。</strong>如果第二个发起的 <code>Read</code>（读取测试文件）被明确拒绝，这条反馈应该挂在哪个 ID 下？</p>
+<details class="answer-box"><summary>核对答案</summary><div><p>还是 <code>read_test</code>。拒绝也是这次调用的结果。先完成的消息可以稍后列出，身份始终跟它对应的调用走。</p></div></details>
+</section>
+<section class="design-section" id="pairing-in-program">
+<h3>4.2 按调用 ID 配对，按原调用顺序回填</h3>
+<p>两次调用如果都用了 <code>read_impl</code>，程序以后就很难把两份内容配回原处。派发前的检查用 <code>seen</code> 记住同一响应中已出现的 ID。它一旦发现重复，主循环随即结束并返回失败。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/task-loop/loop.py#L122" rel="noopener" target="_blank">loop.py:122 · 调用身份检查</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>8 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="122"></span><span data-line="123"></span><span data-line="124"></span><span data-line="125"></span><span data-line="126"></span><span data-line="127"></span><span data-line="128"></span><span data-line="129"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        fn = call[<span class="hljs-string">"</span><span class="hljs-string">function</span><span class="hljs-string">"</span>]
+        call_id, name, args = call.get(<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>), fn.get(<span class="hljs-string">"</span><span class="hljs-string">name</span><span class="hljs-string">"</span>), fn.get(<span class="hljs-string">"</span><span class="hljs-string">arguments</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> (not <span class="hljs-built_in">isinstance</span>(call_id, <span class="hljs-built_in">str</span>) or not call_id or not <span class="hljs-built_in">isinstance</span>(name, <span class="hljs-built_in">str</span>)
+                or not name or not <span class="hljs-built_in">isinstance</span>(args, <span class="hljs-built_in">str</span>)):
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"</span><span class="hljs-string">模型工具调用缺少id、名称或JSON字符串参数</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> call_id in seen:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"</span><span class="hljs-string">同一模型回答出现重复工具调用id</span><span class="hljs-string">"</span>)
+        seen.add(call_id)</code></pre></div></figure>
+<p>批执行器构造工具消息时，把自己的 <code>call_id</code> 写进 <code>tool_call_id</code> 字段。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/task-loop/tool_batch.py#L67" rel="noopener" target="_blank">tool_batch.py:67 · 工具反馈写回调用 ID</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>2 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="67"></span><span data-line="68"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">_message</span>(call_id: <span class="hljs-built_in">str</span>, text: <span class="hljs-built_in">str</span>, image: ImageData | <span class="hljs-keyword">None</span> = <span class="hljs-keyword">None</span>) -&gt; ChatMessage:
+    message: ChatMessage = {<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">tool</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">tool_call_id</span><span class="hljs-string">"</span>: call_id, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: text}</code></pre></div></figure>
+<p>返回整批反馈时，循环按原来的 <code>calls</code> 从 <code>results</code> 取值。代入图 2，即使 <code>read_test</code> 先存进 <code>results</code>，也会先取出 <code>read_impl</code> 的内容。这样后续仍按原请求顺序阅读，结果身份也没有改变。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/task-loop/tool_batch.py#L370" rel="noopener" target="_blank">tool_batch.py:370 · 批结果返回顺序</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>1 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="370"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">return</span> BatchOutcome([results[call_id] <span class="hljs-keyword">for</span> call_id, _, _ in calls], incomplete)</code></pre></div></figure>
+<p>假设测试先读完，程序就用这份历史再问一次模型。助手消息列了两个 <code>Read</code>，当前却只有 <code>read_test</code> 的结果，<code>read_impl</code> 还没有回答。若按完成先后给结果分配 ID，测试内容甚至会被当成 <code>prices.mjs</code> 的实现。</p>
+<p>RuoCun 让执行器等本批收尾，按各结果携带的 ID 配回原调用，再由主循环一次接进历史。<strong>「正常续跑要按调用 ID 收齐本批反馈，再发下一次模型请求。」</strong>即使两次读取可以并行，下一次请求仍要等较慢的一项。这个等待换来一组能一一对应的请求和结果。以后裁剪或恢复历史时，也要保留这组关系。</p>
+</section>
+</section>
+<section class="v2-topic-group" id="feedback-changes-action">
+<header class="v2-group-heading"><span>05</span><h2>中断、拒绝与结果未确认</h2></header>
+<section class="design-section" id="rejection-is-information">
+<h3>5.1 明确拒绝带原因回传，结果未确认则停下</h3>
+<p>先想一个更早的失败。模型忘传 <code>path</code> 时，执行器在<a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/task-loop/tool_batch.py#L175" rel="noopener" target="_blank">参数校验</a>处就能返回带原调用 ID 的错误，下一次模型可以补上文件路径。图 1 的 <code>path</code> 已经给对，问题出现在 Edit 处理器检查旧文时。处理器发现两个匹配项，在写入前抛出 <code>ToolRejected</code>，执行器捕获它并保留具体原因。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/task-loop/tool_batch.py#L250" rel="noopener" target="_blank">tool_batch.py:250 · 拒绝转换成错误文本</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>2 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="250"></span><span data-line="251"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">                <span class="hljs-keyword">except</span> ToolRejected <span class="hljs-keyword">as</span> exc:
+                    result = <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">Error: </span><span class="hljs-string">{</span>exc<span class="hljs-string">}</span><span class="hljs-string">"</span></code></pre></div></figure>
+<p>准确的原因让模型有依据修正。下面是图 1 里的工具消息，沿用示意 ID，<code>content</code> 取对应工具反馈。</p>
+<figure class="ruocun-code" data-language="json">
+<figcaption class="ruocun-code-caption"><span>JSON</span><span>5 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span><span data-line="2"></span><span data-line="3"></span><span data-line="4"></span><span data-line="5"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-json">{
+  <span class="hljs-attr">"role"</span>: <span class="hljs-string">"tool"</span>,
+  <span class="hljs-attr">"tool_call_id"</span>: <span class="hljs-string">"edit_short"</span>,
+  <span class="hljs-attr">"content"</span>: <span class="hljs-string">"Error: old_string 在 prices.mjs 出现 2 次，不唯一。只改一处时，把周围未改动的文字同时带入 old_string 和 new_string。要替换所有匹配时请使用 replace_all。"</span>
+}</code></pre></div></figure>
+<p>模型可以把完整的普通价函数交给 Edit 定位。本例要保留会员价，选择全部替换会改动会员价。继续沿着案例：局部匹配后，工具返回了这样的差异。</p>
+<details class="answer-box"><summary>查看改对后的 Edit 参数</summary><div><figure class="ruocun-code" data-language="json">
+<figcaption class="ruocun-code-caption"><span>JSON</span><span>5 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span><span data-line="2"></span><span data-line="3"></span><span data-line="4"></span><span data-line="5"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-json">{
+  <span class="hljs-attr">"path"</span>: <span class="hljs-string">"prices.mjs"</span>,
+  <span class="hljs-attr">"old_string"</span>: <span class="hljs-string">"export function standardTotal(count, price) {\n  return count * price;\n}"</span>,
+  <span class="hljs-attr">"new_string"</span>: <span class="hljs-string">"export function standardTotal(count, price) {\n  return count * price * 0.9;\n}"</span>
+}</code></pre></div></figure></div></details>
+<div class="design-trace"><strong>Edit 反馈（差异节选）</strong><pre><code class="language-diff">-   2   return count * price;
++   2   return count * price * 0.9;</code></pre></div>
+<p>把故障挪到写入之后。假设 <code>Bash</code> 给价格检查日志追加一行，随后程序保存工具结果时报错。把它当作普通错误交给模型重试，日志里就可能出现两条相同记录。这个时候，缺的是能确认原操作结果的证据。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/task-loop/tool_batch.py#L270" rel="noopener" target="_blank">tool_batch.py:270 · 工具结果的保存与确认</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>12 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="270"></span><span data-line="271"></span><span data-line="272"></span><span data-line="273"></span><span data-line="274"></span><span data-line="275"></span><span data-line="276"></span><span data-line="277"></span><span data-line="278"></span><span data-line="279"></span><span data-line="280"></span><span data-line="281"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            <span class="hljs-keyword">if</span> journal is not <span class="hljs-keyword">None</span>:
+                <span class="hljs-keyword">try</span>:
+                    <span class="hljs-keyword">if</span> image is <span class="hljs-keyword">None</span>:
+                        <span class="hljs-keyword">await</span> journal.result(call_id, result)
+                    <span class="hljs-keyword">else</span>:
+                        <span class="hljs-keyword">await</span> journal.result(call_id, result, image)
+                <span class="hljs-keyword">except</span> Exception <span class="hljs-keyword">as</span> exc:
+                    <span class="hljs-keyword">if</span> not effect:
+                        <span class="hljs-keyword">raise</span>
+                    <span class="hljs-keyword">raise</span> UnknownToolOutcome(
+                        <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">工具结果保存未确认（</span><span class="hljs-string">{</span><span class="hljs-built_in">type</span>(exc).__name__<span class="hljs-string">}</span><span class="hljs-string">），已停止；请核实原操作。</span><span class="hljs-string">"</span>
+                    ) <span class="hljs-keyword">from</span> exc</code></pre></div></figure>
+<p>这里的 <code>journal.result</code> 负责保存此次调用的结果。遇到保存异常时，带持久副作用的调用进入 <code>UnknownToolOutcome</code>，主循环以 <code>outcome_unknown</code> 结束本轮。<strong>「副作用结果未确认时，先停止续跑并核实原操作。」</strong>代价是自动流程暂时中断。核对日志有没有那一行以后，才有证据决定是否要补写。</p>
+</section>
+<section class="design-section" id="incomplete-response">
+<h3>5.2 响应未收完整，主循环先拦住工具派发</h3>
+<p>如果模型响应只送来了 <code>{"path":"prices.mjs","new_string":</code> 就断开，后半段还没有收到。这时 Edit 处理器没有机会检查旧文。主循环判断本次响应的状态，先处理未完整的返回。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/task-loop/loop.py#L412" rel="noopener" target="_blank">loop.py:412 · 未完整响应的停止路径</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>9 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="412"></span><span data-line="413"></span><span data-line="414"></span><span data-line="415"></span><span data-line="416"></span><span data-line="417"></span><span data-line="418"></span><span data-line="419"></span><span data-line="420"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">if</span> response is <span class="hljs-keyword">None</span> or response.status != <span class="hljs-string">"</span><span class="hljs-string">complete</span><span class="hljs-string">"</span>:
+            failure = (response.error or <span class="hljs-string">"</span><span class="hljs-string">模型回答未完成，工具未执行。</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> response is not <span class="hljs-keyword">None</span>
+                       <span class="hljs-keyword">else</span> <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">模型请求失败：</span><span class="hljs-string">{</span><span class="hljs-built_in">type</span>(request_error).__name__<span class="hljs-string">}</span><span class="hljs-string">"</span>)
+            <span class="hljs-keyword">if</span> (exposed or content or message.get(<span class="hljs-string">"</span><span class="hljs-string">tool_calls</span><span class="hljs-string">"</span>) or
+                    response is not <span class="hljs-keyword">None</span> and (response.status == <span class="hljs-string">"</span><span class="hljs-string">partial</span><span class="hljs-string">"</span> or response.deltas)):
+                <span class="hljs-keyword">if</span> content:
+                    session.messages.append({<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">assistant</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: content})
+                <span class="hljs-keyword">await</span> save()
+                <span class="hljs-keyword">return</span> TurnResult(<span class="hljs-string">"</span><span class="hljs-string">failed</span><span class="hljs-string">"</span>, failure)</code></pre></div></figure>
+<p>客户端用 <code>partial</code> 表示只收到部分响应。主循环保留已有正文，然后让当前回合以 <code>failed</code> 结束。取消也在派发前单独处理。客户端把响应标为 <code>complete</code> 时，程序才继续检查调用身份、参数和执行条件。怎样根据分段传来的内容作出这个判断，到<a href="03-模型响应怎样变成调用.html#complete-gate" rel="noopener" target="_blank">第三篇看响应接收的边界</a>。</p>
+<p>如果执行器在等待并发批次时被取消，它会设置取消信号，先让<a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/task-loop/tool_batch.py#L309" rel="noopener" target="_blank">已经开始的工具和结果保存有机会收尾</a>。尚未开始的调用可以停下，已经发生的写入还需按实际结果核对。</p>
+</section>
+</section>
+<section class="v2-topic-group" id="finish-and-evidence">
+<header class="v2-group-heading"><span>06</span><h2>回合停止与任务验收</h2></header>
+<section class="design-section" id="completion-is-not-acceptance">
+<h3>6.1 无调用可结束回合，两种价格由试算核对</h3>
+<p>模型可以在收到试算输出后，只回答“已给普通价打折，会员价保持原样”。在响应完整、有正文、没有后续工具调用时，主循环保存这条回答，并返回 <code>TurnResult("complete")</code>。</p>
+<div aria-label="比较两组试算与回合结果" class="table-scroll" role="region" tabindex="0"><table><thead><tr><th>程序实际试算</th><th>模型最后只回答“完成”</th><th>这组输入的结果</th></tr></thead><tbody>
+<tr><td>普通价 <code>180</code>，会员价 <code>200</code></td><td>当前回合可以正常结束。</td><td>两个价格符合要求。</td></tr>
+<tr><td>普通价 <code>180</code>，会员价 <code>180</code></td><td>当前回合也可以正常结束。</td><td>会员价错了，需要回到文件核对。</td></tr>
+</tbody></table></div>
+<p>所以看到 <code>complete</code>，先辨认它是在说一次模型响应收完了，还是这一回合已经结束。<strong>「没有后续工具调用可以结束回合，价格结果仍靠试算验收。」</strong>若要覆盖其他输入，还需相应的验证证据。回合遇到取消、等待、请求失败或显式上限，也会交还控制权，各有自己的状态。后续<a href="22-怎样判断任务真的完成.html" rel="noopener" target="_blank">《怎样判断任务真的完成》</a>会进一步组织这些证据。</p>
+</section>
+</section>
+<section class="v2-topic-group" id="learning-check">
+<header class="v2-group-heading"><span>07</span><h2>学习效果检测</h2></header>
+<section class="design-section" id="learning-questions">
+<h3>7.1 判断工具回传、调用身份与回合状态</h3>
+<p>先自己推一遍，再展开详答。</p>
+<p><strong>第1题：</strong> 交接时终端还留着 <code>Read(notes.md)</code> 的输出“截止周五”。下一次请求的消息列表只有原任务和带 <code>id=r7</code> 的助手调用。模型这时凭什么知道截止日？请指出缺哪条消息，修好后该检查哪一份请求。</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>终端证明读文件取得了这句话。请求里还缺这次读取的工具消息，所以模型不能凭这份请求得知周五。把原回包按 <code>tool_call_id=r7</code> 配回助手调用，确认实际发出的下一份 <code>messages</code> 既有任务也有该回包。屏幕上再打印一次不会补上这条记录。</p></div></details>
+<p><strong>第2题：</strong>同一助手响应提出Read实现和Read测试，ID分别为 <code>read_impl</code>、<code>read_test</code>。测试先完成，应该把它的内容填进哪个ID？当前RuoCun会怎样组织最终结果列表？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>测试结果仍填入 <code>read_test</code>，不能按谁先返回决定身份。当前执行器以ID保存结果，再按原调用列表组织返回，所以本例仍先列实现结果，再列测试结果。完成先后、身份配对、列表顺序是三个需要分别判断的问题。</p></div></details>
+<p><strong>第3题：</strong>Edit因旧文出现两次而拒绝。请按顺序说出：谁识别拒绝、谁把它转换为反馈、消息带哪个身份、下一次模型请求增加了什么？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>Edit处理器识别重复匹配并停止本次修改；批执行器捕获ToolRejected，把原因变成Error结果文本，并带回原Edit的调用ID。主循环把这条tool消息加入历史并保存。下一次请求因此带着“旧调用没有成功、原因是旧文重复、需要补足上下文”的信息，模型才有依据提出修正。它仍需根据只改普通价的目标选择，不能自动改为全部替换。</p></div></details>
+<p><strong>第4题：</strong>网络已流出工具名Edit及半份JSON，响应状态为partial；另外一个场景是响应完整但两次调用用了相同ID。两种场景能否先试着执行，再让工具决定？</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>都不能按正常调用派发。partial响应尚未通过完整性接缝，主循环在派发前处理停止或恢复；完整响应中的重复ID则会被 <code>_safe_calls</code>拒绝，因为结果身份无法区分。二者拦截位置不同，但都早于相应工具处理器真正执行。不能将坏格式、未知身份和工具明确拒绝混成一件事。</p></div></details>
+<p><strong>第5题：</strong>检查返回普通价180、会员价180，随后模型只回答“完成”，没有tool_calls。请分别判断本次响应、任务处理回合和业务目标的状态。</p>
+<details class="answer-box"><summary>展开详答</summary><div><p>若响应本身收取完整，它可以是完整响应；助手没有后续调用，当前 <code>run_turn</code>也可以返回complete。但会员价应为200，业务目标仍未通过。合理修正是核对当前文件，恢复会员价并重跑相关检查。程序返回complete这一事实，不能替代对价格结果的判断。</p></div></details>
+</section>
+</section>
+<section class="v2-topic-group" id="interview-practice">
+<header class="v2-group-heading"><span>08</span><h2>模拟面试官提问</h2></header>
+<section class="design-section" id="interview-agent-development">
+<h3>8.1 Agent 开发实习</h3>
+<h4>独立核心题</h4>
+<p><strong>RuoCun怎样把一句代码修改需求推进成有结果可核对的任务？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div>
+<p><strong>口述回答：</strong>模型根据当前目标和历史提出下一步，比如先读文件。程序执行Read，把原文作为工具消息交回下一次请求；模型再提出Edit，程序保存修改并回传差异。检查结果也按同样方式回流，模型据此继续修正或回答。主循环把这些往返接起来，实际结果则由工具执行取得。</p>
+<p><strong>机制依据：</strong>请求从当前 <code>session.messages</code> 取副本。完整的助手调用先入历史，批结果再加入同一份历史。正文“从读取到试算，调用与结果逐轮累积”的表格展示了这段变化。</p>
+<p><strong>适用边界：</strong>Read→Edit→检查是本例路线，模型可根据实际反馈改变行动；无调用结束回合，也不等于业务验收已经自动通过。</p>
+</div></details>
+<p><strong>工具输出已经展示给用户，为什么还需要显式回填消息？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div>
+<p><strong>口述回答：</strong>用户看见输出，与模型收到信息是两条路径。模型下一次只根据请求携带的内容继续，所以程序必须把结果装成对应调用的tool消息，再带进下一次请求。只打印到终端，模型可能仍在依据旧信息判断。</p>
+<p><strong>机制依据：</strong><code>session.messages.extend(batch.messages)</code>把反馈加入历史，后续 <code>copy.deepcopy(session.messages)</code>取走新状态。调用ID进一步说明这份信息是在回答哪次行动。</p>
+<p><strong>适用边界：</strong>保存与入请求也要区分：持久保存支持后续接续，当前模型能否消费结果，要看下一次请求实际带了哪些消息。</p>
+</div></details>
+<h4>重点追问链</h4>
+<p><strong>主问：价格修改里，Read完成后为什么还要再请求模型？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p><strong>口述回答：</strong>Read只取得内容，没有决定如何满足折扣要求。下一次请求让模型结合原始目标和实际函数提出修改，再由程序执行。工具负责取得或改变事实，模型负责根据这些事实选择下一步。</p><p><strong>依据与条件：</strong>当前历史必须同时带着用户目标、Read请求及其结果；只回“读取成功”不足以支持精确引用原文。</p></div></details>
+<p><strong>追问1：Edit拒绝以后，模型凭什么能把请求改对？</strong></p>
+<details class="answer-box"><summary>展开追问1回答</summary><div><p><strong>口述回答：</strong>拒绝会成为原调用的反馈，明确告诉模型旧文重复，需要补上下文。下一次请求带着它，模型才有依据把普通价函数声明和函数体一起放进旧文、新文。</p><p><strong>机制与边界：</strong>工具识别、反馈回流、模型修正分别发生，清楚反馈不保证模型必然修好。具体定位与替换规则可关联<a href="01-文件编辑可靠性-精致教材预览.html" rel="noopener" target="_blank">《文件编辑：找准目标，保留已有修改》</a>。</p></div></details>
+<p><strong>追问2：检查结果是180／180，但模型说完成，你怎样判断？</strong></p>
+<details class="answer-box"><summary>展开追问2回答</summary><div><p><strong>口述回答：</strong>回合可以结束，需求仍有一项失败，因为会员价应为200。我会根据结果回到当前代码核对会员函数，修复后再检查，而不是把complete当作验收结论。</p><p><strong>关联：</strong>本篇的状态与价格反例已经足够判断；完整验收证据组织见<a href="22-怎样判断任务真的完成.html" rel="noopener" target="_blank">完成判断篇</a>。</p></div></details>
+</section>
+<section class="design-section" id="interview-agent-harness">
+<h3>8.2 Agent harness 岗位</h3>
+<h4>独立核心题</h4>
+<p><strong>一个响应里的多个同名调用，怎样和各自结果保持一致？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div>
+<p><strong>口述回答：</strong>给每次调用保留独立ID，结果用tool_call_id指回它。工具名说明能力类型，无法区分两次Read。当前执行器以ID记录结果，最后按原调用列表组织返回消息，所以并行完成顺序不会改变结果身份。</p>
+<p><strong>机制依据：</strong><code>_safe_calls</code>在派发前拒绝缺失或重复身份；<code>_message</code>回填ID；返回批结果按 <code>calls</code>从 <code>results</code>取消息。</p>
+<p><strong>适用边界：</strong>ID合法保证有可配对的身份，不证明结果内容正确，也不表示所有调用都可并行；后者由工具执行约束决定。</p>
+</div></details>
+<p><strong>为什么不能收到半份参数就开始执行工具？</strong></p>
+<details class="answer-box"><summary>展开参考回答</summary><div>
+<p><strong>口述回答：</strong>流出的片段还不是完整调用。后面可能继续补参数，也可能断流或取消。RuoCun先判断响应是否完整，再整理调用和派发；partial里的正文可以保留，但半份工具参数不应该变成真实副作用。</p>
+<p><strong>机制依据：</strong>未完整响应和取消的返回路径位于助手调用保存与 <code>executeToolBatch</code>之前，正文展示了这一接缝。</p>
+<p><strong>适用边界：</strong>完整性检查之后仍需参数、权限和执行条件检查；响应完整只说明可以继续处理。</p>
+</div></details>
+<h4>重点追问链</h4>
+<p><strong>主问：两个Read都叫 <code>read_1</code>，为什么不能先执行再补ID？</strong></p>
+<details class="answer-box"><summary>展开主问回答</summary><div><p><strong>口述回答：</strong>调用身份在行动与结果之间要保持一致。先用重复ID执行，后面再补就失去了原助手请求与结果的稳定对应。当前程序会在派发前拒绝这份响应里的重复ID，让身份问题停在执行之前。</p><p><strong>依据：</strong><code>_safe_calls</code>维护seen集合；这与工具参数是否合法是不同检查。</p></div></details>
+<p><strong>追问1：一个 Read 成功，另一个明确拒绝，为什么两条结果都要回填？换成 Bash 已经可能写了日志，却无法保存结果，又该怎么处理？</strong></p>
+<details class="answer-box"><summary>展开追问1回答</summary><div><p><strong>口述回答：</strong>明确拒绝已经回答了这次 Read。保留原因和原调用 ID，模型才知道缺哪份内容、该换参数还是改路线。Bash 的日志可能已经写入，应先停止续跑、核实原操作，否则重试可能追加第二条记录。</p><p><strong>机制依据：</strong><code>ToolRejected</code> 转为错误文本，<code>_message</code> 为它附上原 ID，批执行器再按原调用顺序取出反馈。带持久副作用的调用无法确认已保存结果时，执行器抛出 <code>UnknownToolOutcome</code>，主循环停止。</p></div></details>
+<p><strong>追问2：模型没有再调工具，harness就能把项目标为通过吗？</strong></p>
+<details class="answer-box"><summary>展开追问2回答</summary><div><p><strong>口述回答：</strong>只能据此结束当前普通执行回合。是否通过要核对用户要求和真实证据，像价格任务要分别看普通价与会员价。工具调用结束、回合结束和业务验收是不同层次。</p><p><strong>关联与边界：</strong>完整验收体系由<a href="22-怎样判断任务真的完成.html" rel="noopener" target="_blank">完成判断篇</a>承接；本篇不把状态字段写成自动质量保证。</p></div></details>
+</section>
+</section>
+<section class="v2-topic-group" id="article-takeaways">
+<header class="v2-group-heading"><span>09</span><h2>这一篇带走什么</h2></header>
+<p>一次任务可以问模型多次，由模型提出下一步，程序检查并执行调用，再把工具结果写进会话历史，带到下一次请求里。</p>
+<ul class="pilot-takeaways">
+<li>正常续跑时，同一批调用先按 ID 收齐结果，再按原调用顺序写回历史。即使两次读取能并行，下一次请求也要等较慢的一项，才能同时带上本批的完整反馈。</li>
+<li>明确拒绝带着原因和原调用 ID 回传，模型据此决定是否修正。写入可能已经发生而结果未确认时，主循环先停下。核实原操作可以避免把一次写入做成两次。</li>
+<li>响应完整、有正文且没有工具调用时，回合可以返回 <code>complete</code>。确认任务是否达标，要核对实际产物和执行结果，例如改价后的两个试算值。</li>
+</ul>
+<p>下一份请求带回拒绝反馈，模型才有依据改参数。如果发生变化的是文件所在的执行目录，模型又该从请求里的哪条消息得知？接着<a href="02-模型收到什么.html#pricing-context-case" rel="noopener" target="_blank">对照切换目录前后的两次请求</a>。</p>
+</section>
+</article></main></body></html>

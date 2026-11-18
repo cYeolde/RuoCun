@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 334" role="img" aria-labelledby="pairing-title pairing-desc">
+  <title id="pairing-title">两次 Read 的结果怎样保持各自身份</title>
+  <desc id="pairing-desc">同一助手响应先请求 read_impl 读取实现文件，再请求 read_test 读取测试文件。假设测试先读完，执行器仍按 ID 收集，再依原调用顺序返回。工具消息第一条 tool_call_id 是 read_impl，第二条是 read_test。</desc>
+  <defs>
+    <style>
+      text { fill: #172638; font: 16px "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", system-ui, sans-serif; }
+      .head { font-size: 19px; font-weight: 700; }
+      .muted { fill: #52647a; }
+      .mono { font: 15px "Cascadia Code", Consolas, monospace; }
+      .blue { fill: #2456a6; }
+      .impl { fill: #edf3fc; stroke: #c4d3ea; }
+      .test { fill: #f4f6f9; stroke: #dce3ec; }
+    </style>
+    <marker id="pairing-arrow" orient="auto" markerWidth="8" markerHeight="8" refX="6" refY="4">
+      <path d="M1 1L6 4L1 7" fill="none" stroke="#63748a" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+  <rect width="840" height="334" fill="#fff"/>
+
+  <text x="24" y="36" class="head">模型提出的顺序</text>
+  <text x="304" y="36" class="head">假设工具完成的顺序</text>
+  <text x="577" y="36" class="head">程序发回的顺序</text>
+
+  <g fill="none" stroke="#63748a" stroke-width="1.65" marker-end="url(#pairing-arrow)">
+    <path d="M256 151H293"/>
+    <path d="M532 151H566"/>
+  </g>
+  <rect x="24" y="56" width="220" height="84" rx="7" class="impl"/>
+  <text x="40" y="87" class="blue">先请求 · <tspan class="mono">read_impl</tspan></text>
+  <text x="40" y="117" class="mono">Read(prices.mjs)</text>
+  <rect x="24" y="159" width="220" height="84" rx="7" class="test"/>
+  <text x="40" y="190" class="muted">再请求 · <tspan class="mono">read_test</tspan></text>
+  <text x="40" y="220" class="mono">Read(prices.test.mjs)</text>
+
+  <rect x="304" y="56" width="216" height="84" rx="7" class="test"/>
+  <text x="320" y="87" class="muted">先完成 · <tspan class="mono">read_test</tspan></text>
+  <text x="320" y="117">测试文件的内容</text>
+  <rect x="304" y="159" width="216" height="84" rx="7" class="impl"/>
+  <text x="320" y="190" class="blue">后完成 · <tspan class="mono">read_impl</tspan></text>
+  <text x="320" y="220">实现文件的内容</text>
+
+  <rect x="577" y="56" width="239" height="84" rx="7" class="impl"/>
+  <text x="593" y="87" class="mono blue">tool_call_id = read_impl</text>
+  <text x="593" y="117">实现文件的内容</text>
+  <rect x="577" y="159" width="239" height="84" rx="7" class="test"/>
+  <text x="593" y="190" class="mono">tool_call_id = read_test</text>
+  <text x="593" y="220">测试文件的内容</text>
+
+  <path d="M24 264H816" stroke="#dce3ec"/>
+  <text x="24" y="296">两次都叫 <tspan class="mono">Read</tspan>。程序用 ID 找回各自结果，再按原调用列表放回历史。</text>
+  <text x="24" y="321" class="muted">源码推演 · 两次读取可独立执行时，完成先后可以不同。</text>
+</svg>

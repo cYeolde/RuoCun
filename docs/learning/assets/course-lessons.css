@@ -1,0 +1,60 @@
+.course-lesson .design-hero h1 { margin-bottom: 4px; text-wrap: balance; }
+.course-lesson .design-hero .article-subtitle { margin: 0 0 16px; color: var(--muted); line-height: 1.6; }
+.course-lesson .design-section code { overflow-wrap: anywhere; }
+.course-lesson .design-section .ruocun-code code { overflow-wrap: normal; }
+.course-lesson .design-section table :is(td, th) code { white-space: normal; }
+.course-lesson .v2-group-heading h2 { margin-inline-end: 0; }
+
+.reasoning-figure {
+  margin: 22px 0 24px;
+  padding: 16px 18px 17px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--rail);
+}
+
+.reasoning-figure > figcaption {
+  margin-bottom: 12px;
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.reasoning-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+
+.reasoning-grid > section {
+  min-width: 0;
+  padding: 12px 14px;
+  border-top: 2px solid var(--blue);
+  background: var(--paper);
+}
+
+.reasoning-grid > section[data-outcome="failure"] {
+  border-top-color: var(--amber);
+}
+
+.course-lesson .reasoning-grid h4 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.course-lesson .reasoning-grid p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+.reasoning-figure .table-scroll { margin: 0; }
+
+@media (max-width: 680px) {
+  .reasoning-grid {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+    gap: 10px;
+  }
+}
