@@ -6,7 +6,7 @@
 
 [开始读课](https://hmmgotit.github.io/RuoCun/learning/课程学习地图.html) · [打开项目主页](https://hmmgotit.github.io/RuoCun/) · [查看 89 题成绩](docs/benchmark/README.md) · [下载 v1.0.0](https://github.com/hmmgotit/RuoCun/releases/tag/v1.0.0)
 
-![若存在 Windows Terminal 里修改普通价、检查文件 diff 并运行价格测试](docs/assets/ruocun-demo.gif)
+![若存的原生欢迎形象，以及在 Windows Terminal 中验证普通价 180 元、会员价 200 元的过程](docs/assets/ruocun-welcome-demo.gif)
 
 *折扣案例 · Windows Terminal 实录 · 本地模拟模型响应*
 
