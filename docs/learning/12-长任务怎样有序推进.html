@@ -43,24 +43,24 @@
 </header>
 <section class="v2-topic-group" id="waiting-without-a-run">
 <header class="v2-group-heading"><span>01</span><h2>为什么任务显示 running，等再久也看不到测试结果？</h2></header><div class="design-section">
-<p>折扣逻辑改好了，模型准备等定价测试结果。第 11 篇说到<a href="11-任务在跑时用户又说话.html#interactive-generation-2" rel="noopener" target="_blank">等待句柄能把前台交回调度器</a>。句柄从哪里取得运行身份？两次尝试都出现了名为“运行定价测试”、状态为 <code>running</code> 的记录。其中一次只登记了进度，另一次已经把命令转到后台。把返回的 ID 各自交给 TaskWait，先核对两份记录的来历。</p>
+<p>折扣逻辑改好了，模型准备等定价测试结果。第 11 篇说到<a href="11-任务在跑时用户又说话.html#interactive-generation-2" rel="noopener" target="_blank">等待句柄能把前台交回调度器</a>。句柄从哪里取得运行身份？两次尝试都出现了名为“运行定价测试”、状态为 <code>running</code> 的记录。其中一次只登记了进度，另一次已经把命令转到后台。对照两个回执，先判断哪一个 ID 能交给 TaskWait。</p>
 <figure class="reasoning-figure">
 <figcaption>源码推演 · 两条 running 的记录各来自哪里</figcaption>
 <div class="reasoning-grid">
 <section><h4>第一次 · 只记进度</h4><p>TodoWrite 标记“验证”进行中。TaskCreate 返回手工记录 <code>task-1</code>。后台执行记录为空。</p></section>
-<section><h4>第二次 · 命令已转后台</h4><p>Bash 启动测试，运行器登记 <code>task-tests</code> 和 <code>run-tests-1</code>。</p></section>
-<section><h4>TaskWait 的查找条件</h4><p>按传入的任务 ID 找当前会话的后台执行快照。快照里必须有这趟运行。</p></section>
+<section><h4>第二次 · 命令已转后台</h4><p>Bash 回执给出 <code>id: f8a0b712-a53d-4251-8bd7-6e894a31914f</code>。这是示意的 Shell <code>runId</code>。运行器同时登记任务 ID <code>proc-f8a0b712</code>。</p></section>
+<section><h4>TaskWait 的查找条件</h4><p>在当前会话查找实际后台执行。普通任务 ID 查它的最新运行，Shell 回执里的运行 ID 也可以直接定位。</p></section>
 </div>
 </figure>
 <details class="answer-box"><summary>首读自检 · 哪一步启动了测试？如果想等，应拿哪个 ID？</summary><div>
-<p>第二次尝试中，Bash 启动了测试。等候调用应填 <code>{"ids":["task-tests"],"mode":"any"}</code>，程序会从任务 ID 找到 <code>run-tests-1</code>。传入 <code>task-1</code> 找不到后台快照，即使手工项也显示 <code>running</code>。</p></div></details>
+<p>第二次尝试中，Bash 启动了测试。把 Bash 回执里的完整 <code>runId</code> 填进 <code>ids</code> 就能等待这趟运行。传入与它对应的 <code>proc-f8a0b712</code> 也能找到最新的这趟运行。传 <code>task-1</code> 则找不到后台快照，即使手工项也显示 <code>running</code>。</p></div></details>
 <p>若把手工项也交给等待器，父会话可能停下来等一份永远无法由执行器产生的终态。<strong>「等待绑定正在管理的运行，不能凭同名任务或 running 字样」</strong>。</p>
 </div></section>
 <section class="v2-topic-group" id="planning-records">
 <header class="v2-group-heading"><span>02</span><h2>待办、手工记录与运行状态</h2></header><div class="design-section">
 </div><section class="design-section" id="todo-replacement"><h3>2.1 TodoWrite 整份替换当前清单</h3>
 <p>定位、实现、验证三项给模型一个可见的推进顺序。第一次提交完整三项，定位完成后再送一份完整清单，保留定位的 <code>completed</code> 并让实现接过 <code>in_progress</code>。如果第二次只写“实现”，下面的赋值会让“定位”和“验证”一同消失。它适合每次记录当前全貌，调用者为此要带上仍然有效的条目。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/tools/todo_write.py#L17" rel="noopener" target="_blank">src/ruocun/tools/todo_write.py · 第 17–29 行</a></p><figure class="ruocun-code" data-language="python">
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/todo_write.py#L17" rel="noopener" target="_blank">src/ruocun/tools/todo_write.py · 第 17–29 行</a></p><figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>13 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="17"></span><span data-line="18"></span><span data-line="19"></span><span data-line="20"></span><span data-line="21"></span><span data-line="22"></span><span data-line="23"></span><span data-line="24"></span><span data-line="25"></span><span data-line="26"></span><span data-line="27"></span><span data-line="28"></span><span data-line="29"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">_todo</span>(args: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any], ctx: ToolContext) -&gt; <span class="hljs-built_in">str</span>:
     todos = args[<span class="hljs-string">"</span><span class="hljs-string">todos</span><span class="hljs-string">"</span>]
@@ -78,7 +78,7 @@
 <p>多项同时进行会在写入前被拒绝。三项都标完时，工具追加回到用户要求、核对实际证据的提醒。这是让模型检查的机会。测试程序有没有跑、结果是否覆盖了会员条件，仍要查对应产物。</p>
 </section><section class="design-section" id="manual-owner"><h3>2.2 TaskCreate 登记手工工作，运行器结算执行任务</h3>
 <p><code>TaskCreate({"description":"运行定价测试"})</code> 适合记录跨回合的手工工作。管理器会保存 <code>kind=manual</code> 的记录并返回稳定 ID，命令和子代理分别由 Bash 与 Agent 启动。TaskCreate 的业务参数只有 <code>description</code>。它没有用于声明任务依赖图的字段，“先定位再实现”由计划与调用顺序落实。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/agent/tasks.py#L423" rel="noopener" target="_blank">src/ruocun/agent/tasks.py · 第 423–441 行</a></p><figure class="ruocun-code" data-language="python">
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/tasks.py#L423" rel="noopener" target="_blank">src/ruocun/agent/tasks.py · 第 423–441 行</a></p><figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>19 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="423"></span><span data-line="424"></span><span data-line="425"></span><span data-line="426"></span><span data-line="427"></span><span data-line="428"></span><span data-line="429"></span><span data-line="430"></span><span data-line="431"></span><span data-line="432"></span><span data-line="433"></span><span data-line="434"></span><span data-line="435"></span><span data-line="436"></span><span data-line="437"></span><span data-line="438"></span><span data-line="439"></span><span data-line="440"></span><span data-line="441"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">create</span>(<span class="hljs-built_in">self</span>, description: <span class="hljs-built_in">str</span>) -&gt; <span class="hljs-built_in">str</span>:
         <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> <span class="hljs-built_in">self</span>._lock:
@@ -104,34 +104,50 @@
 <section class="v2-topic-group" id="wait-and-yield">
 <header class="v2-group-heading"><span>03</span><h2>TaskWait 的匹配与让出</h2></header><div class="design-section">
 </div><section class="design-section" id="wait-targets"><h3>3.1 等待句柄绑定会话和这次运行</h3>
-<p>现在定价测试和格式检查已各自进入后台。用 <code>task-tests</code>、<code>task-style</code> 表示它们的示意 ID。模型提交 <code>{"ids":["task-tests","task-style"],"mode":"all"}</code>。<code>ids</code> 是非空字符串数组，运行时去重后接受 1 到 32 个，省略 <code>mode</code> 则用 <code>any</code>。TaskWait 只在会话提供了等待入口且调用者是主会话时可用。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/agent/background_runtime.py#L410" rel="noopener" target="_blank">src/ruocun/agent/background_runtime.py · 第 410–433 行</a></p><figure class="ruocun-code" data-language="python">
-<figcaption class="ruocun-code-caption"><span>Python</span><span>24 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="410"></span><span data-line="411"></span><span data-line="412"></span><span data-line="413"></span><span data-line="414"></span><span data-line="415"></span><span data-line="416"></span><span data-line="417"></span><span data-line="418"></span><span data-line="419"></span><span data-line="420"></span><span data-line="421"></span><span data-line="422"></span><span data-line="423"></span><span data-line="424"></span><span data-line="425"></span><span data-line="426"></span><span data-line="427"></span><span data-line="428"></span><span data-line="429"></span><span data-line="430"></span><span data-line="431"></span><span data-line="432"></span><span data-line="433"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">prepare</span>(<span class="hljs-built_in">self</span>, request: WaitRequest) -&gt; <span class="hljs-built_in">tuple</span>[WaitHandle, <span class="hljs-built_in">bool</span>]:
-        ids = <span class="hljs-built_in">list</span>(<span class="hljs-built_in">dict</span>.fromkeys(request[<span class="hljs-string">"</span><span class="hljs-string">ids</span><span class="hljs-string">"</span>]))
-        <span class="hljs-keyword">if</span> not ids or <span class="hljs-built_in">len</span>(ids) &gt; <span class="hljs-number">32</span> or request[<span class="hljs-string">"</span><span class="hljs-string">mode</span><span class="hljs-string">"</span>] not in {<span class="hljs-string">"</span><span class="hljs-string">any</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">all</span><span class="hljs-string">"</span>}:
-            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"</span><span class="hljs-string">TaskWait 需要 1–32 个不同任务 ID及any/all模式。</span><span class="hljs-string">"</span>)
-        targets = []
-        <span class="hljs-keyword">for</span> task_id in ids:
+<p>拿开篇的回执问一次。<code>taskId</code> 指任务记录，<code>runId</code> 指其中一趟实际运行。受管 Bash 保留<a href="07-命令运行很久.html#shell-handoff" rel="noopener" target="_blank">转后台前的运行身份</a>，回执在确认后台登记后交出这趟的 <code>runId</code>。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/managed_shell.py#L689" rel="noopener" target="_blank">src/ruocun/tools/managed_shell.py · 第 689–694 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>6 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="689"></span><span class="ruocun-comment-gutter"></span><span data-line="690"></span><span data-line="691"></span><span data-line="692"></span><span data-line="693"></span><span data-line="694"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        entry = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._start(plan, signal)
+<span class="hljs-comment ruocun-teaching-note">        # 后台回执给运行 ID，这次转后台沿用已经启动的同一趟。
+</span>        run_id = entry.record.run_ref.run_id
+        <span class="hljs-keyword">if</span> background:
+            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.detach(run_id)
+            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._confirm_background_ack(entry)
+            <span class="hljs-keyword">return</span> <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">后台Shell已登记，id: </span><span class="hljs-string">{</span>run_id<span class="hljs-string">}</span><span class="hljs-string">。用BashOutput读取新输出，用KillShell请求停止。</span><span class="hljs-string">"</span></code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/background_runtime.py#L374" rel="noopener" target="_blank">src/ruocun/agent/background_runtime.py · 第 374–379 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>6 行 · 2 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="374"></span><span class="ruocun-comment-gutter"></span><span data-line="375"></span><span class="ruocun-comment-gutter"></span><span data-line="376"></span><span data-line="377"></span><span data-line="378"></span><span data-line="379"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">snapshot</span>(<span class="hljs-built_in">self</span>, task_id: <span class="hljs-built_in">str</span>) -&gt; ExecutionSnapshot | <span class="hljs-keyword">None</span>:
+<span class="hljs-comment ruocun-teaching-note">        # 普通任务 ID 从最新运行索引查快照。
+</span>        snapshot = <span class="hljs-built_in">self</span>._runs.get(<span class="hljs-built_in">self</span>._latest.get(task_id, <span class="hljs-string">"</span><span class="hljs-string">"</span>))
+<span class="hljs-comment ruocun-teaching-note">        # Bash 回执的运行 ID 可作别名，只对 Shell 执行生效。
+</span>        alias = <span class="hljs-built_in">self</span>._runs.get(task_id)
+        <span class="hljs-keyword">return</span> snapshot or (
+            alias <span class="hljs-keyword">if</span> alias is not <span class="hljs-keyword">None</span> and alias.kind == <span class="hljs-string">"</span><span class="hljs-string">shell</span><span class="hljs-string">"</span> <span class="hljs-keyword">else</span> <span class="hljs-keyword">None</span>
+        )</code></pre></div></figure>
+<p>现在加入第二个已进入后台的格式检查，使用示意任务 ID <code>task-style</code>。把这项的任务 ID 和定价测试的 Shell 运行 ID 一起传给 TaskWait。</p>
+<figure class="ruocun-code" data-language="json">
+<figcaption class="ruocun-code-caption"><span>JSON</span><span>1 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-json">{<span class="hljs-attr">"ids"</span>:[<span class="hljs-string">"f8a0b712-a53d-4251-8bd7-6e894a31914f"</span>,<span class="hljs-string">"task-style"</span>],<span class="hljs-attr">"mode"</span>:<span class="hljs-string">"all"</span>}</code></pre></div></figure>
+<p><code>ids</code> 是非空字符串数组，运行时按输入字符串去重后接受 1 到 32 个，省略 <code>mode</code> 时用 <code>any</code>。TaskWait 只在会话提供等待入口且调用者是主会话时可用。查得快照后把选定的 <code>taskId</code> 和 <code>runId</code> 写进 <code>WaitTarget</code>，句柄也保存 <code>sessionId</code>。最新运行只在登记前决定，登记后即使任务改名或核准了新运行，句柄仍查原来那一趟。已是未知或中断的执行要先核实。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/background_runtime.py#L415" rel="noopener" target="_blank">src/ruocun/agent/background_runtime.py · 第 415–429 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>15 行 · 2 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="415"></span><span data-line="416"></span><span data-line="417"></span><span data-line="418"></span><span data-line="419"></span><span data-line="420"></span><span class="ruocun-comment-gutter"></span><span data-line="421"></span><span data-line="422"></span><span data-line="423"></span><span data-line="424"></span><span data-line="425"></span><span class="ruocun-comment-gutter"></span><span data-line="426"></span><span data-line="427"></span><span data-line="428"></span><span data-line="429"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">for</span> task_id in ids:
             snapshot = <span class="hljs-built_in">self</span>.snapshot(task_id)
             <span class="hljs-keyword">if</span> snapshot is <span class="hljs-keyword">None</span> or not snapshot.background:
                 <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">不可等待任务 </span><span class="hljs-string">{</span>task_id<span class="hljs-string">}</span><span class="hljs-string">:不是当前会话的后台执行。</span><span class="hljs-string">"</span>)
             <span class="hljs-keyword">if</span> snapshot.status in {<span class="hljs-string">"</span><span class="hljs-string">unknown</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">interrupted</span><span class="hljs-string">"</span>}:
                 <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">任务 </span><span class="hljs-string">{</span>task_id<span class="hljs-string">}</span><span class="hljs-string"> 需要恢复核实，不能等待未知执行。</span><span class="hljs-string">"</span>)
-            target = WaitTarget(snapshot.taskId, snapshot.runId)
+<span class="hljs-comment ruocun-teaching-note">            # 固定查到的这一趟。之后按快照里的实际 runId 等待。
+</span>            target = WaitTarget(snapshot.taskId, snapshot.runId)
             <span class="hljs-keyword">if</span> target not in targets:
                 targets.append(target)
         handle = WaitHandle(
             <span class="hljs-built_in">str</span>(uuid.uuid4()),
-            <span class="hljs-built_in">self</span>.sessionId,
+<span class="hljs-comment ruocun-teaching-note">            # 句柄也绑定会话，避免把另一份会话里的结果认成自己的。
+</span>            <span class="hljs-built_in">self</span>.sessionId,
             <span class="hljs-built_in">tuple</span>(targets),
             request[<span class="hljs-string">"</span><span class="hljs-string">mode</span><span class="hljs-string">"</span>],
-            <span class="hljs-built_in">self</span>._seq,
-        )
-        <span class="hljs-built_in">self</span>._waits[handle.waitId] = handle
-        <span class="hljs-built_in">self</span>.counters[<span class="hljs-string">"</span><span class="hljs-string">waitsRegistered</span><span class="hljs-string">"</span>] += <span class="hljs-number">1</span>
-        <span class="hljs-keyword">return</span> handle, <span class="hljs-built_in">self</span>.ready(handle)</code></pre></div></figure>
-<p><code>taskId</code> 指任务记录，<code>runId</code> 指这份任务某一次实际运行。这个区分延续了<a href="07-命令运行很久.html#shell-handoff" rel="noopener" target="_blank">转后台时原命令保存自己的运行身份</a>。TaskWait 接收任务 ID，用它查当前会话的后台快照，再将这一趟的 <code>taskId</code>、<code>runId</code> 写入 <code>WaitTarget</code>，句柄也保存 <code>sessionId</code>。之后即使任务改名或经过核准开展一次新运行，原句柄仍查原来的那一趟。登记等待时已是未知或中断的执行要先核实。</p>
+            <span class="hljs-built_in">self</span>._seq,</code></pre></div></figure>
 <div aria-label="预期行为 · 同一对后台运行在不同状态下" class="table-scroll" role="region" tabindex="0"><table>
 <caption>预期行为 · 同一对后台运行在不同状态下</caption>
 <thead><tr><th scope="col">状态</th><th scope="col"><code>any</code></th><th scope="col"><code>all</code></th></tr></thead>
@@ -143,7 +159,7 @@
 </table></div>
 <p><code>ready</code> 代表有理由让主会话重新决策。等待期间目标失败、取消、中断或结果变得未知，也会就绪。注意事件以及待投递的失败、取消事件可以触发同样行为。此时要读目标快照和事件内容再决定下一步。</p>
 <p>试着只看两项都成功才醒。格式检查失败后就永远到不了这个条件，先结束的定价检查也帮不上忙。程序把失败和注意事件放在 <code>all</code> / <code>any</code> 判断之前。这意味着 <code>all</code> 醒来时还可能有任务在跑，换来主会话现在就能处理阻塞，剩余工作可随后继续等。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/agent/background_runtime.py#L435" rel="noopener" target="_blank">src/ruocun/agent/background_runtime.py · 第 435–456 行</a></p><figure class="ruocun-code" data-language="python">
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/background_runtime.py#L435" rel="noopener" target="_blank">src/ruocun/agent/background_runtime.py · 第 435–456 行</a></p><figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>22 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="435"></span><span data-line="436"></span><span data-line="437"></span><span data-line="438"></span><span data-line="439"></span><span data-line="440"></span><span data-line="441"></span><span data-line="442"></span><span data-line="443"></span><span data-line="444"></span><span data-line="445"></span><span data-line="446"></span><span data-line="447"></span><span data-line="448"></span><span data-line="449"></span><span data-line="450"></span><span data-line="451"></span><span data-line="452"></span><span data-line="453"></span><span data-line="454"></span><span data-line="455"></span><span data-line="456"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">ready</span>(<span class="hljs-built_in">self</span>, handle: WaitHandle) -&gt; <span class="hljs-built_in">bool</span>:
         <span class="hljs-keyword">if</span> handle.waitId not in <span class="hljs-built_in">self</span>._waits or handle.sessionId != <span class="hljs-built_in">self</span>.sessionId:
@@ -169,31 +185,57 @@
         <span class="hljs-keyword">return</span> <span class="hljs-built_in">all</span>(completed) <span class="hljs-keyword">if</span> handle.mode == <span class="hljs-string">"</span><span class="hljs-string">all</span><span class="hljs-string">"</span> <span class="hljs-keyword">else</span> <span class="hljs-built_in">any</span>(completed)</code></pre></div></figure>
 </section><section class="design-section" id="wait-commit"><h3>3.2 工具结果保存后才让出模型回合</h3>
 <p>模型必须把 TaskWait 单独放在一批。若它把 <code>Read</code> 与 TaskWait 放在同一批，Read 仍按原有规则执行，等待那项得到“必须单独调用”的反馈，整批不会登记等待。这样一轮的最后一步要么是普通工具组，要么明确交出控制权，避免混批中请求等待与其他工具仍在改变现场同时发生。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/agent/loop.py#L432" rel="noopener" target="_blank">src/ruocun/agent/loop.py · 第 432–453 行</a></p><figure class="ruocun-code" data-language="python">
-<figcaption class="ruocun-code-caption"><span>Python</span><span>22 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="432"></span><span data-line="433"></span><span data-line="434"></span><span data-line="435"></span><span data-line="436"></span><span data-line="437"></span><span data-line="438"></span><span data-line="439"></span><span data-line="440"></span><span data-line="441"></span><span data-line="442"></span><span data-line="443"></span><span data-line="444"></span><span data-line="445"></span><span data-line="446"></span><span data-line="447"></span><span data-line="448"></span><span data-line="449"></span><span data-line="450"></span><span data-line="451"></span><span data-line="452"></span><span data-line="453"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        session.messages.extend(batch.messages)
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/tool_batch.py#L109" rel="noopener" target="_blank">src/ruocun/tools/tool_batch.py · 第 109–123 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>15 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="109"></span><span data-line="110"></span><span data-line="111"></span><span data-line="112"></span><span data-line="113"></span><span data-line="114"></span><span data-line="115"></span><span data-line="116"></span><span class="ruocun-comment-gutter"></span><span data-line="117"></span><span data-line="118"></span><span data-line="119"></span><span data-line="120"></span><span data-line="121"></span><span data-line="122"></span><span data-line="123"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-comment"># TaskWait 登记的是整个回合的等待。混合调用只执行同批的其余工具。</span>
+    <span class="hljs-keyword">if</span> ctx.subagentDepth == <span class="hljs-number">0</span> and <span class="hljs-built_in">len</span>(calls) &gt; <span class="hljs-number">1</span> and <span class="hljs-built_in">any</span>(name == <span class="hljs-string">"</span><span class="hljs-string">TaskWait</span><span class="hljs-string">"</span> <span class="hljs-keyword">for</span> _, name, _ in calls):
+        <span class="hljs-keyword">from</span> ..agent.background_runtime <span class="hljs-keyword">import</span> currentWaitControl
+        control = currentWaitControl()
+        <span class="hljs-keyword">if</span> control is not <span class="hljs-keyword">None</span>:
+            control.rollback()
+        <span class="hljs-keyword">if</span> ctx.rollbackTaskWait is not <span class="hljs-keyword">None</span>:
+            ctx.rollbackTaskWait()
+<span class="hljs-comment ruocun-teaching-note">        # 混批仅派发其他工具，TaskWait 的位置仍有对应错误结果。
+</span>        others = [call <span class="hljs-keyword">for</span> call in calls <span class="hljs-keyword">if</span> call[<span class="hljs-number">1</span>] != <span class="hljs-string">"</span><span class="hljs-string">TaskWait</span><span class="hljs-string">"</span>]
+        completed = <span class="hljs-keyword">await</span> executeToolBatch(others, registry, ctx, approve=approve, journal=journal,
+                                           authorize=authorize, authorize_batch=authorize_batch,
+                                           call_scope=call_scope, permission_mode=permission_mode) <span class="hljs-keyword">if</span> others <span class="hljs-keyword">else</span> BatchOutcome([], <span class="hljs-keyword">False</span>)
+        by_id = {message[<span class="hljs-string">"</span><span class="hljs-string">tool_call_id</span><span class="hljs-string">"</span>]: message <span class="hljs-keyword">for</span> message in completed.messages}
+        <span class="hljs-keyword">return</span> BatchOutcome([by_id.get(call_id, _message(call_id, <span class="hljs-string">"</span><span class="hljs-string">Error: TaskWait 必须单独调用,本批未登记等待。</span><span class="hljs-string">"</span>))
+                             <span class="hljs-keyword">for</span> call_id, _, _ in calls], completed.approval_incomplete, completed.shell_failures)</code></pre></div></figure>
+<p>登记工具先返回包含 <code>status</code>、<code>waitId</code> 和 <code>targets</code> 的 JSON。主循环先把调用与结果配对追加，再执行 <code>save()</code>。缺保存接口时回滚登记。保存明确失败时回滚待激活的等待，后台结果仍待投递；提交结果未知时保留现场，由会话的阻塞状态限制继续。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L432" rel="noopener" target="_blank">src/ruocun/agent/loop.py · 第 432–436 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>5 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="432"></span><span data-line="433"></span><span data-line="434"></span><span data-line="435"></span><span class="ruocun-comment-gutter"></span><span data-line="436"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        session.messages.extend(batch.messages)
         <span class="hljs-keyword">if</span> wait_control is not <span class="hljs-keyword">None</span> and wait_control.pending and journal is <span class="hljs-keyword">None</span>:
             wait_control.rollback()
             <span class="hljs-keyword">return</span> TurnResult(<span class="hljs-string">"</span><span class="hljs-string">failed</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">TaskWait 需要会话保存接口。</span><span class="hljs-string">"</span>)
-        <span class="hljs-keyword">await</span> save()
-        <span class="hljs-keyword">if</span> events.on_tool_message is not <span class="hljs-keyword">None</span>:
-            saved_by_id = {call[<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>]: call <span class="hljs-keyword">for</span> call in saved_calls}
-            <span class="hljs-keyword">for</span> tool_message in batch.messages:
-                events.on_tool_message(saved_by_id[tool_message[<span class="hljs-string">"</span><span class="hljs-string">tool_call_id</span><span class="hljs-string">"</span>]], tool_message)
-        <span class="hljs-keyword">if</span> events.on_tool_result is not <span class="hljs-keyword">None</span>:
-            names = {call_id: name <span class="hljs-keyword">for</span> call_id, name, raw in calls}
-            <span class="hljs-keyword">for</span> tool_message in batch.messages:
-                events.on_tool_result(names[tool_message[<span class="hljs-string">"</span><span class="hljs-string">tool_call_id</span><span class="hljs-string">"</span>]], tool_message[<span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>])
-        <span class="hljs-keyword">if</span> batch.approval_incomplete:
-            <span class="hljs-keyword">return</span> TurnResult(<span class="hljs-string">"</span><span class="hljs-string">failed</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">权限确认未完成，现场已保存，本轮已停止。</span><span class="hljs-string">"</span>)
-        <span class="hljs-keyword">if</span> wait_control is not <span class="hljs-keyword">None</span> and wait_control.pending:
+<span class="hljs-comment ruocun-teaching-note">        # 先保存历史中的工具结果，确认后才可能激活等待。
+</span>        <span class="hljs-keyword">await</span> save()</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L165" rel="noopener" target="_blank">src/ruocun/agent/loop.py · 第 165–174 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>10 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="165"></span><span data-line="166"></span><span data-line="167"></span><span data-line="168"></span><span data-line="169"></span><span class="ruocun-comment-gutter"></span><span data-line="170"></span><span data-line="171"></span><span data-line="172"></span><span data-line="173"></span><span data-line="174"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">save</span>() -&gt; <span class="hljs-keyword">None</span>:
+        <span class="hljs-keyword">if</span> journal is not <span class="hljs-keyword">None</span>:
+            <span class="hljs-keyword">try</span>:
+                <span class="hljs-keyword">await</span> journal.save(session)
+            <span class="hljs-keyword">except</span> BaseException:
+<span class="hljs-comment ruocun-teaching-note">                # 结果明确未提交时撤销暂存等待，未知时交给会话核实。
+</span>                <span class="hljs-keyword">if</span> wait_control is not <span class="hljs-keyword">None</span> and not wait_control.runtime.checkpointUnknown:
+                    <span class="hljs-keyword">if</span> wait_control.pending and session.messages and session.messages[-<span class="hljs-number">1</span>].get(<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>) == <span class="hljs-string">"</span><span class="hljs-string">tool</span><span class="hljs-string">"</span>:
+                        session.messages[-<span class="hljs-number">1</span>][<span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>] = <span class="hljs-string">"</span><span class="hljs-string">Error: 等待状态保存失败,未激活等待;后台结果仍待投递。</span><span class="hljs-string">"</span>
+                    wait_control.rollback()
+                <span class="hljs-keyword">raise</span></code></pre></div></figure>
+<p>保存返回后，主循环先处理通知和未完成的批准，再到等待的激活点。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L447" rel="noopener" target="_blank">src/ruocun/agent/loop.py · 第 447–453 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>7 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="447"></span><span data-line="448"></span><span data-line="449"></span><span data-line="450"></span><span class="ruocun-comment-gutter"></span><span data-line="451"></span><span data-line="452"></span><span data-line="453"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">if</span> wait_control is not <span class="hljs-keyword">None</span> and wait_control.pending:
             <span class="hljs-keyword">if</span> ctx.signal.is_set():
                 wait_control.rollback()
                 <span class="hljs-keyword">return</span> TurnResult(<span class="hljs-string">"</span><span class="hljs-string">cancelled</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">本轮已取消。</span><span class="hljs-string">"</span>)
-            handle = wait_control.commit()
+<span class="hljs-comment ruocun-teaching-note">            # 保存之后才提交等待约定，等待条件尚未满足时让出回合。
+</span>            handle = wait_control.commit()
             <span class="hljs-keyword">if</span> handle is not <span class="hljs-keyword">None</span>:
                 <span class="hljs-keyword">return</span> TurnResult(<span class="hljs-string">"</span><span class="hljs-string">waiting</span><span class="hljs-string">"</span>, wait=handle)</code></pre></div></figure>
-<p>登记工具先返回包含 <code>status</code>、<code>waitId</code> 和 <code>targets</code> 的 JSON。主循环先把调用与结果配对追加，再执行 <code>save()</code>。缺保存接口时回滚登记。保存明确失败时回滚待激活的等待，后台结果仍待投递；提交结果未知时保留现场，由会话的阻塞状态限制继续。</p>
 <p>提交时如果目标已就绪，工具回包直接带目标快照，确认后释放句柄，同一次回合可以处理结果。如果仍待完成，主循环带着句柄返回 <code>waiting</code>，进入第 11 篇的调度器路径。<strong>「把等待登记写进历史并确认后，才让出模型回合」</strong>。</p>
 </section></section>
 <section class="v2-topic-group" id="result-delivery">
@@ -221,7 +263,7 @@
 <tr><td>消息和消费 ID 一起提交</td><td>返回提交结果前退出</td><td>查已持久化的检查点与事件，不靠内存里的回执猜。</td></tr>
 </tbody>
 </table></div>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/agent/background_delivery.py#L43" rel="noopener" target="_blank">src/ruocun/agent/background_delivery.py · 第 43–59 行</a></p><figure class="ruocun-code" data-language="python">
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/background_delivery.py#L43" rel="noopener" target="_blank">src/ruocun/agent/background_delivery.py · 第 43–59 行</a></p><figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>17 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="43"></span><span data-line="44"></span><span data-line="45"></span><span data-line="46"></span><span data-line="47"></span><span data-line="48"></span><span data-line="49"></span><span data-line="50"></span><span data-line="51"></span><span data-line="52"></span><span data-line="53"></span><span data-line="54"></span><span data-line="55"></span><span data-line="56"></span><span data-line="57"></span><span data-line="58"></span><span data-line="59"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            <span class="hljs-built_in">self</span>._candidate = [
                 *<span class="hljs-built_in">self</span>.session.messages,
@@ -246,43 +288,57 @@
 <header class="v2-group-heading"><span>05</span><h2>进度信号与长任务纠偏</h2></header><div class="design-section">
 </div><section class="design-section" id="tool-based-progress"><h3>5.1 工具动作有限地代表推进</h3>
 <p>如果模型迟迟没有启动检查，只反复搜索同一份定价代码，进度策略把连续未见写入或命令调用的工具轮当成检查机会。它见到 Write、Edit 或 Bash 等调用会重新计数。确实有后台任务在运行、且这一批全是状态或输出查询时，也视作合理推进。这里看的是调用名称与运行状态，失败的 Bash 依然能触发计数清零，因此“进度”只用于决定何时提示。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/agent/progress_advice.py#L56" rel="noopener" target="_blank">src/ruocun/agent/progress_advice.py · 第 56–73 行</a></p><figure class="ruocun-code" data-language="python">
-<figcaption class="ruocun-code-caption"><span>Python</span><span>18 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="56"></span><span data-line="57"></span><span data-line="58"></span><span data-line="59"></span><span data-line="60"></span><span data-line="61"></span><span data-line="62"></span><span data-line="63"></span><span data-line="64"></span><span data-line="65"></span><span data-line="66"></span><span data-line="67"></span><span data-line="68"></span><span data-line="69"></span><span data-line="70"></span><span data-line="71"></span><span data-line="72"></span><span data-line="73"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">step</span>(<span class="hljs-built_in">self</span>, calls: Sequence[<span class="hljs-built_in">str</span>], *, runningBackground: <span class="hljs-built_in">bool</span> = <span class="hljs-keyword">False</span>,
-             interactive: <span class="hljs-built_in">bool</span> = <span class="hljs-keyword">True</span>, enabled: <span class="hljs-built_in">bool</span> = <span class="hljs-keyword">False</span>) -&gt; <span class="hljs-built_in">str</span> | <span class="hljs-keyword">None</span>:
-        <span class="hljs-built_in">self</span>.notice = <span class="hljs-keyword">None</span>
-        polling = <span class="hljs-built_in">bool</span>(calls) and <span class="hljs-built_in">all</span>(name in POLL_TOOLS <span class="hljs-keyword">for</span> name in calls) and runningBackground
-        <span class="hljs-keyword">if</span> <span class="hljs-built_in">any</span>(name in PROGRESS_TOOLS <span class="hljs-keyword">for</span> name in calls) or polling:
-            <span class="hljs-built_in">self</span>.noProgress = <span class="hljs-built_in">self</span>.stuckAdviceCount = <span class="hljs-number">0</span>
-            <span class="hljs-built_in">self</span>.nextAdviceAt = <span class="hljs-built_in">self</span>.gaps[<span class="hljs-number">0</span>]
-        <span class="hljs-keyword">else</span>:
-            <span class="hljs-built_in">self</span>.noProgress += <span class="hljs-number">1</span>
-        <span class="hljs-keyword">if</span> not enabled or not <span class="hljs-built_in">self</span>.noProgress or <span class="hljs-built_in">self</span>.noProgress != <span class="hljs-built_in">self</span>.nextAdviceAt:
-            <span class="hljs-keyword">return</span> <span class="hljs-keyword">None</span>
-        <span class="hljs-built_in">self</span>.stuckAdviceCount += <span class="hljs-number">1</span>
-        <span class="hljs-built_in">self</span>.totalStuckEvents += <span class="hljs-number">1</span>
-        <span class="hljs-built_in">self</span>.nextAdviceAt = <span class="hljs-built_in">self</span>.noProgress + <span class="hljs-built_in">self</span>.gaps[<span class="hljs-built_in">min</span>(<span class="hljs-built_in">self</span>.stuckAdviceCount, <span class="hljs-built_in">len</span>(<span class="hljs-built_in">self</span>.gaps) - <span class="hljs-number">1</span>)]
-        escalate = <span class="hljs-built_in">self</span>.stuckAdviceCount &gt; <span class="hljs-number">1</span> or <span class="hljs-built_in">self</span>.totalStuckEvents &gt;= <span class="hljs-number">3</span>
-        fallback = (<span class="hljs-string">"</span><span class="hljs-string">用 AskUserQuestion 请求必要的信息或决定</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> interactive <span class="hljs-keyword">else</span>
-                    <span class="hljs-string">"</span><span class="hljs-string">选合理的可行路径继续，最终说明阻塞点和取舍</span><span class="hljs-string">"</span>)
-        template = _TEMPLATES[<span class="hljs-number">0</span> <span class="hljs-keyword">if</span> not escalate <span class="hljs-keyword">else</span> <span class="hljs-number">1</span> <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>.stuckAdviceCount &gt; <span class="hljs-number">1</span> <span class="hljs-keyword">else</span> <span class="hljs-number">2</span>]</code></pre></div></figure>
-<p>进度策略启用后按间隔提醒模型找新的可判定假设。另一套健康判断统计连续有失败的工具轮、末次错误签名是否重复，以及长任务的纠偏节奏。例如默认同类错误达到两次即可能触发审视者建议，遇到较长任务且达到设定节奏则可触发纠偏者。建议在工具组提交后作为系统消息加入后续上下文。搜索路径没有换、测试没有覆盖问题时，提醒本身既不会修文件，也不会产生验收证据。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/agent/turn_health.py#L59" rel="noopener" target="_blank">src/ruocun/agent/turn_health.py · 第 59–72 行</a></p><figure class="ruocun-code" data-language="python">
-<figcaption class="ruocun-code-caption"><span>Python</span><span>14 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="59"></span><span data-line="60"></span><span data-line="61"></span><span data-line="62"></span><span data-line="63"></span><span data-line="64"></span><span data-line="65"></span><span data-line="66"></span><span data-line="67"></span><span data-line="68"></span><span data-line="69"></span><span data-line="70"></span><span data-line="71"></span><span data-line="72"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">assessTurn</span>(state: HealthState, outcome: TurnOutcome, cfg: HealthConfig, opts: Mapping[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">bool</span>]) -&gt; HealthDecision:
-    streak = state[<span class="hljs-string">"</span><span class="hljs-string">failureStreak</span><span class="hljs-string">"</span>] + <span class="hljs-number">1</span> <span class="hljs-keyword">if</span> outcome[<span class="hljs-string">"</span><span class="hljs-string">toolFailures</span><span class="hljs-string">"</span>] &gt; <span class="hljs-number">0</span> <span class="hljs-keyword">else</span> <span class="hljs-number">0</span>
-    signature = outcome.get(<span class="hljs-string">"</span><span class="hljs-string">errSig</span><span class="hljs-string">"</span>)
-    repeated = (state[<span class="hljs-string">"</span><span class="hljs-string">repeatedErr</span><span class="hljs-string">"</span>] + <span class="hljs-number">1</span> <span class="hljs-keyword">if</span> signature == state.get(<span class="hljs-string">"</span><span class="hljs-string">lastErrSig</span><span class="hljs-string">"</span>) <span class="hljs-keyword">else</span> <span class="hljs-number">1</span>) <span class="hljs-keyword">if</span> signature <span class="hljs-keyword">else</span> <span class="hljs-number">0</span>
-    challenger = streak &gt;= cfg[<span class="hljs-string">"</span><span class="hljs-string">failureStreakTrip</span><span class="hljs-string">"</span>] or repeated &gt;= cfg[<span class="hljs-string">"</span><span class="hljs-string">repeatedErrTrip</span><span class="hljs-string">"</span>]
-    turns = state[<span class="hljs-string">"</span><span class="hljs-string">turnsSinceRefocus</span><span class="hljs-string">"</span>] + <span class="hljs-number">1</span>
-    refocuser = opts.get(<span class="hljs-string">"</span><span class="hljs-string">longTask</span><span class="hljs-string">"</span>, <span class="hljs-keyword">False</span>) and cfg[<span class="hljs-string">"</span><span class="hljs-string">refocusEvery</span><span class="hljs-string">"</span>] &gt; <span class="hljs-number">0</span> and turns &gt;= cfg[<span class="hljs-string">"</span><span class="hljs-string">refocusEvery</span><span class="hljs-string">"</span>]
-    next_state: HealthState = {<span class="hljs-string">"</span><span class="hljs-string">failureStreak</span><span class="hljs-string">"</span>: <span class="hljs-number">0</span> <span class="hljs-keyword">if</span> challenger <span class="hljs-keyword">else</span> streak,
-                               <span class="hljs-string">"</span><span class="hljs-string">repeatedErr</span><span class="hljs-string">"</span>: <span class="hljs-number">0</span> <span class="hljs-keyword">if</span> challenger <span class="hljs-keyword">else</span> repeated,
-                               <span class="hljs-string">"</span><span class="hljs-string">turnsSinceRefocus</span><span class="hljs-string">"</span>: <span class="hljs-number">0</span> <span class="hljs-keyword">if</span> refocuser <span class="hljs-keyword">else</span> turns}
-    <span class="hljs-keyword">if</span> signature is not <span class="hljs-keyword">None</span> or <span class="hljs-string">"</span><span class="hljs-string">lastErrSig</span><span class="hljs-string">"</span> in state:
-        next_state[<span class="hljs-string">"</span><span class="hljs-string">lastErrSig</span><span class="hljs-string">"</span>] = signature <span class="hljs-keyword">if</span> signature is not <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> state[<span class="hljs-string">"</span><span class="hljs-string">lastErrSig</span><span class="hljs-string">"</span>]
-    reason = (<span class="hljs-string">"</span><span class="hljs-string">failure-streak</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> streak &gt;= cfg[<span class="hljs-string">"</span><span class="hljs-string">failureStreakTrip</span><span class="hljs-string">"</span>] <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">repeated-error</span><span class="hljs-string">"</span>) <span class="hljs-keyword">if</span> challenger <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">refocus-cadence</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> refocuser <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">ok</span><span class="hljs-string">"</span>
-    <span class="hljs-keyword">return</span> {<span class="hljs-string">"</span><span class="hljs-string">next</span><span class="hljs-string">"</span>: next_state, <span class="hljs-string">"</span><span class="hljs-string">challenger</span><span class="hljs-string">"</span>: challenger, <span class="hljs-string">"</span><span class="hljs-string">refocuser</span><span class="hljs-string">"</span>: refocuser, <span class="hljs-string">"</span><span class="hljs-string">reason</span><span class="hljs-string">"</span>: reason}</code></pre></div></figure>
+<p>普通工具批的结果和会话状态结算之后，主循环把调用名称、失败结果和当前是否有后台运行交给 <code>ToolBatchFeedback</code>。当前 CLI 在非交互入口默认启用进度提醒，显式关闭后仍可运行工具。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L463" rel="noopener" target="_blank">src/ruocun/agent/loop.py · 第 463–467 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>5 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="463"></span><span data-line="464"></span><span data-line="465"></span><span data-line="466"></span><span class="ruocun-comment-gutter"></span><span data-line="467"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        batch_names = [name <span class="hljs-keyword">for</span> _, name, _ in calls]
+        running_background = (
+            feedback.has_running_background() <span class="hljs-keyword">if</span> feedback.has_running_background is not <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> <span class="hljs-keyword">False</span>
+        )
+<span class="hljs-comment ruocun-teaching-note">        # 工具批结算后，才把本批实际结果交给反馈模块。
+</span>        <span class="hljs-keyword">await</span> tool_feedback.after_tool_batch(batch_names, batch.failure_messages(), running_background=running_background)</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/tool_batch_feedback.py#L48" rel="noopener" target="_blank">src/ruocun/agent/tool_batch_feedback.py · 第 48–68 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>21 行 · 2 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="48"></span><span data-line="49"></span><span data-line="50"></span><span data-line="51"></span><span class="ruocun-comment-gutter"></span><span data-line="52"></span><span data-line="53"></span><span data-line="54"></span><span data-line="55"></span><span data-line="56"></span><span data-line="57"></span><span data-line="58"></span><span data-line="59"></span><span data-line="60"></span><span data-line="61"></span><span data-line="62"></span><span data-line="63"></span><span data-line="64"></span><span data-line="65"></span><span class="ruocun-comment-gutter"></span><span data-line="66"></span><span data-line="67"></span><span data-line="68"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        advice = <span class="hljs-built_in">self</span>._progress.step(
+            batch_names, runningBackground=running_background,
+            interactive=<span class="hljs-built_in">self</span>._interactive, enabled=<span class="hljs-built_in">self</span>._progress_advice,
+        )
+<span class="hljs-comment ruocun-teaching-note">        # 有进度建议且当前回合未取消，先提交进度提醒。
+</span>        <span class="hljs-keyword">if</span> advice and not <span class="hljs-built_in">self</span>._cancelled():
+            <span class="hljs-comment"># 反思会读取当前会话，先提交本批的进度提醒。</span>
+            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._append_feedback(advice)
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>._progress.notice and <span class="hljs-built_in">self</span>._notice:
+                <span class="hljs-built_in">self</span>._notice(<span class="hljs-built_in">self</span>._progress.notice)
+
+        <span class="hljs-keyword">if</span> (<span class="hljs-built_in">self</span>._reflect is <span class="hljs-keyword">None</span> and not <span class="hljs-built_in">self</span>._self_challenge) or <span class="hljs-built_in">self</span>._cancelled():
+            <span class="hljs-keyword">return</span>
+
+        progressed = <span class="hljs-built_in">any</span>(name in <span class="hljs-built_in">self</span>._productive_tools <span class="hljs-keyword">for</span> name in batch_names) or <span class="hljs-built_in">bool</span>(
+            batch_names and running_background and <span class="hljs-built_in">all</span>(name in POLL_TOOLS <span class="hljs-keyword">for</span> name in batch_names)
+        )
+        outcome: TurnOutcome = {<span class="hljs-string">"</span><span class="hljs-string">progressed</span><span class="hljs-string">"</span>: progressed, <span class="hljs-string">"</span><span class="hljs-string">toolFailures</span><span class="hljs-string">"</span>: <span class="hljs-built_in">len</span>(failures)}
+        <span class="hljs-keyword">if</span> failures:
+<span class="hljs-comment ruocun-teaching-note">            # 把最后一条失败压成签名，供健康判断识别重复错误。
+</span>            outcome[<span class="hljs-string">"</span><span class="hljs-string">errSig</span><span class="hljs-string">"</span>] = errSignature(failures[-<span class="hljs-number">1</span>])
+        decision = assessTurn(<span class="hljs-built_in">self</span>._health, outcome, <span class="hljs-built_in">self</span>._health_cfg, {<span class="hljs-string">"</span><span class="hljs-string">longTask</span><span class="hljs-string">"</span>: <span class="hljs-built_in">self</span>._long_task})
+        <span class="hljs-built_in">self</span>._health = decision[<span class="hljs-string">"</span><span class="hljs-string">next</span><span class="hljs-string">"</span>]</code></pre></div></figure>
+<p>进度策略启用时按间隔提醒模型找新的可判定假设。若启用了反思或自审，另一套健康判断才统计连续失败、重复错误和长任务的纠偏节奏，再决定是否请审视者或纠偏者。实际得到的反馈作为系统消息提交，供后续请求读取。搜索路径没有换、测试没有覆盖问题时，提醒本身既不会修文件，也不会产生验收证据。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/tool_batch_feedback.py#L70" rel="noopener" target="_blank">src/ruocun/agent/tool_batch_feedback.py · 第 70–81 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>12 行 · 2 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="70"></span><span class="ruocun-comment-gutter"></span><span data-line="71"></span><span data-line="72"></span><span data-line="73"></span><span data-line="74"></span><span data-line="75"></span><span data-line="76"></span><span data-line="77"></span><span data-line="78"></span><span data-line="79"></span><span class="ruocun-comment-gutter"></span><span data-line="80"></span><span data-line="81"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        reflection_note = <span class="hljs-string">"</span><span class="hljs-string">"</span>
+<span class="hljs-comment ruocun-teaching-note">        # 只有反思已启用且本批达到触发条件，才调用审视者或纠偏者。
+</span>        <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>._reflect is not <span class="hljs-keyword">None</span> and (decision[<span class="hljs-string">"</span><span class="hljs-string">challenger</span><span class="hljs-string">"</span>] or decision[<span class="hljs-string">"</span><span class="hljs-string">refocuser</span><span class="hljs-string">"</span>]):
+            label = <span class="hljs-string">"</span><span class="hljs-string">审视者</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> decision[<span class="hljs-string">"</span><span class="hljs-string">challenger</span><span class="hljs-string">"</span>] <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">纠偏者</span><span class="hljs-string">"</span>
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>._notice:
+                <span class="hljs-built_in">self</span>._notice(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">[反思：</span><span class="hljs-string">{</span>label<span class="hljs-string">}</span><span class="hljs-string">…]</span><span class="hljs-string">"</span>)
+            verdict = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._reflect(<span class="hljs-string">"</span><span class="hljs-string">challenger</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> decision[<span class="hljs-string">"</span><span class="hljs-string">challenger</span><span class="hljs-string">"</span>] <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">refocuser</span><span class="hljs-string">"</span>)
+            <span class="hljs-keyword">if</span> verdict and not <span class="hljs-built_in">self</span>._cancelled():
+                reflection_note = <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">[</span><span class="hljs-string">{</span>label<span class="hljs-string">}</span><span class="hljs-string">]</span><span class="hljs-string">\n</span><span class="hljs-string">{</span>verdict<span class="hljs-string">}</span><span class="hljs-string">"</span>
+        <span class="hljs-keyword">elif</span> <span class="hljs-built_in">self</span>._self_challenge and decision[<span class="hljs-string">"</span><span class="hljs-string">challenger</span><span class="hljs-string">"</span>]:
+            reflection_note = SELF_CHALLENGE_NUDGE
+<span class="hljs-comment ruocun-teaching-note">        # 生成的反思建议或自审提醒，由同一反馈入口提交到历史。
+</span>        <span class="hljs-keyword">if</span> reflection_note:
+            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._append_feedback(reflection_note)</code></pre></div></figure>
 <p>测试输出与清单都齐了以后，回到折扣任务本身。例如找一组会员输入和普通用户输入，核对各自价格。第 22 篇还会<a href="22-怎样判断任务真的完成.html#completion-case" rel="noopener" target="_blank">用结果逐项核对原始需求</a>。</p>
 </section></section>
 <section class="v2-topic-group" id="article-assessment">

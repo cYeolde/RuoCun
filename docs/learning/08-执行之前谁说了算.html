@@ -62,7 +62,7 @@
 </div><section class="design-section" id="permission-call-1"><h3>2.1 用最终参数匹配 deny、ask、allow</h3>
 <p>本篇有三层状态。<code>normal</code> 和 <code>plan</code> 是当前会话的执行阶段，决定此时能否尝试写入。权限策略把工具名和参数判成允许、询问或拒绝。需要人工确认时，再由人对眼前这一次调用作决定。开篇的两张批准表都同意，变化发生在会话的实时状态。</p>
 <p>权限运行时拿到工具名、实际参数和工具的 <code>capability</code>。<code>Edit</code> 的 capability 是 <code>write</code>，因此规则匹配会考虑实际工具与目标，随后还要结合当前模式和风险判断。这里把三种结果理解为拒绝、等决策和允许进入后续阶段。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/permissions/rules.py#L169" rel="noopener" target="_blank">src/ruocun/permissions/rules.py · 第 169–175 行</a></p><figure class="ruocun-code" data-language="python">
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/permissions/rules.py#L169" rel="noopener" target="_blank">src/ruocun/permissions/rules.py · 第 169–175 行</a></p><figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>7 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="169"></span><span data-line="170"></span><span data-line="171"></span><span data-line="172"></span><span data-line="173"></span><span data-line="174"></span><span data-line="175"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">evaluate</span>(rules: RuleSets, identity: CallIdentity) -&gt; Decision | <span class="hljs-keyword">None</span>:
     <span class="hljs-keyword">if</span> identity[<span class="hljs-string">"</span><span class="hljs-string">ccTool</span><span class="hljs-string">"</span>] == <span class="hljs-string">"</span><span class="hljs-string">Bash</span><span class="hljs-string">"</span>:
@@ -75,7 +75,7 @@
 </section><section class="design-section" id="permission-call-2"><h3>2.2 PreToolUse 可以改参，审批以改后值为准</h3>
 <p id="permission-hook-arguments">Hook 是配置在某个执行时点的扩展程序。运行在工具之前的 <code>PreToolUse</code> 可以交回一份改过的参数。假设 <code>edit-42</code> 原本要改 <code>pricing.txt</code>，改参后要处理 <code>draft/pricing.txt</code>。如果先批准原文件再切换执行目标，这次决定就批错了对象。程序等前置扩展和参数检查结束，再用实际要执行的参数作裁决。<a href="21-执行前后怎样插入规则.html#hook-validate-after-rewrite" rel="noopener" target="_blank">Hooks 篇</a>会用完整参数与漏字段两份材料推演改参过程。</p>
 <details class="answer-box"><summary>查阅参数更新顺序</summary><div>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/tools/tool_batch.py#L177" rel="noopener" target="_blank">src/ruocun/tools/tool_batch.py · 第 177–189 行</a></p><figure class="ruocun-code" data-language="python">
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/tool_batch.py#L177" rel="noopener" target="_blank">src/ruocun/tools/tool_batch.py · 第 177–189 行</a></p><figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>13 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="177"></span><span data-line="178"></span><span data-line="179"></span><span data-line="180"></span><span data-line="181"></span><span data-line="182"></span><span data-line="183"></span><span data-line="184"></span><span data-line="185"></span><span data-line="186"></span><span data-line="187"></span><span data-line="188"></span><span data-line="189"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            <span class="hljs-keyword">if</span> tool is not <span class="hljs-keyword">None</span> and hooks is not <span class="hljs-keyword">None</span>:
                 hook_ctx = RunCtx(hook_cwd, tool_name=name, args_json=raw, payload={<span class="hljs-string">"</span><span class="hljs-string">tool</span><span class="hljs-string">"</span>: name, <span class="hljs-string">"</span><span class="hljs-string">args</span><span class="hljs-string">"</span>: raw})
@@ -91,7 +91,7 @@
                     <span class="hljs-keyword">continue</span>
             args = registry.validate(name, raw)</code></pre></div></figure>
 </div></details>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/permissions/runtime.py#L382" rel="noopener" target="_blank">src/ruocun/permissions/runtime.py · 第 382–397 行</a></p><figure class="ruocun-code" data-language="python">
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/permissions/runtime.py#L382" rel="noopener" target="_blank">src/ruocun/permissions/runtime.py · 第 382–397 行</a></p><figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>16 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="382"></span><span data-line="383"></span><span data-line="384"></span><span data-line="385"></span><span data-line="386"></span><span data-line="387"></span><span data-line="388"></span><span data-line="389"></span><span data-line="390"></span><span data-line="391"></span><span data-line="392"></span><span data-line="393"></span><span data-line="394"></span><span data-line="395"></span><span data-line="396"></span><span data-line="397"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            hook = call.hook_decision
             <span class="hljs-keyword">if</span> hook == <span class="hljs-string">"</span><span class="hljs-string">deny</span><span class="hljs-string">"</span>:
@@ -110,19 +110,29 @@
                 decisions[call.call_id] = <span class="hljs-keyword">True</span>
                 <span class="hljs-keyword">continue</span></code></pre></div></figure>
 <p>Hook 的 deny 可以拦住调用，ask 会将原本可继续且未被拒绝的调用推向人工确认。Hook 的 allow 在某些非敏感、可分析的 ask 路径可以促成允许，它不能翻转 deny。自动模式下启用的审批分类器也只参与满足条件的 ask，危险或强制人工的请求仍问用户；分类失败会转给人工，批准回复缺项按拒绝处理。更多改参、回执与回包规则见<a href="21-执行前后怎样插入规则.html" rel="noopener" target="_blank">Hooks 章节</a>。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/permissions/runtime.py#L408" rel="noopener" target="_blank">src/ruocun/permissions/runtime.py · 第 408–414 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>7 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="408"></span><span data-line="409"></span><span data-line="410"></span><span class="ruocun-comment-gutter"></span><span data-line="411"></span><span data-line="412"></span><span data-line="413"></span><span data-line="414"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        asked = {request[<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>] <span class="hljs-keyword">for</span> request in requests}
+        <span class="hljs-keyword">if</span> requests:
+            answers = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.gate.requestBatch(requests, forceHuman=force_human)
+<span class="hljs-comment ruocun-teaching-note">            # 按调用 ID 取批准。回复漏掉某项时，这一项按拒绝处理。
+</span>            decisions.update((request[<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>], answers.get(request[<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>], <span class="hljs-keyword">False</span>)) <span class="hljs-keyword">for</span> request in requests)
+        approved = {json.loads(call.raw_args)[<span class="hljs-string">"</span><span class="hljs-string">command</span><span class="hljs-string">"</span>] <span class="hljs-keyword">for</span> call in calls
+                    <span class="hljs-keyword">if</span> call.tool.name in {<span class="hljs-string">"</span><span class="hljs-string">Bash</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">Monitor</span><span class="hljs-string">"</span>} and decisions.get(call.call_id)}
+        <span class="hljs-built_in">self</span>._approvedShellPlans.set(MappingProxyType({command: plan <span class="hljs-keyword">for</span> command, plan in plans.items() <span class="hljs-keyword">if</span> command in approved}))</code></pre></div></figure>
 </section></section>
 <section class="v2-topic-group" id="permission-plan">
 <header class="v2-group-heading"><span>03</span><h2>计划模式与派发复核</h2></header><div class="design-section">
 </div><section class="design-section" id="permission-plan-1"><h3>3.1 计划模式为何要在公布和派发各挡一次？</h3>
 <p><a href="04-工具调用怎样落地.html#tool-disclosure" rel="noopener" target="_blank">工具契约篇区分了注册与公布</a>。这里在可见清单上再叠当前会话模式。进入 <code>plan</code> 后，程序移除远端 MCP 工具和 <code>write</code>、<code>exec</code> 两类工具，引导模型只读和规划。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/tools/tools_for_mode.py#L10" rel="noopener" target="_blank">src/ruocun/tools/tools_for_mode.py · 第 10–13 行</a></p><figure class="ruocun-code" data-language="python">
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/tools_for_mode.py#L10" rel="noopener" target="_blank">src/ruocun/tools/tools_for_mode.py · 第 10–13 行</a></p><figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>4 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="10"></span><span data-line="11"></span><span data-line="12"></span><span data-line="13"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">apiToolsForMode</span>(registry: ToolRegistry, mode: Mode, lang: <span class="hljs-built_in">str</span> | <span class="hljs-keyword">None</span> = <span class="hljs-keyword">None</span>) -&gt; <span class="hljs-built_in">list</span>[ApiTool]:
     <span class="hljs-keyword">if</span> mode == <span class="hljs-string">"</span><span class="hljs-string">normal</span><span class="hljs-string">"</span>:
         <span class="hljs-keyword">return</span> registry.toApiTools(<span class="hljs-keyword">lambda</span> tool: registry.isMcpVisible(tool.name), lang, hideUnactivatedDeferred=<span class="hljs-keyword">True</span>)
     <span class="hljs-keyword">return</span> registry.toApiTools(<span class="hljs-keyword">lambda</span> tool: not tool.name.startswith(<span class="hljs-string">"</span><span class="hljs-string">mcp__</span><span class="hljs-string">"</span>) and tool.capability not in (<span class="hljs-string">"</span><span class="hljs-string">write</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">exec</span><span class="hljs-string">"</span>), lang, hideUnactivatedDeferred=<span class="hljs-keyword">True</span>)</code></pre></div></figure>
 <p>弱一点的办法是只改清单。但模型响应和人作决定都可能晚到，清单只是请求发出时的视图。程序自己的派发检查关心的是此刻：有没有取消信号，以及当前是否进入 plan。即使旧调用之前通过了筛选，也要再过这道关。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/tools/tool_batch.py#L132" rel="noopener" target="_blank">src/ruocun/tools/tool_batch.py · 第 132–138 行</a></p><figure class="ruocun-code" data-language="python">
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/tool_batch.py#L132" rel="noopener" target="_blank">src/ruocun/tools/tool_batch.py · 第 132–138 行</a></p><figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>7 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="132"></span><span data-line="133"></span><span data-line="134"></span><span data-line="135"></span><span data-line="136"></span><span data-line="137"></span><span data-line="138"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">stop_reason</span>(tool: Tool) -&gt; <span class="hljs-built_in">str</span> | <span class="hljs-keyword">None</span>:
         <span class="hljs-keyword">if</span> ctx.signal.is_set():
@@ -133,15 +143,15 @@
         <span class="hljs-keyword">return</span> <span class="hljs-keyword">None</span></code></pre></div></figure>
 </section><section class="design-section" id="permission-plan-2"><h3>3.2 批量批准返回后重新检查取消与模式</h3>
 <p>终端入口通过 <code>ToolAuthorization</code> 向回合提供批授权、每次调用的权限作用域和当前模式的查询函数。工具批执行器把待授权的调用交给 <code>authorize_batch</code>，拿到按调用 ID 组织的结果后再决定哪些工具可以继续。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/agent/runtime.py#L2010" rel="noopener" target="_blank">src/ruocun/agent/runtime.py · 第 2010–2013 行</a></p><figure class="ruocun-code" data-language="python">
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/runtime.py#L2010" rel="noopener" target="_blank">src/ruocun/agent/runtime.py · 第 2010–2013 行</a></p><figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>4 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="2010"></span><span data-line="2011"></span><span data-line="2012"></span><span data-line="2013"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">                        authorization=ToolAuthorization(
                             authorize_batch=authorize_batch,
                             call_scope=permissions.callScope, permission_mode=permissions.getMode,
                         ),</code></pre></div></figure>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/tools/tool_batch.py#L364" rel="noopener" target="_blank">src/ruocun/tools/tool_batch.py · 第 364–377 行</a></p><figure class="ruocun-code" data-language="python">
-<figcaption class="ruocun-code-caption"><span>Python</span><span>14 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="364"></span><span data-line="365"></span><span data-line="366"></span><span data-line="367"></span><span data-line="368"></span><span data-line="369"></span><span data-line="370"></span><span data-line="371"></span><span data-line="372"></span><span data-line="373"></span><span data-line="374"></span><span data-line="375"></span><span data-line="376"></span><span data-line="377"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    incomplete = <span class="hljs-keyword">False</span>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/tool_batch.py#L364" rel="noopener" target="_blank">src/ruocun/tools/tool_batch.py · 第 364–377 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>14 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="364"></span><span data-line="365"></span><span data-line="366"></span><span data-line="367"></span><span data-line="368"></span><span data-line="369"></span><span data-line="370"></span><span data-line="371"></span><span class="ruocun-comment-gutter"></span><span data-line="372"></span><span data-line="373"></span><span data-line="374"></span><span data-line="375"></span><span data-line="376"></span><span data-line="377"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    incomplete = <span class="hljs-keyword">False</span>
     <span class="hljs-keyword">try</span>:
         <span class="hljs-keyword">if</span> authorize_batch is not <span class="hljs-keyword">None</span> and ready:
             <span class="hljs-keyword">try</span>:
@@ -149,19 +159,60 @@
             <span class="hljs-keyword">except</span> Exception <span class="hljs-keyword">as</span> exc:
                 <span class="hljs-keyword">raise</span> _ApprovalIncomplete <span class="hljs-keyword">from</span> exc
             <span class="hljs-keyword">for</span> call_id in ready:
-                <span class="hljs-keyword">if</span> ctx.signal.is_set():
+<span class="hljs-comment ruocun-teaching-note">                # 批授权等待结束后先看取消信号，即使批准表返回 true。
+</span>                <span class="hljs-keyword">if</span> ctx.signal.is_set():
                     results[call_id] = _message(call_id, _CANCELLED)
                 <span class="hljs-keyword">elif</span> not approved.get(call_id, <span class="hljs-keyword">False</span>) or ready[call_id].hook_decision == <span class="hljs-string">"</span><span class="hljs-string">deny</span><span class="hljs-string">"</span>:
                     call = ready[call_id]
                     results[call_id] = _message(call_id, hook_denied(call))
                     <span class="hljs-keyword">await</span> audit(call, <span class="hljs-string">"</span><span class="hljs-string">hook-deny</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> call.hook_decision == <span class="hljs-string">"</span><span class="hljs-string">deny</span><span class="hljs-string">"</span> <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">denied</span><span class="hljs-string">"</span>)</code></pre></div></figure>
 <p>把第一节的 <code>edit-42</code> 代入。<code>authorize_batch</code> 返回后，循环先读 <code>ctx.signal</code>，B 直接进 <code>results</code> 得到取消反馈，不再进入执行队列。A 仍待派发，重查当前模式和取消信号，意图落盘后还会在进处理器前再查一次。若工具已经进入处理器，取消转交真正执行侧处理，具体结算见<a href="10-工具可能已经执行.html" rel="noopener" target="_blank">工具恢复章节</a>。<strong>「批准绑定具体调用，开始执行仍要检查实时状态」</strong>。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/tool_batch.py#L381" rel="noopener" target="_blank">src/ruocun/tools/tool_batch.py · 第 381–398 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>18 行 · 2 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="381"></span><span data-line="382"></span><span data-line="383"></span><span class="ruocun-comment-gutter"></span><span data-line="384"></span><span data-line="385"></span><span data-line="386"></span><span data-line="387"></span><span data-line="388"></span><span data-line="389"></span><span data-line="390"></span><span data-line="391"></span><span data-line="392"></span><span class="ruocun-comment-gutter"></span><span data-line="393"></span><span data-line="394"></span><span data-line="395"></span><span data-line="396"></span><span data-line="397"></span><span data-line="398"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">for</span> call_id, _, _ in calls:
+            <span class="hljs-keyword">if</span> call_id in invalid_exec:
+                barrier_aborted = <span class="hljs-keyword">True</span>
+<span class="hljs-comment ruocun-teaching-note">            # B 的原调用 ID 已经有取消结果，循环直接跳过。
+</span>            <span class="hljs-keyword">if</span> call_id not in ready or call_id in results:
+                <span class="hljs-keyword">continue</span>
+            call = ready[call_id]
+            <span class="hljs-keyword">if</span> not _has_persistent_effect(call.tool) and call_id not in post_hooks:
+                group.append(call)
+                <span class="hljs-keyword">continue</span>
+            <span class="hljs-comment"># 先等待前面的并行工具全部收尾，再单独执行含持久副作用或事后钩子的调用。</span>
+            <span class="hljs-keyword">await</span> settle(group)
+            group.clear()
+<span class="hljs-comment ruocun-teaching-note">            # A 过了批授权，但在单独派发前还要按实时状态复核。
+</span>            <span class="hljs-keyword">if</span> reason := stop_reason(call.tool):
+                results[call_id] = _message(call_id, reason)
+            <span class="hljs-keyword">elif</span> barrier_aborted and call.tool.capability in _EFFECTS:
+                results[call_id] = _message(call_id, _BARRIER_SKIPPED)
+            <span class="hljs-keyword">else</span>:
+                <span class="hljs-keyword">await</span> settle([call])</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/tool_batch.py#L254" rel="noopener" target="_blank">src/ruocun/tools/tool_batch.py · 第 254–268 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>15 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="254"></span><span data-line="255"></span><span class="ruocun-comment-gutter"></span><span data-line="256"></span><span data-line="257"></span><span data-line="258"></span><span data-line="259"></span><span data-line="260"></span><span data-line="261"></span><span data-line="262"></span><span data-line="263"></span><span data-line="264"></span><span data-line="265"></span><span data-line="266"></span><span data-line="267"></span><span data-line="268"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            image = <span class="hljs-keyword">None</span>
+            finished_handler = <span class="hljs-keyword">False</span>
+<span class="hljs-comment ruocun-teaching-note">            # 执行意图写入期间也可能发生取消或模式变化，再查一次才进处理器。
+</span>            <span class="hljs-keyword">if</span> reason := stop_reason(tool):
+                <span class="hljs-comment"># 执行意图已经落盘，此时仍可在进入处理器前停止。</span>
+                result = reason
+                failed = <span class="hljs-keyword">True</span>
+            <span class="hljs-keyword">else</span>:
+                <span class="hljs-comment"># 给每次 Read 单独留出图片结果槽，避免并行读取串用结果。</span>
+                <span class="hljs-comment"># 读取基线、取消信号和技能回调继续使用业务循环的共享上下文。</span>
+                call_ctx = replace(ctx, currentImageData=<span class="hljs-keyword">None</span>) <span class="hljs-keyword">if</span> tool.name == <span class="hljs-string">"</span><span class="hljs-string">Read</span><span class="hljs-string">"</span> <span class="hljs-keyword">else</span> ctx
+                started_at, trace_ok = time.monotonic(), <span class="hljs-keyword">False</span>
+                <span class="hljs-keyword">try</span>:
+                    <span class="hljs-keyword">with</span> observationScope(toolCallId=call_id):
+                        result = <span class="hljs-keyword">await</span> wrapToolHandler(registry.dispatch, tool.name, raw)(tool.name, raw, call_ctx)
+                    finished_handler = <span class="hljs-keyword">True</span></code></pre></div></figure>
 </section></section>
 <section class="v2-topic-group" id="permission-path">
 <header class="v2-group-heading"><span>04</span><h2>文件路径与实际写入</h2></header><div class="design-section">
 </div><section class="design-section" id="permission-path-1"><h3>4.1 从当前 cwd 解析路径，分别检查文件授权与编辑位置</h3>
 <p>同一组文本换到 <code>/shared/pricing.txt</code> 后，调用层的批准只解决这类动作可进入派发。<a href="02-模型收到什么.html#actual-path-and-result" rel="noopener" target="_blank">第二篇已经由当前目录算出了工具实际要打开的路径</a>。这一关继续查范围。先看规范后的路径是否在工作区内，根存在时再沿目录或文件别名查到真实位置，看它是否仍在里面。返回值是处理器接下来操作的绝对路径。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/tools/paths.py#L31" rel="noopener" target="_blank">src/ruocun/tools/paths.py · 第 31–42 行</a></p><figure class="ruocun-code" data-language="python">
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/paths.py#L31" rel="noopener" target="_blank">src/ruocun/tools/paths.py · 第 31–42 行</a></p><figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>12 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="31"></span><span data-line="32"></span><span data-line="33"></span><span data-line="34"></span><span data-line="35"></span><span data-line="36"></span><span data-line="37"></span><span data-line="38"></span><span data-line="39"></span><span data-line="40"></span><span data-line="41"></span><span data-line="42"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">classifyPath</span>(workspaceRoot: <span class="hljs-built_in">str</span>, p: <span class="hljs-built_in">str</span>) -&gt; ClassifiedPath:
     root = os.path.abspath(workspaceRoot)
@@ -176,7 +227,7 @@
                                 os.path.normcase(os.path.realpath(absolute)))
     <span class="hljs-keyword">return</span> ClassifiedPath(absolute, external)</code></pre></div></figure>
 <p>普通路径策略下，外部访问走读或写的独立回调。项目可能已有适用的目录或会话授权；否则交互通道请求批准，缺少批准能力时会拒绝。启用 Windows 沙箱路径政策时，内置写工具检查受保护位置和可写范围，可写根之外的合规目标需要本次确认。受保护位置在请求额外目录前已经被拒绝。Shell 进程的沙箱执行边界由它自己的计划与执行后端落实。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/tools/paths.py#L77" rel="noopener" target="_blank">src/ruocun/tools/paths.py · 第 77–92 行</a></p><figure class="ruocun-code" data-language="python">
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/paths.py#L77" rel="noopener" target="_blank">src/ruocun/tools/paths.py · 第 77–92 行</a></p><figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>16 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="77"></span><span data-line="78"></span><span data-line="79"></span><span data-line="80"></span><span data-line="81"></span><span data-line="82"></span><span data-line="83"></span><span data-line="84"></span><span data-line="85"></span><span data-line="86"></span><span data-line="87"></span><span data-line="88"></span><span data-line="89"></span><span data-line="90"></span><span data-line="91"></span><span data-line="92"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">if</span> write and policy is not <span class="hljs-keyword">None</span>:
         original = os.path.abspath(os.path.join(ctx.cwd or ctx.workspaceRoot, p))

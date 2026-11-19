@@ -48,17 +48,19 @@
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span><span data-line="2"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-text">网络块 A 的末尾  … E6 8A
 网络块 B 的开头    98 E6 89 A3 …</code></pre></div></figure>
 <p>把 A 单独当成一份 UTF-8 文本，末尾的折字缺字节。RuoCun 把同一个严格增量解码器留在整个流里。它先输出已经收齐的字符，暂存 <code>E6 8A</code>，等 B 开头的 <code>98</code> 再还原折字。若流结束时仍缺这一个字节，<code>flush()</code> 会报告解码错误。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-protocol/sse.py#L30" rel="noopener" target="_blank">sse.py · 严格增量解码</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/client/sse.py#L33" rel="noopener" target="_blank">sse.py:33 · 严格增量解码</a></p>
 <figure class="ruocun-code" data-language="python">
-<figcaption class="ruocun-code-caption"><span>Python</span><span>8 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="33"></span><span data-line="34"></span><span data-line="35"></span><span data-line="36"></span><span data-line="37"></span><span data-line="38"></span><span data-line="39"></span><span data-line="40"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">__init__</span>(<span class="hljs-built_in">self</span>) -&gt; <span class="hljs-keyword">None</span>:
+<figcaption class="ruocun-code-caption"><span>Python</span><span>8 行 · 2 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="33"></span><span data-line="34"></span><span data-line="35"></span><span data-line="36"></span><span class="ruocun-comment-gutter"></span><span data-line="37"></span><span data-line="38"></span><span data-line="39"></span><span class="ruocun-comment-gutter"></span><span data-line="40"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">__init__</span>(<span class="hljs-built_in">self</span>) -&gt; <span class="hljs-keyword">None</span>:
         <span class="hljs-built_in">self</span>._decoder = codecs.getincrementaldecoder(<span class="hljs-string">"</span><span class="hljs-string">utf-8</span><span class="hljs-string">"</span>)(<span class="hljs-string">"</span><span class="hljs-string">strict</span><span class="hljs-string">"</span>)
 
     <span class="hljs-keyword">def</span> <span class="hljs-title">feed</span>(<span class="hljs-built_in">self</span>, chunk: <span class="hljs-built_in">bytes</span>) -&gt; <span class="hljs-built_in">str</span>:
-        <span class="hljs-keyword">return</span> <span class="hljs-built_in">self</span>._decoder.decode(chunk, final=<span class="hljs-keyword">False</span>)
+<span class="hljs-comment ruocun-teaching-note">        # 仍可继续接收字节，将未收齐的 UTF-8 字节留在解码器里。
+</span>        <span class="hljs-keyword">return</span> <span class="hljs-built_in">self</span>._decoder.decode(chunk, final=<span class="hljs-keyword">False</span>)
 
     <span class="hljs-keyword">def</span> <span class="hljs-title">flush</span>(<span class="hljs-built_in">self</span>) -&gt; <span class="hljs-built_in">str</span>:
-        <span class="hljs-keyword">return</span> <span class="hljs-built_in">self</span>._decoder.decode(<span class="hljs-string">b</span><span class="hljs-string">"</span><span class="hljs-string">"</span>, final=<span class="hljs-keyword">True</span>)</code></pre></div></figure>
+<span class="hljs-comment ruocun-teaching-note">        # 流结束时检查剩余字节，缺字节会按严格模式报错。
+</span>        <span class="hljs-keyword">return</span> <span class="hljs-built_in">self</span>._decoder.decode(<span class="hljs-string">b</span><span class="hljs-string">"</span><span class="hljs-string">"</span>, final=<span class="hljs-keyword">True</span>)</code></pre></div></figure>
 </section>
 <section class="design-section" id="sse-framing">
 <h3>2.2 SSE 按空行分帧，再提取 data</h3>
@@ -69,7 +71,7 @@
 
 </code></pre></div></figure>
 <p>一块字节里可以有两条事件，也可能只有半条。解码后的半条文本放回 <code>_buffer</code>，等下一块补齐。正常流结束时，<code>flush()</code> 会尝试处理尾部，例如最后一个数据行后省了空行的情况。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-protocol/sse.py#L18" rel="noopener" target="_blank">sse.py · 空行分帧和 data 提取</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/client/sse.py#L18" rel="noopener" target="_blank">sse.py · 空行分帧和 data 提取</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>10 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="18"></span><span data-line="19"></span><span data-line="20"></span><span data-line="21"></span><span data-line="22"></span><span data-line="23"></span><span data-line="24"></span><span data-line="25"></span><span data-line="26"></span><span data-line="27"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">parseSSEChunk</span>(buffer: <span class="hljs-built_in">str</span>) -&gt; SSEParseResult:
@@ -83,7 +85,7 @@
                 payloads.append(line[<span class="hljs-built_in">len</span>(<span class="hljs-string">"</span><span class="hljs-string">data:</span><span class="hljs-string">"</span>):].strip())
     <span class="hljs-keyword">return</span> SSEParseResult(payloads=payloads, rest=rest)</code></pre></div></figure>
 <p>处理事件时还有两层 JSON。<code>data:</code> 后的外层 JSON 已能解析，里面的 <code>function.arguments</code> 却只是 <code>{"path":"折扣</code>，仍要等后续分片。Chat 累积器跳过无法解析的外层事件数据，收到有 <code>error</code> 的事件会报错。参数在完整响应之后走自己的校验路径。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-protocol/client.py#L194" rel="noopener" target="_blank">client.py · 外层事件 JSON 的处理</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/client/client.py#L194" rel="noopener" target="_blank">client.py · 外层事件 JSON 的处理</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>10 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="194"></span><span data-line="195"></span><span data-line="196"></span><span data-line="197"></span><span data-line="198"></span><span data-line="199"></span><span data-line="200"></span><span data-line="201"></span><span data-line="202"></span><span data-line="203"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">try</span>:
@@ -103,7 +105,7 @@
 <section class="design-section" id="accumulator">
 <h3>3.1 index 管分组，id 管结果配对</h3>
 <p>第一个 <code>index=0</code> 分片到手时，暂存的名字是 <code>Re</code>。第三段同样带 <code>index=0</code>，即使没再给 ID，程序也会在原来的条目里补上 <code>ad</code> 和后半段路径。下次发请求时，<code>id=call_prices</code> 派上用场，程序用它把工具结果对应到这次调用。两个 <code>Read</code> 的名字最终一样，调用身份仍然各自独立。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-protocol/client.py#L238" rel="noopener" target="_blank">client.py · 按位置累积工具名和参数</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/client/client.py#L238" rel="noopener" target="_blank">client.py · 按位置累积工具名和参数</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>18 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="238"></span><span data-line="239"></span><span data-line="240"></span><span data-line="241"></span><span data-line="242"></span><span data-line="243"></span><span data-line="244"></span><span data-line="245"></span><span data-line="246"></span><span data-line="247"></span><span data-line="248"></span><span data-line="249"></span><span data-line="250"></span><span data-line="251"></span><span data-line="252"></span><span data-line="253"></span><span data-line="254"></span><span data-line="255"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">                raw_index = frag.get(<span class="hljs-string">"</span><span class="hljs-string">index</span><span class="hljs-string">"</span>)
@@ -130,7 +132,7 @@
 <h3>3.2 第一项参数齐了，为什么还要等整轮响应？</h3>
 <p>假设图 1 第三段刚到，第一项已经能拼成 <code>Read({"path":"prices.mjs"})</code>，第二项还差半截。此时就启动第一项，确实能省一点等待。可如果连接紧接着断开，接收层会把本轮报为未完成，第一项操作却已经发生。换成写文件，停止接收也撤不回已经写入的内容。</p>
 <p>RuoCun 让累积器把增量先交给界面，由主循环检查整轮响应。明确断流且已有增量时，客户端可以返回 <code>partial</code>。主循环保留已有的正文（如有），走失败出口。接收中取消也可以保留正文，随后走取消出口。两条路径都在记录本轮助手调用和派发工具之前返回。想看服务端已交付、程序实际执行的两项调用，可以在<a href="05-从问题找到代码.html#api-navigation-example" rel="noopener" target="_blank">物流定位实录</a>按两个不同的调用 ID 找各自的 Grep 回包。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-protocol/loop.py#L340" rel="noopener" target="_blank">loop.py · 取消和未完成分支早于工具派发</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L340" rel="noopener" target="_blank">loop.py · 取消和未完成分支早于工具派发</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>17 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="340"></span><span data-line="341"></span><span data-line="342"></span><span data-line="343"></span><span data-line="344"></span><span data-line="345"></span><span data-line="346"></span><span data-line="347"></span><span data-line="348"></span><span data-line="349"></span><span data-line="350"></span><span data-line="351"></span><span data-line="352"></span><span data-line="353"></span><span data-line="354"></span><span data-line="355"></span><span data-line="356"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        message = copy.deepcopy(response.message) <span class="hljs-keyword">if</span> response is not <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> {}
@@ -164,7 +166,7 @@
 <tr><td>保存助手历史</td><td>字符串 <code>{}</code></td><td>保留工具名与 ID，生成下次可发送的记录。</td></tr>
 <tr><td>工具批执行</td><td>原始字符串 <code>{"path":</code></td><td>无 Hook 改参时，参数解析拒绝，产生带原 ID 的错误结果，文件读取没有启动。</td></tr>
 </tbody></table></div>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-protocol/loop.py#L122" rel="noopener" target="_blank">loop.py · 保存和执行使用两份参数</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L122" rel="noopener" target="_blank">loop.py · 保存和执行使用两份参数</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>10 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="122"></span><span data-line="123"></span><span data-line="124"></span><span data-line="125"></span><span data-line="126"></span><span data-line="127"></span><span data-line="128"></span><span data-line="129"></span><span data-line="130"></span><span data-line="131"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        normalized = args
@@ -197,23 +199,36 @@
 <div aria-label="Chat 与 Responses 历史投影对照" class="textbook-diagram-scroll" role="region" tabindex="0"><img alt="会话中助手 tool_calls 的 id 与工具的 tool_call_id 一致。Chat 的 messages 保留这组字段。Responses 的 input 把它拆成 function_call 和 function_call_output，二者使用同样的 call_id。" height="346" src="diagram/model-protocol-projection.svg" width="840"/></div>
 </figure>
 <p>看右列。Responses 把一次工具调用拆成 <code>function_call</code> 和 <code>function_call_output</code> 两个输入项。一个取助手调用的 <code>id</code>，一个取结果消息的 <code>tool_call_id</code>，最后都叫 <code>call_id</code>。因此保留下来的配对依据是 <code>call_prices</code>，工具名字相同也不会串错结果。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-protocol/responses.py#L37" rel="noopener" target="_blank">responses.py · 工具结果变成输出项</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-protocol/responses.py#L54" rel="noopener" target="_blank">助手调用变成函数调用项</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/client/responses.py#L37" rel="noopener" target="_blank">responses.py:37 · 工具结果变成输出项</a></p>
 <figure class="ruocun-code" data-language="python">
-<figcaption class="ruocun-code-caption"><span>Python</span><span>8 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="37"></span><span data-line="38"></span><span data-line="39"></span><span data-line="40"></span><span data-line="41"></span><span data-line="42"></span><span data-line="43"></span><span data-line="44"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        role = message.get(<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>)
+<figcaption class="ruocun-code-caption"><span>Python</span><span>8 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="37"></span><span data-line="38"></span><span data-line="39"></span><span data-line="40"></span><span class="ruocun-comment-gutter"></span><span data-line="41"></span><span data-line="42"></span><span data-line="43"></span><span data-line="44"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        role = message.get(<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>)
         <span class="hljs-keyword">if</span> role == <span class="hljs-string">"</span><span class="hljs-string">tool</span><span class="hljs-string">"</span>:
             out.append({
                 <span class="hljs-string">"</span><span class="hljs-string">type</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">function_call_output</span><span class="hljs-string">"</span>,
-                <span class="hljs-string">"</span><span class="hljs-string">call_id</span><span class="hljs-string">"</span>: message.get(<span class="hljs-string">"</span><span class="hljs-string">tool_call_id</span><span class="hljs-string">"</span>),
+<span class="hljs-comment ruocun-teaching-note">                # 工具结果用 tool_call_id 指回原调用，投影后仍是同一个 call_prices。
+</span>                <span class="hljs-string">"</span><span class="hljs-string">call_id</span><span class="hljs-string">"</span>: message.get(<span class="hljs-string">"</span><span class="hljs-string">tool_call_id</span><span class="hljs-string">"</span>),
                 <span class="hljs-string">"</span><span class="hljs-string">output</span><span class="hljs-string">"</span>: message.get(<span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>),
             })
             <span class="hljs-keyword">continue</span></code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/client/responses.py#L59" rel="noopener" target="_blank">responses.py:59 · 助手调用变成函数调用项</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>8 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="59"></span><span data-line="60"></span><span data-line="61"></span><span data-line="62"></span><span class="ruocun-comment-gutter"></span><span data-line="63"></span><span data-line="64"></span><span data-line="65"></span><span data-line="66"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">                    function = call.get(<span class="hljs-string">"</span><span class="hljs-string">function</span><span class="hljs-string">"</span>)
+                    fn = function <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(function, <span class="hljs-built_in">dict</span>) <span class="hljs-keyword">else</span> {}
+                    out.append({
+                        <span class="hljs-string">"</span><span class="hljs-string">type</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">function_call</span><span class="hljs-string">"</span>,
+<span class="hljs-comment ruocun-teaching-note">                        # 助手调用这边从 id 取 call_prices，和上方输出项使用同一个外发字段。
+</span>                        <span class="hljs-string">"</span><span class="hljs-string">call_id</span><span class="hljs-string">"</span>: call.get(<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>),
+                        <span class="hljs-string">"</span><span class="hljs-string">name</span><span class="hljs-string">"</span>: fn.get(<span class="hljs-string">"</span><span class="hljs-string">name</span><span class="hljs-string">"</span>),
+                        <span class="hljs-string">"</span><span class="hljs-string">arguments</span><span class="hljs-string">"</span>: fn.get(<span class="hljs-string">"</span><span class="hljs-string">arguments</span><span class="hljs-string">"</span>),
+                    })</code></pre></div></figure>
 <p>选路由时，当前实现只有官方 <code>https://api.openai.com/v1</code> 端点与匹配的 <code>gpt-6</code> 模型名前缀同时成立，才走 Responses。它将收进来的 Responses 事件转成内部统一的 Chat 增量，再复用之前的累积过程。发请求时则把 <code>messages</code> 改成 <code>input</code>，展平函数工具定义，并把输出额度写到 <code>max_output_tokens</code>。预算仍要看这一轮真正装进去的系统消息、工具表和历史，也要为输出留空间。<a href="14-上下文放不下怎么办.html" rel="noopener" target="_blank">上下文预算篇</a></p>
 </section>
 <section class="design-section" id="keep-protocol-fields">
 <h3>5.2 推理按协议保留，图片随多模态消息发送</h3>
 <p>如果只用 <code>role</code> 和 <code>content</code> 重建助手消息，刚才那对 ID 会丢，推理也会丢。主循环从完整助手消息继续加工，只更新这一步需要的正文和已归一调用，把其它字段留到请求构造层决定怎么发。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-protocol/loop.py#L409" rel="noopener" target="_blank">loop.py · 以完整助手消息为保存基础</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L409" rel="noopener" target="_blank">loop.py · 以完整助手消息为保存基础</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>9 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="409"></span><span data-line="410"></span><span data-line="411"></span><span data-line="412"></span><span data-line="413"></span><span data-line="414"></span><span data-line="415"></span><span data-line="416"></span><span data-line="417"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-comment"># 保留助手消息中的 Chat reasoningContent 与 Responses 加密推理项。</span>
@@ -231,7 +246,7 @@
 <tr><td>Read 工具结果的 <code>imageData</code></td><td>工具消息外发时保留文本与配对 ID。批末把待投递的图片组织成后续 <code>role=user</code> 的多模态内容，Chat 使用 <code>image_url</code>，Responses 转成 <code>input_image</code>。</td></tr>
 </tbody></table></div>
 <p>拿图片这一行推一次。如果只留下 <code>已读取截图</code> 这样的文字提示，模型下一轮就看不到像素。图片跟着单独的多模态用户消息走，工具结果还保留原 ID。模型收到图片时，历史中也留着 <code>Read</code> 的执行结果。</p>
-<p>排查实际发送内容时，还要留意 Chat 请求最后才把 <code>extra</code> 合并到请求体。如果内部调用方用它覆盖 <code>messages</code> 或 <code>tools</code>，真正发送的值可能已经改变。图 2 对应常规投影。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-protocol/client.py#L118" rel="noopener" target="_blank">查看 Chat 请求合并顺序</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-protocol/messages.py#L42" rel="noopener" target="_blank">查看图片投递位置</a></p>
+<p>排查实际发送内容时，还要留意 Chat 请求最后才把 <code>extra</code> 合并到请求体。如果内部调用方用它覆盖 <code>messages</code> 或 <code>tools</code>，真正发送的值可能已经改变。图 2 对应常规投影。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/client/client.py#L118" rel="noopener" target="_blank">查看 Chat 请求合并顺序</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/messages.py#L42" rel="noopener" target="_blank">查看图片投递位置</a></p>
 </section>
 </section>
 <section class="v2-topic-group" id="learning-check">
@@ -243,7 +258,7 @@
 <p><strong>2．</strong>把图 1 的第二、三段交换到达顺序，仍保留每个 <code>index</code> 内的先后。最后两项调用的顺序和路径会变吗？</p>
 <details class="answer-box"><summary>展开答案</summary><div><p>最终仍按 <code>index</code> 排成 <code>call_prices</code>、<code>call_rules</code>。每一项里的字符追加次序也没变，路径分别是 <code>prices.mjs</code>、<code>折扣.md</code>。如果同一项里的片段被调换，累积器没有内容层的自动纠错。</p></div></details>
 <p><strong>3．</strong> 屏幕上已显示 <code>Read({"path":"report.csv"})</code>，这段参数能单独解析。连接随后断开，本次响应记为 <code>partial</code>。同事说文件肯定读过。你会向他要哪条记录？下一次继续时能沿用这半轮执行吗？</p>
-<details class="answer-box"><summary>展开答案</summary><div><p>这行只说明客户端拼出了一个预览。要证明读过文件，需要完整助手调用及与调用 ID 配对的工具回包。本轮以 partial 结束，主循环没有把这项 Read 派发出去。继续时从已保存的会话发起新的模型请求，由完整响应决定如何行动。</p></div></details>
+<details class="answer-box"><summary>展开答案</summary><div><p>这行只说明客户端拼出了一个预览。要证明读过文件，需要完整助手调用和与其 ID 配对的工具回包。这里客户端响应为 <code>partial</code>，主循环返回的回合状态为 <code>failed</code>，所以这项 Read 未派发。若要继续，从已保存的会话发起新的模型请求，等完整响应再派发工具。</p></div></details>
 <p><strong>4．</strong>正常结束的响应中，<code>call_rules</code> 参数分别是 <code>{"path":</code>、<code>[]</code>、<code>{}</code> 时，保存和验证有什么不同？换成允许省略 <code>path</code> 的 <code>ListDir</code>，为什么尤其不能把保存副本交给工具？假设没有 Hook 改参。</p>
 <details class="answer-box"><summary>展开答案</summary><div><p>第一项坏 JSON 在历史中改为字符串 <code>{}</code>，验证拿到原串，解析时报错。<code>[]</code> 语法合法，记录中保留原字符串，验证拒绝它作为对象。<code>{}</code> 已是对象，<code>Read</code> 验证仍会指出缺少 <code>path</code>。如果把坏串改后的 <code>{}</code> 交给 <code>ListDir</code>，它可以通过校验并使用默认路径，掩盖原请求的解析错误。</p></div></details>
 <p><strong>5．</strong>把 <code>call_prices</code> 的记录发给 Responses。调用项和结果项用哪个字段配对？原助手有一条服务端返回的加密推理项时，送到哪里？</p>

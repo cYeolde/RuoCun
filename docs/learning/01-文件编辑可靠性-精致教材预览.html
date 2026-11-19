@@ -103,7 +103,7 @@
 <h3>2.2 Read 返回文本并记录文件状态</h3>
 <p>Read 返回给模型的原文带着行号。<a href="05-从问题找到代码.html#read-context" rel="noopener" target="_blank">代码定位篇</a>已经用 <code>offset</code> 和 <code>limit</code> 从报错行回到函数定义。这里换一个问题：拿到的那几行怎样进入 Edit，程序又怎样判断文件在读后变过？</p>
 <details class="answer-box"><summary>查阅 Read 的参数、默认值与展示范围</summary>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/read_file.py#L117" rel="noopener" target="_blank">read_file.py:117 · 当前源码原文</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/read_file.py#L117" rel="noopener" target="_blank">read_file.py:117 · 当前源码原文</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>5 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="117"></span><span data-line="118"></span><span data-line="119"></span><span data-line="120"></span><span data-line="121"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    schema=objectSchema({
@@ -124,23 +124,36 @@
 </details>
 <p>工具实录中原文左侧的 <code>1</code> 是 Read 为展示附加的行号。Edit 旧文应从 <code>export function</code> 开始。复制行号进去，就会寻找文件里不存在的字符。</p>
 <p>文件路径和文件内位置还要分开。schema 描述“相对工作区根目录”，实际解析却优先使用 <code>ctx.cwd</code>，缺少当前目录才退回根目录：</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/paths.py#L66" rel="noopener" target="_blank">paths.py:66 · 路径解析原文</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/paths.py#L66" rel="noopener" target="_blank">paths.py:66 · 路径解析原文</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>1 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="66"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    absolute, external = <span class="hljs-keyword">await</span> asyncio.to_thread(classifyPath, ctx.cwd or ctx.workspaceRoot, p)</code></pre></div></figure>
 <p>两个目录都叫 prices.mjs，要先选对文件；同一文件向下移四行，才是内容定位的问题。唯一旧文不能替模型在两个业务文件间选择。读写许可也另行核对。</p>
 <p>读取记录保存在程序的 <code>ToolContext</code> 中。<code>readFiles</code> 记已读绝对路径，<code>readMeta</code> 保存读取时的时间与字节数。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/read_file.py#L74" rel="noopener" target="_blank">read_file.py:74 · 读取状态</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/read_file.py#L73" rel="noopener" target="_blank">read_file.py:73 · 后台读取记录绑定读前状态</a></p>
 <figure class="ruocun-code" data-language="python">
-<figcaption class="ruocun-code-caption"><span>Python</span><span>2 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="74"></span><span data-line="75"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    ctx.readFiles.add(absolute)
-    ctx.readMeta[absolute] = {<span class="hljs-string">"</span><span class="hljs-string">mtime</span><span class="hljs-string">"</span>: stat.st_mtime_ns / <span class="hljs-number">1_000_000</span>, <span class="hljs-string">"</span><span class="hljs-string">size</span><span class="hljs-string">"</span>: stat.st_size}</code></pre></div></figure>
+<figcaption class="ruocun-code-caption"><span>Python</span><span>3 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="73"></span><span data-line="74"></span><span class="ruocun-comment-gutter"></span><span data-line="75"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-comment"># 将基线绑定到实际读取前的 stat。读取期间若有外部修改，后续写入仍能发现原基线已失效。</span>
+    ctx.readFiles.add(absolute)
+<span class="hljs-comment ruocun-teaching-note">    # 保存这次读取所依据的修改时间和字节数，留给后续写入核对。
+</span>    ctx.readMeta[absolute] = {<span class="hljs-string">"</span><span class="hljs-string">mtime</span><span class="hljs-string">"</span>: stat.st_mtime_ns / <span class="hljs-number">1_000_000</span>, <span class="hljs-string">"</span><span class="hljs-string">size</span><span class="hljs-string">"</span>: stat.st_size}</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/read_file.py#L33" rel="noopener" target="_blank">read_file.py:33 · 后台读取完成后回填共享记录</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>6 行 · 2 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span class="ruocun-comment-gutter"></span><span data-line="33"></span><span data-line="34"></span><span class="ruocun-comment-gutter"></span><span data-line="35"></span><span data-line="36"></span><span data-line="37"></span><span data-line="38"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-comment ruocun-teaching-note">    # 后台线程从空的读取集合和元数据表开始。
+</span>    worker_ctx = replace(ctx, readFiles=<span class="hljs-built_in">set</span>(), readMeta={}, currentImageData=<span class="hljs-keyword">None</span>, onFileAccessed=<span class="hljs-keyword">None</span>)
+    text, accessed = <span class="hljs-keyword">await</span> asyncio.to_thread(_read_text, absolute, args, worker_ctx)
+<span class="hljs-comment ruocun-teaching-note">    # 回到业务循环后，把读取记录合入后续 Edit 使用的上下文。
+</span>    <span class="hljs-keyword">for</span> path in worker_ctx.readFiles:
+        ctx.readFiles.add(path)
+    <span class="hljs-keyword">for</span> path, meta in worker_ctx.readMeta.items():
+        ctx.readMeta[path] = meta</code></pre></div></figure>
 <p>mtime 来自读取前的 stat，纳秒值换算为毫秒；size 是字节数。这份后台读取记录会回传业务上下文，后续写入据此比较状态。模型说“我读过”不会自动登记路径；程序记为已读也不表示模型理解了所有内容。</p>
 </section>
 <section class="design-section" id="edit-interface">
 <h3>2.3 Edit 用旧文定位，用新文替换</h3>
 <p>本次成功参数中的函数头、函数体、花括号全属于替换片段。先看定义：</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/edit_file.py#L119" rel="noopener" target="_blank">edit_file.py:119 · 参数定义原文</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/edit_file.py#L119" rel="noopener" target="_blank">edit_file.py:119 · 参数定义原文</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>6 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="119"></span><span data-line="120"></span><span data-line="121"></span><span data-line="122"></span><span data-line="123"></span><span data-line="124"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    schema=objectSchema({
@@ -163,7 +176,7 @@
 <section class="design-section" id="unique-target">
 <h3>3.1 单处 Edit 需要唯一匹配</h3>
 <p>工具演示中，只给一行短旧文会同时匹配两个函数。处理器取得实际匹配串，再数它在全文中出现几次：</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/edit_file.py#L87" rel="noopener" target="_blank">edit_file.py:87 · 匹配、计数与拒绝</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/edit_file.py#L87" rel="noopener" target="_blank">edit_file.py:87 · 匹配、计数与拒绝</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>9 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="87"></span><span data-line="88"></span><span data-line="89"></span><span data-line="90"></span><span data-line="91"></span><span data-line="92"></span><span data-line="93"></span><span data-line="94"></span><span data-line="95"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        old = findActualString(raw, requested)
@@ -210,7 +223,7 @@
 <section class="design-section" id="lookalike-match">
 <h3>3.4 形近字符回退后按实际旧文计数</h3>
 <p>直引号和弯引号、半角和全角空格，也可能在复述时发生偏差。完全逐字符拒绝简单，却会让这些机械错误造成反复调用。当前实现先精确查找，失败后才尝试列明字符组的回退：</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/edit_file.py#L36" rel="noopener" target="_blank">edit_file.py:36 · 查找顺序</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/edit_file.py#L36" rel="noopener" target="_blank">edit_file.py:36 · 查找顺序</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>4 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="36"></span><span data-line="37"></span><span data-line="38"></span><span data-line="39"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">findActualString</span>(raw: <span class="hljs-built_in">str</span>, old: <span class="hljs-built_in">str</span>) -&gt; <span class="hljs-built_in">str</span> | <span class="hljs-keyword">None</span>:
@@ -224,7 +237,7 @@
 <h3>3.5 用 diff 核对替换范围</h3>
 <p>工具演示的成功差异里，函数声明在减号和加号两边都出现，会员价则是附近上下文。声明没有改变却被标进替换片段，是因为替换单位包含整个函数；展示的是这次替换涉及的文本，不是逐个不同字符。</p>
 <p>减号对应旧片段，加号对应新片段，空格开头是上下文。行号由程序根据当前全文计算，模型不用自行计算补丁偏移。处理器先生成新全文和差异，再保存并刷新基线：</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/edit_file.py#L96" rel="noopener" target="_blank">edit_file.py:96 · 差异与保存顺序</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/edit_file.py#L96" rel="noopener" target="_blank">edit_file.py:96 · 差异与保存顺序</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>7 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="96"></span><span data-line="97"></span><span data-line="98"></span><span data-line="99"></span><span data-line="100"></span><span data-line="101"></span><span data-line="102"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        start_line = raw[:raw.index(old)].count(<span class="hljs-string">"</span><span class="hljs-string">\n</span><span class="hljs-string">"</span>) + <span class="hljs-number">1</span>
@@ -259,19 +272,19 @@
 <tr><td>磁盘</td><td>会员价已有日志，文件大小变化</td><td>Edit 真正面对的新版本。</td></tr>
 </tbody></table></div>
 <p>t0、s0 是解释用符号，不是本次测量值。Edit 在路径锁内、定位与替换之前比较基线：</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/paths.py#L100" rel="noopener" target="_blank">paths.py:100 · 基线检查</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/paths.py#L100" rel="noopener" target="_blank">paths.py:100 · 基线检查</a></p>
 <figure class="ruocun-code" data-language="python">
-<figcaption class="ruocun-code-caption"><span>Python</span><span>9 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="100"></span><span data-line="101"></span><span data-line="102"></span><span data-line="103"></span><span data-line="104"></span><span data-line="105"></span><span data-line="106"></span><span data-line="107"></span><span data-line="108"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">checkReadBaseline</span>(absolute: <span class="hljs-built_in">str</span>, path: <span class="hljs-built_in">str</span>, ctx: ToolContext) -&gt; <span class="hljs-keyword">None</span>:
+<figcaption class="ruocun-code-caption"><span>Python</span><span>9 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="100"></span><span data-line="101"></span><span data-line="102"></span><span data-line="103"></span><span data-line="104"></span><span data-line="105"></span><span data-line="106"></span><span class="ruocun-comment-gutter"></span><span data-line="107"></span><span data-line="108"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">checkReadBaseline</span>(absolute: <span class="hljs-built_in">str</span>, path: <span class="hljs-built_in">str</span>, ctx: ToolContext) -&gt; <span class="hljs-keyword">None</span>:
     meta = ctx.readMeta.get(absolute)
     <span class="hljs-keyword">if</span> meta is not <span class="hljs-keyword">None</span>:
         <span class="hljs-keyword">try</span>:
             current = fileMeta(absolute)
         <span class="hljs-keyword">except</span> OSError <span class="hljs-keyword">as</span> exc:
             <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">写入前无法核对文件:</span><span class="hljs-string">{</span>path<span class="hljs-string">}</span><span class="hljs-string">。请重新 Read。</span><span class="hljs-string">{</span>exc<span class="hljs-string">}</span><span class="hljs-string">"</span>) <span class="hljs-keyword">from</span> exc
-        <span class="hljs-keyword">if</span> current != meta:
-            <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">文件自上次 Read 后已被外部改动:</span><span class="hljs-string">{</span>path<span class="hljs-string">}</span><span class="hljs-string">。请重新 Read 看最新内容再写,以免覆盖他人改动。</span><span class="hljs-string">"</span>)
-</code></pre></div></figure>
+<span class="hljs-comment ruocun-teaching-note">        # 两份文件元数据不同就拒绝，先重新 Read 获取这次修改的依据。
+</span>        <span class="hljs-keyword">if</span> current != meta:
+            <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">文件自上次 Read 后已被外部改动:</span><span class="hljs-string">{</span>path<span class="hljs-string">}</span><span class="hljs-string">。请重新 Read 看最新内容再写,以免覆盖他人改动。</span><span class="hljs-string">"</span>)</code></pre></div></figure>
 <p>fileMeta 重新取得当前时间和字节数，与读取记录比较。日志使大小改变，执行停在拒绝处，后面的查找和保存都未发生。经执行层转换后，模型可见的反馈形状为：</p>
 <div class="design-trace"><strong>按源码推演的工具反馈</strong><pre><code class="language-text">Error: 文件自上次 Read 后已被外部改动:prices.mjs。请重新 Read 看最新内容再写,以免覆盖他人改动。</code></pre></div>
 <p>这不是判定折扣公式错误，而是要求恢复最新依据。用户即使只改了另一个函数，检测到变化仍会拒绝，调用者需要多读一次。这是重新确认当前内容所付出的额外成本。</p>
@@ -304,7 +317,7 @@
 <h3>5.1 Write 提交全文，Edit 保留其余内容</h3>
 <p>只给普通价打九折，我们已经能用 Edit 表达。模型提供 standardTotal 的旧、新函数片段，工具从当前文件中保留 memberTotal 和其他内容。但如果是第一次创建 prices.mjs，磁盘上还没有可供匹配的原文；或者确实需要重新组织整份小文件，就要使用 Write。</p>
 <p>Write 接收的是写完后文件应有的全部内容。这让新建文件很直接。覆盖已有文件时，会员函数、注释和用户后来加入的日志也要由调用者放进 <code>content</code>。</p>
-<p class="design-source">完整参数定义：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/write_file.py#L62" rel="noopener" target="_blank">write_file.py:62–65</a>。</p>
+<p class="design-source">完整参数定义：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/write_file.py#L62" rel="noopener" target="_blank">write_file.py:62–65</a>。</p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>4 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="62"></span><span data-line="63"></span><span data-line="64"></span><span data-line="65"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    schema=objectSchema({
@@ -330,7 +343,7 @@
 <section class="design-section" id="write-existing-file">
 <h3>5.2 覆盖已有文件前先 Read</h3>
 <p>不存在的文件没有旧内容可读。Write 在允许的路径创建父目录并写入新文件，不要求先对不存在的文件完成一次 Read。已有 prices.mjs 则不同：覆盖前先要求该绝对路径已经在 readFiles 中；否则连“自己将覆盖什么”都缺少程序侧的依据。</p>
-<p class="design-source">已有文件的检查顺序：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/write_file.py#L28" rel="noopener" target="_blank">write_file.py:28–44</a>。</p>
+<p class="design-source">已有文件的检查顺序：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/write_file.py#L28" rel="noopener" target="_blank">write_file.py:28–44</a>。</p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>17 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="28"></span><span data-line="29"></span><span data-line="30"></span><span data-line="31"></span><span data-line="32"></span><span data-line="33"></span><span data-line="34"></span><span data-line="35"></span><span data-line="36"></span><span data-line="37"></span><span data-line="38"></span><span data-line="39"></span><span data-line="40"></span><span data-line="41"></span><span data-line="42"></span><span data-line="43"></span><span data-line="44"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">_write_text</span>(absolute: <span class="hljs-built_in">str</span>, args: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any], ctx: ToolContext) -&gt; <span class="hljs-built_in">str</span>:
@@ -370,7 +383,7 @@
 <tr><td>前台 Bash 路径取得命令执行结果</td><td>不以此替代文件读取</td><td>清除当前上下文的整个集合</td><td>给当前版本一次运行反馈机会</td></tr>
 </tbody>
 </table></div>
-<p class="design-source">前台命令取得结果后的清除语句：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/exec_shell.py#L192" rel="noopener" target="_blank">exec_shell.py:192</a>。</p>
+<p class="design-source">前台命令取得结果后的清除语句：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/exec_shell.py#L192" rel="noopener" target="_blank">exec_shell.py:192</a>。</p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>1 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="192"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    ctx.pendingUnverifiedWrites.clear()</code></pre></div></figure>
@@ -400,16 +413,18 @@
 <section class="design-section" id="concurrency-full-lock">
 <h3>6.2 共享读取记录影响后一次编辑</h3>
 <p>当前 Edit 从进入 fileLock(absolute) 开始，依次检查取消、是否读过、读取基线，再重新读取磁盘内容，定位旧串、计算新全文与差异，最后保存并刷新基线。A 在里面工作时，B 不能提前用同一路径算好一份等待覆盖的旧结果。</p>
-<p class="design-source">Edit 的完整检查、计算与保存范围：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/edit_file.py#L72" rel="noopener" target="_blank">edit_file.py:72–102</a>。这一段展示完整顺序，方便把上表每一步放回实现。</p>
+<p class="design-source">Edit 的完整检查、计算与保存范围：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/edit_file.py#L72" rel="noopener" target="_blank">edit_file.py:72–102</a>。这一段展示完整顺序，方便把上表每一步放回实现。</p>
 <figure class="ruocun-code" data-language="python">
-<figcaption class="ruocun-code-caption"><span>Python</span><span>31 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="72"></span><span data-line="73"></span><span data-line="74"></span><span data-line="75"></span><span data-line="76"></span><span data-line="77"></span><span data-line="78"></span><span data-line="79"></span><span data-line="80"></span><span data-line="81"></span><span data-line="82"></span><span data-line="83"></span><span data-line="84"></span><span data-line="85"></span><span data-line="86"></span><span data-line="87"></span><span data-line="88"></span><span data-line="89"></span><span data-line="90"></span><span data-line="91"></span><span data-line="92"></span><span data-line="93"></span><span data-line="94"></span><span data-line="95"></span><span data-line="96"></span><span data-line="97"></span><span data-line="98"></span><span data-line="99"></span><span data-line="100"></span><span data-line="101"></span><span data-line="102"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">_edit_text</span>(absolute: <span class="hljs-built_in">str</span>, args: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any], ctx: ToolContext) -&gt; <span class="hljs-built_in">str</span>:
-    <span class="hljs-keyword">with</span> fileLock(absolute):
+<figcaption class="ruocun-code-caption"><span>Python</span><span>31 行 · 3 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="72"></span><span class="ruocun-comment-gutter"></span><span data-line="73"></span><span data-line="74"></span><span data-line="75"></span><span data-line="76"></span><span data-line="77"></span><span class="ruocun-comment-gutter"></span><span data-line="78"></span><span data-line="79"></span><span data-line="80"></span><span data-line="81"></span><span data-line="82"></span><span data-line="83"></span><span data-line="84"></span><span data-line="85"></span><span data-line="86"></span><span data-line="87"></span><span data-line="88"></span><span data-line="89"></span><span data-line="90"></span><span data-line="91"></span><span data-line="92"></span><span data-line="93"></span><span data-line="94"></span><span data-line="95"></span><span data-line="96"></span><span data-line="97"></span><span class="ruocun-comment-gutter"></span><span data-line="98"></span><span data-line="99"></span><span data-line="100"></span><span data-line="101"></span><span data-line="102"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">_edit_text</span>(absolute: <span class="hljs-built_in">str</span>, args: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any], ctx: ToolContext) -&gt; <span class="hljs-built_in">str</span>:
+<span class="hljs-comment ruocun-teaching-note">    # 同一路径的修改从这里开始排队。
+</span>    <span class="hljs-keyword">with</span> fileLock(absolute):
         <span class="hljs-keyword">if</span> ctx.signal.is_set():
             <span class="hljs-keyword">raise</span> InterruptedError(<span class="hljs-string">"</span><span class="hljs-string">工具调用已取消</span><span class="hljs-string">"</span>)
         <span class="hljs-keyword">if</span> absolute not in ctx.readFiles:
             <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">编辑前请先用 Read 读过它:</span><span class="hljs-string">{</span>args[<span class="hljs-string">'</span><span class="hljs-string">path</span><span class="hljs-string">'</span>]<span class="hljs-string">}</span><span class="hljs-string">"</span>)
-        checkReadBaseline(absolute, args[<span class="hljs-string">"</span><span class="hljs-string">path</span><span class="hljs-string">"</span>], ctx)
+<span class="hljs-comment ruocun-teaching-note">        # 进入锁后再核对读取基线，随后读取的是当前磁盘内容。
+</span>        checkReadBaseline(absolute, args[<span class="hljs-string">"</span><span class="hljs-string">path</span><span class="hljs-string">"</span>], ctx)
         <span class="hljs-keyword">try</span>:
             raw = Path(absolute).read_bytes().decode(<span class="hljs-string">"</span><span class="hljs-string">utf-8</span><span class="hljs-string">"</span>, errors=<span class="hljs-string">"</span><span class="hljs-string">replace</span><span class="hljs-string">"</span>)
         <span class="hljs-keyword">except</span> OSError <span class="hljs-keyword">as</span> exc:
@@ -429,7 +444,8 @@
         next_text = raw.replace(old, args[<span class="hljs-string">"</span><span class="hljs-string">new_string</span><span class="hljs-string">"</span>])
         start_line = raw[:raw.index(old)].count(<span class="hljs-string">"</span><span class="hljs-string">\n</span><span class="hljs-string">"</span>) + <span class="hljs-number">1</span>
         diff = <span class="hljs-string">"</span><span class="hljs-string">\n</span><span class="hljs-string">```diff</span><span class="hljs-string">\n</span><span class="hljs-string">"</span> + <span class="hljs-string">"</span><span class="hljs-string">\n</span><span class="hljs-string">"</span>.join(buildEditHunk(raw, old, args[<span class="hljs-string">"</span><span class="hljs-string">new_string</span><span class="hljs-string">"</span>])) + <span class="hljs-string">"</span><span class="hljs-string">\n</span><span class="hljs-string">```</span><span class="hljs-string">"</span>
-        atomicWrite(absolute, next_text)
+<span class="hljs-comment ruocun-teaching-note">        # 新全文发布和基线刷新仍在同一把锁里。
+</span>        atomicWrite(absolute, next_text)
         refreshReadBaseline(absolute, ctx)
         <span class="hljs-keyword">if</span> ctx.lang == <span class="hljs-string">"</span><span class="hljs-string">en</span><span class="hljs-string">"</span>:
             <span class="hljs-keyword">return</span> <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">Edited </span><span class="hljs-string">{</span>args[<span class="hljs-string">'</span><span class="hljs-string">path</span><span class="hljs-string">'</span>]<span class="hljs-string">}</span><span class="hljs-string"> (</span><span class="hljs-string">{</span>count<span class="hljs-string">}</span><span class="hljs-string"> replacement(s), line </span><span class="hljs-string">{</span>start_line<span class="hljs-string">}</span><span class="hljs-string">)</span><span class="hljs-string">{</span>diff<span class="hljs-string">}</span><span class="hljs-string">"</span>
@@ -442,7 +458,7 @@
 <section class="design-section" id="concurrency-path-lock">
 <h3>6.3 按路径加锁，让无关文件独立推进</h3>
 <p>如果所有文件操作共用一把大锁，修改 prices.mjs 时，另一个毫无关联的 notes.txt 也必须等待。这样容易组织，却把同步范围扩大到了没有共享文件的操作。RuoCun 为不同锁键保存不同的锁对象：</p>
-<p class="design-source">锁表与路径锁：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/paths.py#L117" rel="noopener" target="_blank">paths.py:117–127</a>。</p>
+<p class="design-source">锁表与路径锁：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/paths.py#L117" rel="noopener" target="_blank">paths.py:117–127</a>。</p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>11 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="117"></span><span data-line="118"></span><span data-line="119"></span><span data-line="120"></span><span data-line="121"></span><span data-line="122"></span><span data-line="123"></span><span data-line="124"></span><span data-line="125"></span><span data-line="126"></span><span data-line="127"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">_locks: weakref.WeakValueDictionary[<span class="hljs-built_in">str</span>, threading.Lock] = weakref.WeakValueDictionary()
@@ -464,7 +480,7 @@ _lock_guard = threading.Lock()
 <h3>6.4 批次屏障与路径锁各保护什么</h3>
 <p><a href="04-工具调用怎样落地.html#batch-order" rel="noopener" target="_blank">工具契约篇已经算过前读与后读各得到哪个版本</a>。那道屏障让同一次模型响应里的写入单独运行。回看本篇的并发图，两个编辑如果从不同的运行上下文进入处理器，就可能各自通过所在批次的排队检查，却在同一路径上相遇。路径锁按实际文件协调两次读改写，两个批次无需共享一张调度表。</p>
 <details class="answer-box"><summary>查阅同批调用的分组代码</summary><div>
-<p class="design-source">按持久副作用和事后 Hook 分组：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/tool_batch.py#L380" rel="noopener" target="_blank">tool_batch.py:380–400</a>。</p>
+<p class="design-source">按持久副作用和事后 Hook 分组：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/tool_batch.py#L380" rel="noopener" target="_blank">tool_batch.py:380–400</a>。</p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>21 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="380"></span><span data-line="381"></span><span data-line="382"></span><span data-line="383"></span><span data-line="384"></span><span data-line="385"></span><span data-line="386"></span><span data-line="387"></span><span data-line="388"></span><span data-line="389"></span><span data-line="390"></span><span data-line="391"></span><span data-line="392"></span><span data-line="393"></span><span data-line="394"></span><span data-line="395"></span><span data-line="396"></span><span data-line="397"></span><span data-line="398"></span><span data-line="399"></span><span data-line="400"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        group: <span class="hljs-built_in">list</span>[BatchCall] = []
@@ -493,7 +509,7 @@ _lock_guard = threading.Lock()
 <section class="design-section" id="atomic-file-publication">
 <h3>6.5 先写临时文件，再替换目标</h3>
 <p>锁已经让读改写排队，单次保存仍可能失败。若直接打开 prices.mjs 覆写，先截断目标再逐段写入，写到中途失败，目标路径可能已经只剩半个函数。当前实现先在目标同目录准备临时文件：</p>
-<p class="design-source">临时文件与目标替换：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/paths.py#L130" rel="noopener" target="_blank">paths.py:130–140</a>。</p>
+<p class="design-source">临时文件与目标替换：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/paths.py#L130" rel="noopener" target="_blank">paths.py:130–140</a>。</p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>11 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="130"></span><span data-line="131"></span><span data-line="132"></span><span data-line="133"></span><span data-line="134"></span><span data-line="135"></span><span data-line="136"></span><span data-line="137"></span><span data-line="138"></span><span data-line="139"></span><span data-line="140"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">atomicWrite</span>(absolute: <span class="hljs-built_in">str</span>, content: <span class="hljs-built_in">str</span>) -&gt; <span class="hljs-keyword">None</span>:
@@ -526,7 +542,7 @@ _lock_guard = threading.Lock()
 <section class="design-section" id="feedback-into-next-input">
 <h3>7.1 拒绝反馈按调用 ID 回传</h3>
 <p>定位演示中的短旧串出现两次，Edit 在保存之前明确拒绝。处理器里抛出的 Python 异常本身不会进入模型消息。真正执行一批模型工具调用时，外层先捕获 ToolRejected，把原因整理成结果文本：</p>
-<p class="design-source">明确拒绝的转换：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/tool_batch.py#L282" rel="noopener" target="_blank">tool_batch.py:282–283</a>。</p>
+<p class="design-source">明确拒绝的转换：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/tool_batch.py#L282" rel="noopener" target="_blank">tool_batch.py:282–283</a>。</p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>2 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="282"></span><span data-line="283"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">                <span class="hljs-keyword">except</span> ToolRejected <span class="hljs-keyword">as</span> exc:
@@ -540,7 +556,7 @@ _lock_guard = threading.Lock()
   <span class="hljs-attr">"content"</span>: <span class="hljs-string">"Error: old_string 在 prices.mjs 出现 2 次，不唯一。只改一处时，把周围未改动的文字同时带入 old_string 和 new_string。要替换所有匹配时请使用 replace_all。"</span>
 }</code></pre></div></figure>
 <p>role 说明这是工具反馈，tool_call_id 将它配回那次 Edit，content 同时告诉模型失败原因和可采取的修正动作。只把相同文字打印在终端，不能代替这一步：终端面向人，下一次模型请求要读取的是消息。</p>
-<p class="design-source">主循环取得批结果后的保存：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/loop.py#L432" rel="noopener" target="_blank">loop.py:432–436</a>。</p>
+<p class="design-source">主循环取得批结果后的保存：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L432" rel="noopener" target="_blank">loop.py:432–436</a>。</p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>5 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="432"></span><span data-line="433"></span><span data-line="434"></span><span data-line="435"></span><span data-line="436"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        session.messages.extend(batch.messages)
@@ -554,7 +570,7 @@ _lock_guard = threading.Lock()
 <section class="design-section" id="unknown-outcome-stop">
 <h3>7.2 文件可能已写入，为什么不能重放？</h3>
 <p>旧文不存在、重复匹配、基线过期，都可以在保存前明确拒绝。另一种异常却发生在持久副作用开始之后：目标已经替换，刷新或结果保存没有完成。此时“调用没有正常结束”和“磁盘没有发生改动”不能画等号。</p>
-<p class="design-source">有持久副作用的处理器出现意外异常：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/tool_batch.py#L285" rel="noopener" target="_blank">tool_batch.py:285–292</a>。</p>
+<p class="design-source">有持久副作用的处理器出现意外异常：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/tool_batch.py#L285" rel="noopener" target="_blank">tool_batch.py:285–292</a>。</p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>8 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="285"></span><span data-line="286"></span><span data-line="287"></span><span data-line="288"></span><span data-line="289"></span><span data-line="290"></span><span data-line="291"></span><span data-line="292"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">                <span class="hljs-keyword">except</span> Exception <span class="hljs-keyword">as</span> exc:
@@ -566,18 +582,31 @@ _lock_guard = threading.Lock()
                         ) <span class="hljs-keyword">from</span> exc
                     result = <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">Error: 工具读取失败（</span><span class="hljs-string">{</span><span class="hljs-built_in">type</span>(exc).__name__<span class="hljs-string">}</span><span class="hljs-string">）。</span><span class="hljs-string">"</span></code></pre></div></figure>
 <p>effect 为真时，执行层不会统一包装成一条普通 Error 后继续纠错，而是抛出 UnknownToolOutcome。如果处理器已返回，但 journal 记录这次结果没有得到确认，也会走“结果保存未确认”的分支。前者可能不知道处理器执行到哪一步，后者可能有返回值却没有确认记录；两种情况都不适合假设操作肯定没发生。</p>
-<p class="design-source">主循环单独停止：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/loop.py#L423" rel="noopener" target="_blank">loop.py:423–432</a>。</p>
+<p class="design-source">处理器已返回，但结果记录没有确认：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/tool_batch.py#L304" rel="noopener" target="_blank">tool_batch.py:304–317</a>。</p>
 <figure class="ruocun-code" data-language="python">
-<figcaption class="ruocun-code-caption"><span>Python</span><span>10 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="423"></span><span data-line="424"></span><span data-line="425"></span><span data-line="426"></span><span data-line="427"></span><span data-line="428"></span><span data-line="429"></span><span data-line="430"></span><span data-line="431"></span><span data-line="432"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">try</span>:
-            <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> tool_batch_scope <span class="hljs-keyword">if</span> tool_batch_scope is not <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> nullcontext():
-                batch = <span class="hljs-keyword">await</span> executeToolBatch(
-                    calls, registry, ctx, approve=authorization.approve, journal=journal,
-                    authorize=authorization.authorize, authorize_batch=authorization.authorize_batch,
-                    call_scope=authorization.call_scope, permission_mode=authorization.permission_mode,
-                )
-        <span class="hljs-keyword">except</span> UnknownToolOutcome <span class="hljs-keyword">as</span> exc:
-            <span class="hljs-keyword">return</span> TurnResult(<span class="hljs-string">"</span><span class="hljs-string">outcome_unknown</span><span class="hljs-string">"</span>, <span class="hljs-built_in">str</span>(exc))
+<figcaption class="ruocun-code-caption"><span>Python</span><span>14 行 · 2 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="304"></span><span data-line="305"></span><span data-line="306"></span><span data-line="307"></span><span data-line="308"></span><span data-line="309"></span><span data-line="310"></span><span data-line="311"></span><span class="ruocun-comment-gutter"></span><span data-line="312"></span><span data-line="313"></span><span data-line="314"></span><span class="ruocun-comment-gutter"></span><span data-line="315"></span><span data-line="316"></span><span data-line="317"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            <span class="hljs-keyword">if</span> journal is not <span class="hljs-keyword">None</span>:
+                <span class="hljs-keyword">try</span>:
+                    <span class="hljs-keyword">if</span> image is <span class="hljs-keyword">None</span>:
+                        saved = (ShellToolOutput(result, failed=shell_failures[call_id])
+                                 <span class="hljs-keyword">if</span> call_id in shell_failures <span class="hljs-keyword">else</span> result)
+                        <span class="hljs-keyword">await</span> journal.result(call_id, saved)
+                    <span class="hljs-keyword">else</span>:
+                        <span class="hljs-keyword">await</span> journal.result(call_id, result, image)
+<span class="hljs-comment ruocun-teaching-note">                # 处理器已返回，这里捕获的是结果写入日志时的异常。
+</span>                <span class="hljs-keyword">except</span> Exception <span class="hljs-keyword">as</span> exc:
+                    <span class="hljs-keyword">if</span> not effect:
+                        <span class="hljs-keyword">raise</span>
+<span class="hljs-comment ruocun-teaching-note">                    # 有持久副作用时，结果未确认需要交给调用方核实。
+</span>                    <span class="hljs-keyword">raise</span> UnknownToolOutcome(
+                        <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">工具结果保存未确认（</span><span class="hljs-string">{</span><span class="hljs-built_in">type</span>(exc).__name__<span class="hljs-string">}</span><span class="hljs-string">），已停止；请核实原操作。</span><span class="hljs-string">"</span>
+                    ) <span class="hljs-keyword">from</span> exc</code></pre></div></figure>
+<p class="design-source">主循环单独停止：<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L430" rel="noopener" target="_blank">loop.py:430–432</a>。</p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>3 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="430"></span><span class="ruocun-comment-gutter"></span><span data-line="431"></span><span data-line="432"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">except</span> UnknownToolOutcome <span class="hljs-keyword">as</span> exc:
+<span class="hljs-comment ruocun-teaching-note">            # 就此结束该回合，下面追加普通工具消息的路径不会执行。
+</span>            <span class="hljs-keyword">return</span> TurnResult(<span class="hljs-string">"</span><span class="hljs-string">outcome_unknown</span><span class="hljs-string">"</span>, <span class="hljs-built_in">str</span>(exc))
         session.messages.extend(batch.messages)</code></pre></div></figure>
 <p>主循环返回 <code>outcome_unknown</code>，停止本轮。如果九折版本已经写入并保留，直接重发可能先被读取基线拦住，即使进入匹配，原来的完整旧函数也已经不存在。追加日志或提交外部操作则可能在重发时又产生一次副作用。文件编辑要检查磁盘上的实际内容，外部操作要核对对应的状态。</p>
 <p>写入前明确拒绝后，可以根据反馈补参数或重新读取。<strong>「副作用结果未知时，停止本轮，先核实原操作是否生效」</strong>。这个分支会打断自动推进，需要调用方另行检查，却避免把一次缺少成功确认的动作当成从未执行过。</p>
@@ -667,7 +696,7 @@ _lock_guard = threading.Lock()
 <p><strong>主问：A 改普通价，B 改会员价，只锁最终写入为什么不够？</strong></p>
 <details class="answer-box"><summary>展开主问回答</summary><div>
 <p><strong>口述回答：</strong>两边可能先拿到同一旧全文，分别算出完整结果，最后即使排队保存，B 的版本仍把普通价带回原价。锁要从基线检查和读取开始，覆盖计算、保存与刷新。</p>
-<p><strong>依据与边界：</strong>本篇 200／200→180／200→200／160 的交错说明了丢失位置。外层同批屏障已经使持久副作用单独执行；这里讨论不同路径或直接并发处理器仍需什么保护。</p>
+<p><strong>依据与边界：</strong>本篇 200／200→180／200→200／160 的交错说明了丢失位置。同一批的持久副作用已经由外层屏障安排单独执行。不同批次或不同运行上下文同时修改同一文件时，仍需要同路径锁保护整个读改写过程。</p>
 </div></details>
 <p><strong>追问 1：完整锁下，A 已成功，B 进入后会继续还是拒绝？</strong></p>
 <details class="answer-box"><summary>展开追问 1 回答</summary><div>

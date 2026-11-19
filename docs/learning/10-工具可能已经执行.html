@@ -62,7 +62,7 @@
 <header class="v2-group-heading"><span>02</span><h2>工具意图与已确认结果</h2></header><div class="design-section">
 </div><section class="design-section" id="durable-journal-1"><h3>2.1 先提交执行意图，再进入处理器</h3>
 <p>沿<a href="08-执行之前谁说了算.html#permission-plan" rel="noopener" target="_blank">派发前对参数、权限和取消的检查</a>往下走。编辑获准后，会话构造一条 <code>Intent</code>，把工具身份、最终参数摘要、批准记录引用和 <code>owner_epoch</code> 一起入账。这里的 <code>owner</code> 是有权提交当前会话数据库写事务的程序实例，接管数据库时持有版本 <code>owner_epoch</code> 递增。主会话的工具引用写为 <code>ToolRef("main", call_id)</code>，子执行用自己的范围，避免同名调用 ID 互相覆盖。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/session/conversation.py#L551" rel="noopener" target="_blank">src/ruocun/session/conversation.py · 第 551–564 行</a></p><figure class="ruocun-code" data-language="python">
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/conversation.py#L551" rel="noopener" target="_blank">src/ruocun/session/conversation.py · 第 551–564 行</a></p><figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>14 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="551"></span><span data-line="552"></span><span data-line="553"></span><span data-line="554"></span><span data-line="555"></span><span data-line="556"></span><span data-line="557"></span><span data-line="558"></span><span data-line="559"></span><span data-line="560"></span><span data-line="561"></span><span data-line="562"></span><span data-line="563"></span><span data-line="564"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>.blocked:
             <span class="hljs-keyword">raise</span> RuntimeError(<span class="hljs-string">"</span><span class="hljs-string">会话存在未确认的工具结果，拒绝继续。</span><span class="hljs-string">"</span>)
@@ -79,7 +79,7 @@
         <span class="hljs-built_in">self</span>._current_tool.set(tool_ref <span class="hljs-keyword">if</span> cached is <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> <span class="hljs-keyword">None</span>)
         <span class="hljs-keyword">return</span> cached</code></pre></div></figure>
 <p>派发等存储提交回执后才进入处理器。意图提交失败时，本次 Edit 不进入实际写入。已有同一身份的意图时，存储先核对其最终参数与授权等内容，再决定能否复用 <code>result_committed</code>。身份相同而内容不同需要报冲突。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/session/durable_store.py#L734" rel="noopener" target="_blank">src/ruocun/session/durable_store.py · 第 734–748 行</a></p><figure class="ruocun-code" data-language="python">
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/durable_store.py#L734" rel="noopener" target="_blank">src/ruocun/session/durable_store.py · 第 734–748 行</a></p><figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>15 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="734"></span><span data-line="735"></span><span data-line="736"></span><span data-line="737"></span><span data-line="738"></span><span data-line="739"></span><span data-line="740"></span><span data-line="741"></span><span data-line="742"></span><span data-line="743"></span><span data-line="744"></span><span data-line="745"></span><span data-line="746"></span><span data-line="747"></span><span data-line="748"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">commit_intent</span>(<span class="hljs-built_in">self</span>, owner: DbOwner, intent: Intent) -&gt; ToolResult | <span class="hljs-keyword">None</span>:
         <span class="hljs-string">"""工具执行前持久化意图。如果同一 ToolRef 已保存结果，直接返回旧结果。"""</span>
@@ -99,7 +99,7 @@
 <p>代入现场 B，存储按工具身份找到相同意图，<code>result_committed</code> 分支直接把已确认结果交回派发器，处理器完全不用再跑。代入 A，<code>started</code> 只说明先写下了执行意图。从落盘到写文件之间，进程可能在进入处理器前退出，也可能刚写完还没落结果就退出。存储无法单靠这行记录分辨。RuoCun 接受了部分其实未执行的调用也要人工核实的代价，避免把可能已发生的副作用重做一次。<strong>「意图记录证明工具可能已经开始，已确认结果才能用来恢复回包」</strong>。</p>
 </section><section class="design-section" id="durable-journal-2"><h3>2.2 确定拒绝能回流，结果未知需要停住</h3>
 <p>Edit 确定找不到 <code>old_string</code> 时，通过 <code>ToolRejected</code> 回给模型明确的错误，模型可以重新读取目标。处理器意外异常可能发生在写入之后。对具有持久副作用的工具，派发把这一路升级成 <code>UnknownToolOutcome</code>，结果保存异常时也采用同样处理。普通读取出错可以回读失败文本。程序保留这几条不同路径，下一步才有正确依据。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/tools/tool_batch.py#L304" rel="noopener" target="_blank">src/ruocun/tools/tool_batch.py · 第 304–323 行</a></p><figure class="ruocun-code" data-language="python">
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/tool_batch.py#L304" rel="noopener" target="_blank">src/ruocun/tools/tool_batch.py · 第 304–323 行</a></p><figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>20 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="304"></span><span data-line="305"></span><span data-line="306"></span><span data-line="307"></span><span data-line="308"></span><span data-line="309"></span><span data-line="310"></span><span data-line="311"></span><span data-line="312"></span><span data-line="313"></span><span data-line="314"></span><span data-line="315"></span><span data-line="316"></span><span data-line="317"></span><span data-line="318"></span><span data-line="319"></span><span data-line="320"></span><span data-line="321"></span><span data-line="322"></span><span data-line="323"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            <span class="hljs-keyword">if</span> journal is not <span class="hljs-keyword">None</span>:
                 <span class="hljs-keyword">try</span>:
@@ -127,7 +127,7 @@
 <header class="v2-group-heading"><span>03</span><h2>恢复视图与人工核实</h2></header><div class="design-section">
 </div><section class="design-section" id="durable-resume-1"><h3>3.1 从 journal 补配对，保持已执行操作的原身份</h3>
 <p>启动恢复时，存储把仍处于 <code>started</code> 的记录标成 <code>outcome_unknown</code>。已确认的结果继续保留。若有未决工具、运行或附件，会话保留阻塞状态；可以先查询恢复视图。阻塞解除后修复历史，按照助手原始调用列表找同一作用域的工具记录。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/session/recovery.py#L60" rel="noopener" target="_blank">src/ruocun/session/recovery.py · 第 60–71 行</a></p><figure class="ruocun-code" data-language="python">
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/recovery.py#L60" rel="noopener" target="_blank">src/ruocun/session/recovery.py · 第 60–71 行</a></p><figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>12 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="60"></span><span data-line="61"></span><span data-line="62"></span><span data-line="63"></span><span data-line="64"></span><span data-line="65"></span><span data-line="66"></span><span data-line="67"></span><span data-line="68"></span><span data-line="69"></span><span data-line="70"></span><span data-line="71"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">for</span> call in calls:
             call_id = call[<span class="hljs-string">'</span><span class="hljs-string">id</span><span class="hljs-string">'</span>]
@@ -145,6 +145,106 @@
 <p>现有 <code>REC-05</code> 自动验证覆盖了这些切点。保存意图后中断，文件保持原文。文件替换后、结果保存前中断，文件已有新内容。两次重开都保留未决。结果确认后、配对前中断则可以补回结果。从这组观测能看到，内置文件写入和数据库提交分属两个边界，中间有无法靠数据库单独确认的区间。</p>
 </section><section class="design-section" id="durable-resume-2"><h3>3.2 人工说明进入原记录，继续运行要有明确决定</h3>
 <p>针对 <code>call-price</code>，用户可查询 <code>/recovery</code>，按未决条目的作用域和 ID 核实文件现状与期望差异，再用 <code>resolve</code> 提交说明。原记录保存“用户处理未决操作”及其说明，区别于工具原始回包；<code>decide</code> 用于核实运行终态。恢复决定与消息一起提交，同一个决定身份重复提交相同内容可以取得原回执，内容冲突则拒绝。要继续受支持的普通子代理，还需明确的 <code>continue</code> 决定和可验证材料，并使用新 run，详见<a href="13-重活交给子代理.html" rel="noopener" target="_blank">子代理章节</a>。</p>
+<p>示意中的 <code>call-price</code> 属于主会话。用户核实原记录后，可在若存的会话中提交以下决定。</p>
+<figure class="ruocun-code" data-language="text">
+<figcaption class="ruocun-code-caption"><span>输出</span><span>1 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-text">/recovery resolve main call-price 已核对本次差异，普通价改为九折</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/runtime.py#L2476" rel="noopener" target="_blank">src/ruocun/agent/runtime.py · 第 2476–2483 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>8 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="2476"></span><span class="ruocun-comment-gutter"></span><span data-line="2477"></span><span data-line="2478"></span><span data-line="2479"></span><span data-line="2480"></span><span data-line="2481"></span><span data-line="2482"></span><span data-line="2483"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            <span class="hljs-keyword">if</span> name == <span class="hljs-string">"</span><span class="hljs-string">recovery</span><span class="hljs-string">"</span>:
+<span class="hljs-comment ruocun-teaching-note">                # 会改变恢复状态的命令，先暂停当前回合并等它完成收尾。
+</span>                <span class="hljs-keyword">if</span> isMutatingRecoveryCommand(text):
+                    <span class="hljs-keyword">await</span> pause_settled()
+                <span class="hljs-keyword">try</span>:
+                    report = <span class="hljs-keyword">await</span> recovery.command(text)
+                <span class="hljs-keyword">except</span> ValueError <span class="hljs-keyword">as</span> error:
+                    output(<span class="hljs-built_in">str</span>(error))
+                    <span class="hljs-keyword">return</span> <span class="hljs-keyword">True</span>, <span class="hljs-number">2</span></code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/recovery.py#L147" rel="noopener" target="_blank">src/ruocun/session/recovery.py · 第 147–152 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>6 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span class="ruocun-comment-gutter"></span><span data-line="147"></span><span data-line="148"></span><span data-line="149"></span><span data-line="150"></span><span data-line="151"></span><span data-line="152"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-comment ruocun-teaching-note">        # 未另行指定 ID 时，同一会话的同一条命令形成稳定的决定身份。
+</span>        identifier = decision_id or <span class="hljs-string">'</span><span class="hljs-string">recovery-v1:</span><span class="hljs-string">'</span> + hashlib.sha256(
+            (<span class="hljs-built_in">self</span>.conversation.session_id + <span class="hljs-string">'</span><span class="hljs-string">\0</span><span class="hljs-string">'</span> + line.strip()).encode(<span class="hljs-string">'</span><span class="hljs-string">utf-8</span><span class="hljs-string">'</span>)).hexdigest()
+        next_ref = RunRef(target, <span class="hljs-built_in">str</span>(uuid.uuid5(uuid.NAMESPACE_URL, identifier))) <span class="hljs-keyword">if</span> action == <span class="hljs-string">'</span><span class="hljs-string">continue</span><span class="hljs-string">'</span> <span class="hljs-keyword">else</span> <span class="hljs-keyword">None</span>
+        decision = RecoveryDecision(identifier, action, target, explanation, line.strip(), status, next_ref)  <span class="hljs-comment"># type: ignore[arg-type]</span>
+        prior = <span class="hljs-built_in">next</span>((entry <span class="hljs-keyword">for</span> entry in view.decisions <span class="hljs-keyword">if</span> entry.get(<span class="hljs-string">'</span><span class="hljs-string">request</span><span class="hljs-string">'</span>, {}).get(<span class="hljs-string">'</span><span class="hljs-string">decision_id</span><span class="hljs-string">'</span>) == identifier), <span class="hljs-keyword">None</span>)
+        continuation: AgentContinuation | <span class="hljs-keyword">None</span> = <span class="hljs-keyword">None</span></code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/conversation.py#L182" rel="noopener" target="_blank">src/ruocun/session/conversation.py · 第 182–192 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>11 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="182"></span><span data-line="183"></span><span data-line="184"></span><span data-line="185"></span><span class="ruocun-comment-gutter"></span><span data-line="186"></span><span data-line="187"></span><span data-line="188"></span><span data-line="189"></span><span data-line="190"></span><span data-line="191"></span><span data-line="192"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            view = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.worker.load_recovery_view()
+            <span class="hljs-keyword">if</span> view.checkpoint is <span class="hljs-keyword">None</span>:
+                <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"</span><span class="hljs-string">没有可信保存点，拒绝恢复决定。</span><span class="hljs-string">"</span>)
+            checkpoint = replace(view.checkpoint, messages=<span class="hljs-built_in">tuple</span>(<span class="hljs-built_in">self</span>._safe(session.messages)))
+<span class="hljs-comment ruocun-teaching-note">            # 会话把决定、当前版本与检查点交给存储线程，并等待回执。
+</span>            handle = <span class="hljs-built_in">self</span>.worker.enqueue_recovery(decision, <span class="hljs-built_in">self</span>.revision, checkpoint)
+            <span class="hljs-keyword">try</span>:
+                receipt = <span class="hljs-keyword">await</span> handle.wait()
+            <span class="hljs-keyword">except</span> BaseException:
+                <span class="hljs-keyword">if</span> handle.status().state != <span class="hljs-string">"</span><span class="hljs-string">failed</span><span class="hljs-string">"</span>:
+                    <span class="hljs-built_in">self</span>.blocked = <span class="hljs-keyword">True</span>
+                <span class="hljs-keyword">raise</span></code></pre></div></figure>
+<p>读下面两段存储代码，留意同一决定第二次到达时在什么位置返回。若用户原样重提上面的命令，已有的回执直接返回。持有同一个决定 ID 却提交不同内容时，事务拒绝冲突。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/durable_store.py#L1372" rel="noopener" target="_blank">src/ruocun/session/durable_store.py · 第 1372–1389 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>18 行 · 2 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1372"></span><span data-line="1373"></span><span class="ruocun-comment-gutter"></span><span data-line="1374"></span><span data-line="1375"></span><span data-line="1376"></span><span data-line="1377"></span><span data-line="1378"></span><span data-line="1379"></span><span data-line="1380"></span><span data-line="1381"></span><span data-line="1382"></span><span data-line="1383"></span><span data-line="1384"></span><span data-line="1385"></span><span data-line="1386"></span><span class="ruocun-comment-gutter"></span><span data-line="1387"></span><span data-line="1388"></span><span data-line="1389"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            payload = asdict(decision)
+            row = con.execute(<span class="hljs-string">"</span><span class="hljs-string">SELECT json FROM decisions WHERE id=?</span><span class="hljs-string">"</span>, (decision.decision_id,)).fetchone()
+<span class="hljs-comment ruocun-teaching-note">            # 先按决定 ID 核对完整请求。同一内容直接取原回执。
+</span>            <span class="hljs-keyword">if</span> row is not <span class="hljs-keyword">None</span>:
+                prior = _loads(row[<span class="hljs-number">0</span>])
+                <span class="hljs-keyword">if</span> prior.get(<span class="hljs-string">"</span><span class="hljs-string">request</span><span class="hljs-string">"</span>) != payload:
+                    <span class="hljs-keyword">raise</span> StoreError(<span class="hljs-string">"</span><span class="hljs-string">恢复决定 ID 幂等冲突：同 ID 内容不符，拒绝。</span><span class="hljs-string">"</span>)
+                <span class="hljs-keyword">return</span> RecoveryReceipt(<span class="hljs-built_in">int</span>(prior[<span class="hljs-string">"</span><span class="hljs-string">revision</span><span class="hljs-string">"</span>]), <span class="hljs-keyword">True</span>, decision.new_run)
+            current = <span class="hljs-built_in">int</span>(_read_meta(con, <span class="hljs-string">"</span><span class="hljs-string">revision</span><span class="hljs-string">"</span>) or <span class="hljs-number">0</span>)
+            <span class="hljs-keyword">if</span> current != expected_revision:
+                <span class="hljs-keyword">raise</span> StoreError(<span class="hljs-string">"</span><span class="hljs-string">revision 冲突，恢复决定未提交。</span><span class="hljs-string">"</span>)
+            <span class="hljs-keyword">if</span> decision.action == <span class="hljs-string">"</span><span class="hljs-string">resolve</span><span class="hljs-string">"</span>:
+                scope, separator, call_id = decision.target.partition(<span class="hljs-string">"</span><span class="hljs-string">:</span><span class="hljs-string">"</span>)
+                record = _read_tool(con, ToolRef(scope, call_id)) <span class="hljs-keyword">if</span> separator <span class="hljs-keyword">else</span> <span class="hljs-keyword">None</span>
+                <span class="hljs-keyword">if</span> record is <span class="hljs-keyword">None</span> or record.state != <span class="hljs-string">"</span><span class="hljs-string">outcome_unknown</span><span class="hljs-string">"</span>:
+                    <span class="hljs-keyword">raise</span> StoreError(<span class="hljs-string">"</span><span class="hljs-string">只允许处理尚未核实的操作。</span><span class="hljs-string">"</span>)
+<span class="hljs-comment ruocun-teaching-note">                # 把人工核实说明补到原未决记录，并保留决定引用。
+</span>                _put_tool(con, replace(record, state=<span class="hljs-string">"</span><span class="hljs-string">result_committed</span><span class="hljs-string">"</span>,
+                                      result=<span class="hljs-string">"</span><span class="hljs-string">[用户处理未决操作] </span><span class="hljs-string">"</span> + decision.explanation,
+                                      decision_ref=decision.decision_id))</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/durable_store.py#L1448" rel="noopener" target="_blank">src/ruocun/session/durable_store.py · 第 1448–1460 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>13 行 · 2 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1448"></span><span data-line="1449"></span><span class="ruocun-comment-gutter"></span><span data-line="1450"></span><span data-line="1451"></span><span data-line="1452"></span><span data-line="1453"></span><span data-line="1454"></span><span data-line="1455"></span><span data-line="1456"></span><span data-line="1457"></span><span class="ruocun-comment-gutter"></span><span data-line="1458"></span><span data-line="1459"></span><span data-line="1460"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            revision = current + <span class="hljs-number">1</span>
+            messages = repairToolPairs(<span class="hljs-built_in">list</span>(checkpoint.messages), <span class="hljs-built_in">tuple</span>(_all_tools(con)))
+<span class="hljs-comment ruocun-teaching-note">            # 配对历史、用户决定和新版本落在同一事务。
+</span>            messages.append({<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">user</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">[用户恢复决定] </span><span class="hljs-string">"</span> + decision.command})
+            <span class="hljs-keyword">from</span> .archive <span class="hljs-keyword">import</span> save_projection
+            save_projection(con, <span class="hljs-built_in">self</span>._session_id, <span class="hljs-string">"</span><span class="hljs-string">main</span><span class="hljs-string">"</span>, messages)
+            _put_meta(con, <span class="hljs-string">"</span><span class="hljs-string">checkpoint</span><span class="hljs-string">"</span>, asdict(replace(checkpoint, messages=<span class="hljs-built_in">tuple</span>(messages),
+                      revision=revision, delivered_revision=revision)))
+            _put_meta(con, <span class="hljs-string">"</span><span class="hljs-string">revision</span><span class="hljs-string">"</span>, revision)
+            con.execute(<span class="hljs-string">"</span><span class="hljs-string">INSERT INTO decisions VALUES (?,?)</span><span class="hljs-string">"</span>, (decision.decision_id,
+                        _dumps({<span class="hljs-string">"</span><span class="hljs-string">request</span><span class="hljs-string">"</span>: payload, <span class="hljs-string">"</span><span class="hljs-string">revision</span><span class="hljs-string">"</span>: revision})))
+<span class="hljs-comment ruocun-teaching-note">            # 首次提交返回 replayed=False。重复请求返回 True，并带上首次提交的版本号。
+</span>            <span class="hljs-keyword">return</span> RecoveryReceipt(revision, <span class="hljs-keyword">False</span>, decision.new_run)
+
+        <span class="hljs-keyword">return</span> <span class="hljs-built_in">self</span>._atomic(owner, body)</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/recovery.py#L167" rel="noopener" target="_blank">src/ruocun/session/recovery.py · 第 167–185 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>19 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="167"></span><span data-line="168"></span><span data-line="169"></span><span data-line="170"></span><span data-line="171"></span><span data-line="172"></span><span data-line="173"></span><span data-line="174"></span><span data-line="175"></span><span data-line="176"></span><span class="ruocun-comment-gutter"></span><span data-line="177"></span><span data-line="178"></span><span data-line="179"></span><span data-line="180"></span><span data-line="181"></span><span data-line="182"></span><span data-line="183"></span><span data-line="184"></span><span data-line="185"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">try</span>:
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>.shell_manager is not <span class="hljs-keyword">None</span>:
+                <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> <span class="hljs-built_in">self</span>.shell_manager.recovery_decision_scope():
+                    receipt = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.conversation.commit_recovery(<span class="hljs-built_in">self</span>.session, decision)
+            <span class="hljs-keyword">else</span>:
+                receipt = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.conversation.commit_recovery(<span class="hljs-built_in">self</span>.session, decision)
+        <span class="hljs-keyword">except</span> (CommitUnconfirmedError, RollbackError):
+            <span class="hljs-keyword">raise</span>
+        <span class="hljs-keyword">except</span> StoreError <span class="hljs-keyword">as</span> error:
+            <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-built_in">str</span>(error)) <span class="hljs-keyword">from</span> error
+<span class="hljs-comment ruocun-teaching-note">        # continue 必须持有刚提交的许可，重复回执不会再次派发新运行。
+</span>        <span class="hljs-keyword">if</span> continuation is not <span class="hljs-keyword">None</span> and not receipt.replayed:
+            <span class="hljs-comment"># 继续执行的许可要先提交到数据库，再派发新的运行。</span>
+            <span class="hljs-comment"># 派发后即便取消或结果未知，也用原身份核查，避免同一许可启动两次。</span>
+            <span class="hljs-built_in">self</span>.conversation.blocked = <span class="hljs-keyword">True</span>
+            <span class="hljs-keyword">assert</span> <span class="hljs-built_in">self</span>.continue_agent is not <span class="hljs-keyword">None</span>
+            result = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.continue_agent(continuation)
+            <span class="hljs-keyword">if</span> result.run_ref != continuation.new_run or result.kind != continuation.previous.kind:
+                <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">'</span><span class="hljs-string">继续执行器返回身份不符，保留已授权未知执行，禁止重试。</span><span class="hljs-string">'</span>)
+            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.conversation.publish_background(result, <span class="hljs-keyword">None</span>)</code></pre></div></figure>
 </section></section>
 <section class="v2-topic-group" id="durable-commit">
 <header class="v2-group-heading"><span>04</span><h2>检查点与取消收尾</h2></header><div class="design-section">
@@ -159,7 +259,7 @@
 </figure>
 <details class="answer-box"><summary>若直接覆盖，先丢哪条记录？若要求版本一致，后台事件现在算投递了吗？</summary><div><p>直接覆盖会抹掉“保留日志”。按版本提交时 <code>8 != 7</code>，事务拒绝本次覆盖，数据库也没有在本次事务中确认后台事件已经投递。</p></div></details>
 <p><code>Conversation</code> 在检查点锁内为本次变更构造完整候选，由单独的存储工作线程串行提交。数据库在事务里核对 <code>owner</code> 的实例身份和 <code>owner_epoch</code>，再查 <code>expected_revision</code> 是否等于当前版本。前者挡旧进程继续写，后者挡同一进程的旧快照覆盖已更新的状态。检查点、发给模型的消息和已消费的后台事件标记使用同一个事务，保存成功要一起生效。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/session/durable_store.py#L1201" rel="noopener" target="_blank">src/ruocun/session/durable_store.py · 第 1201–1220 行</a></p><figure class="ruocun-code" data-language="python">
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/durable_store.py#L1201" rel="noopener" target="_blank">src/ruocun/session/durable_store.py · 第 1201–1220 行</a></p><figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>20 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1201"></span><span data-line="1202"></span><span data-line="1203"></span><span data-line="1204"></span><span data-line="1205"></span><span data-line="1206"></span><span data-line="1207"></span><span data-line="1208"></span><span data-line="1209"></span><span data-line="1210"></span><span data-line="1211"></span><span data-line="1212"></span><span data-line="1213"></span><span data-line="1214"></span><span data-line="1215"></span><span data-line="1216"></span><span data-line="1217"></span><span data-line="1218"></span><span data-line="1219"></span><span data-line="1220"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            current = <span class="hljs-built_in">int</span>(_read_meta(con, <span class="hljs-string">"</span><span class="hljs-string">revision</span><span class="hljs-string">"</span>) or <span class="hljs-number">0</span>)
             <span class="hljs-keyword">if</span> current != expected_revision:
@@ -181,7 +281,7 @@
                 delivered_revision=revision,
             )))
             _put_meta(con, <span class="hljs-string">"</span><span class="hljs-string">revision</span><span class="hljs-string">"</span>, revision)</code></pre></div></figure>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/session/conversation.py#L467" rel="noopener" target="_blank">src/ruocun/session/conversation.py · 第 467–482 行</a></p><figure class="ruocun-code" data-language="python">
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/conversation.py#L467" rel="noopener" target="_blank">src/ruocun/session/conversation.py · 第 467–482 行</a></p><figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>16 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="467"></span><span data-line="468"></span><span data-line="469"></span><span data-line="470"></span><span data-line="471"></span><span data-line="472"></span><span data-line="473"></span><span data-line="474"></span><span data-line="475"></span><span data-line="476"></span><span data-line="477"></span><span data-line="478"></span><span data-line="479"></span><span data-line="480"></span><span data-line="481"></span><span data-line="482"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        handle = <span class="hljs-built_in">self</span>.worker.enqueue_checkpoint(<span class="hljs-built_in">self</span>.revision, checkpoint, consumed, **archive_args)
         <span class="hljs-keyword">try</span>:
@@ -201,7 +301,7 @@
         <span class="hljs-built_in">self</span>._accepted_inputs = inputs</code></pre></div></figure>
 <p>如果后台消费的保存已明确失败，可撤销这次暂存消费，让事件仍待投递；如果等待被中断且提交结果无法确认，则阻塞普通推进。只有拿到回执才确认消费、发布 revision 和接纳输入列表。<strong>「会话以已确认的检查点推进，等待被取消时先核实存储是否提交」</strong>。</p>
 </section><section class="design-section" id="durable-commit-2"><h3>4.2 取消批次时等待已开始的工具和收据</h3>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/tools/tool_batch.py#L341" rel="noopener" target="_blank">src/ruocun/tools/tool_batch.py · 第 341–355 行</a></p><figure class="ruocun-code" data-language="python">
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/tool_batch.py#L341" rel="noopener" target="_blank">src/ruocun/tools/tool_batch.py · 第 341–355 行</a></p><figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>15 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="341"></span><span data-line="342"></span><span data-line="343"></span><span data-line="344"></span><span data-line="345"></span><span data-line="346"></span><span data-line="347"></span><span data-line="348"></span><span data-line="349"></span><span data-line="350"></span><span data-line="351"></span><span data-line="352"></span><span data-line="353"></span><span data-line="354"></span><span data-line="355"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">if</span> not group:
             <span class="hljs-keyword">return</span>

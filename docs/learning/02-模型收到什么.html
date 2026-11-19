@@ -48,7 +48,7 @@
 <section class="design-section" id="request-two-parts">
 <h3>2.1 messages 带历史，tools 给接口</h3>
 <p><a href="01-一次任务怎样跑完.html#request-inputs" rel="noopener" target="_blank">上一章用同一循环带回了新的工具结果</a>。图 2 接着问这份请求还有哪些材料。规则、任务、过程和结果放进 <code>messages</code>。名为 <code>Read</code> 的接口放进 <code>tools</code>，说明模型可以传哪些参数。这两项分别由程序准备。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-input/loop.py#L253" rel="noopener" target="_blank">loop.py:253 · 请求带走当前历史与工具接口</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L253" rel="noopener" target="_blank">loop.py:253 · 请求带走当前历史与工具接口</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>7 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="253"></span><span data-line="254"></span><span data-line="255"></span><span data-line="256"></span><span data-line="257"></span><span data-line="258"></span><span data-line="259"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        opts = cast(StreamChatOptions, <span class="hljs-built_in">dict</span>(options))
@@ -63,7 +63,7 @@
 <section class="design-section" id="system-sources">
 <h3>2.2 基础提示由模板和启动材料组成</h3>
 <p>模板提供通用的行为框架，但不知道这次启动在哪个项目、选择了哪个模型，也不知道已经加载了哪些项目材料。运行时先准备这些值，再调用 <code>system_prompt(selected_model)</code>：</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-input/runtime.py#L612" rel="noopener" target="_blank">runtime.py:612 · 装配本次system的入口</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/runtime.py#L612" rel="noopener" target="_blank">runtime.py:612 · 装配本次system的入口</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>10 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="612"></span><span data-line="613"></span><span data-line="614"></span><span data-line="615"></span><span data-line="616"></span><span data-line="617"></span><span data-line="618"></span><span data-line="619"></span><span data-line="620"></span><span data-line="621"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">system_prompt</span>(selected_model: <span class="hljs-built_in">str</span>) -&gt; <span class="hljs-built_in">str</span>:
@@ -92,7 +92,7 @@
 <section class="design-section" id="template-substitution">
 <h3>2.3 把项目约定填入模板占位符</h3>
 <p>模板装配最核心的动作，是把参数值填到对应占位符里：</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-input/system_prompt.py#L171" rel="noopener" target="_blank">system_prompt.py:171 · 模板占位符与实参</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/prompt/system_prompt.py#L171" rel="noopener" target="_blank">system_prompt.py:171 · 模板占位符与实参</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>8 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="171"></span><span data-line="172"></span><span data-line="173"></span><span data-line="174"></span><span data-line="175"></span><span data-line="176"></span><span data-line="177"></span><span data-line="178"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    replacements: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">str</span>] = {
@@ -132,7 +132,7 @@
 </div>
 </div>
 <p>本例从pricing启动，为什么能取得 <code>/shop/RUOCUN.md</code>，却不读旁边reports里的约定？关键在 <code>_projectChain</code>：它从传入的启动目录向上走，找到存在 <code>.git</code>的目录以后，反转已经经过的路径。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-input/project_doc.py#L12" rel="noopener" target="_blank">project_doc.py:12 · 形成项目指令的目录链</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/project_doc.py#L12" rel="noopener" target="_blank">project_doc.py:12 · 形成项目指令的目录链</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>10 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="12"></span><span data-line="13"></span><span data-line="14"></span><span data-line="15"></span><span data-line="16"></span><span data-line="17"></span><span data-line="18"></span><span data-line="19"></span><span data-line="20"></span><span data-line="21"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">_projectChain</span>(start: Path) -&gt; <span class="hljs-built_in">list</span>[Path]:
@@ -154,29 +154,41 @@
 </section>
 <section class="design-section" id="instruction-order-and-dedup">
 <h3>3.2 按整段规则文本去重</h3>
-<p>规则加载先处理已显式声明的兼容用户指令源，再读用户级 <code>~/.ruocun/RUOCUN.md</code>，然后沿项目链处理项目级来源。每个目录内，显式兼容来源在前，原生文件依次是 <code>RUOCUN.md</code>和 <code>RUOCUN.local.md</code>：</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-input/project_doc.py#L64" rel="noopener" target="_blank">project_doc.py:64 · 每层来源的读取与最终拼接</a></p>
+<p>先看普通 CLI 启动时的调用。启用项目指令时，入口只传启动目录和用户配置根。加载器的 <code>compatibility</code> 参数使用默认值，兼容来源列表为空。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/runtime.py#L589" rel="noopener" target="_blank">runtime.py:589 · 普通 CLI 读取项目指令</a></p>
 <figure class="ruocun-code" data-language="python">
-<figcaption class="ruocun-code-caption"><span>Python</span><span>6 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="64"></span><span data-line="65"></span><span data-line="66"></span><span data-line="67"></span><span data-line="68"></span><span data-line="69"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            level = parent <span class="hljs-keyword">if</span> parent in chain <span class="hljs-keyword">else</span> root
-            <span class="hljs-keyword">if</span> level == directory:
-                read(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">兼容项目级(</span><span class="hljs-string">{</span>source.id<span class="hljs-string">}</span><span class="hljs-string">: </span><span class="hljs-string">{</span>source.path<span class="hljs-string">}</span><span class="hljs-string">) @ </span><span class="hljs-string">{</span>rel<span class="hljs-string">}</span><span class="hljs-string">"</span>, Path(source.path), source.id)
-        read(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">RUOCUN.md @ </span><span class="hljs-string">{</span>rel<span class="hljs-string">}</span><span class="hljs-string">"</span>, directory / <span class="hljs-string">"</span><span class="hljs-string">RUOCUN.md</span><span class="hljs-string">"</span>)
+<figcaption class="ruocun-code-caption"><span>Python</span><span>1 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span class="ruocun-comment-gutter"></span><span data-line="589"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-comment ruocun-teaching-note">    # 普通 CLI 只传当前目录和用户配置根，兼容来源沿用空列表。
+</span>    project_text = <span class="hljs-string">"</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> args.no_project_instructions <span class="hljs-keyword">else</span> loadProjectInstructions(cwd, userRoot=user_root)</code></pre></div></figure>
+<p>默认配置下，先读用户级 <code>~/.ruocun/RUOCUN.md</code>，再读项目目录链。每到一层，按 <code>RUOCUN.md</code>、<code>RUOCUN.local.md</code> 的顺序尝试读取。下方两段保留同一个循环的起点和原生文件读取点。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/project_doc.py#L54" rel="noopener" target="_blank">project_doc.py:54 · 先读用户级，再遍历项目链</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>4 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="54"></span><span class="ruocun-comment-gutter"></span><span data-line="55"></span><span data-line="56"></span><span data-line="57"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    read(<span class="hljs-string">"</span><span class="hljs-string">用户级(~/.ruocun/RUOCUN.md)</span><span class="hljs-string">"</span>, user_root / <span class="hljs-string">"</span><span class="hljs-string">RUOCUN.md</span><span class="hljs-string">"</span>)
+<span class="hljs-comment ruocun-teaching-note">    # 按从 Git 根到启动目录的顺序遍历，当前层的相对位置用于标出规则来源。
+</span>    chain = _projectChain(root)
+    <span class="hljs-keyword">for</span> directory in chain:
+        rel = os.path.relpath(directory, root)</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/project_doc.py#L67" rel="noopener" target="_blank">project_doc.py:67 · 读取当前层的原生文件</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>3 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="67"></span><span data-line="68"></span><span data-line="69"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        read(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">RUOCUN.md @ </span><span class="hljs-string">{</span>rel<span class="hljs-string">}</span><span class="hljs-string">"</span>, directory / <span class="hljs-string">"</span><span class="hljs-string">RUOCUN.md</span><span class="hljs-string">"</span>)
         read(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">RUOCUN.local.md @ </span><span class="hljs-string">{</span>rel<span class="hljs-string">}</span><span class="hljs-string">"</span>, directory / <span class="hljs-string">"</span><span class="hljs-string">RUOCUN.local.md</span><span class="hljs-string">"</span>)
     <span class="hljs-keyword">return</span> <span class="hljs-string">"</span><span class="hljs-string">\n</span><span class="hljs-string">\n</span><span class="hljs-string">"</span>.join(parts)</code></pre></div></figure>
-<p>显式兼容项目源还要属于这次传入的工作区；位于目录链上的文件跟着实际层级进入，链外的声明来源归到启动目录那一层。这里不展开兼容设置，先抓住范围：加载器不会仅因一个文件叫 <code>AGENTS.md</code>，就把它自动当成本产品的原生项目指令。工程协作规则与产品送给模型的规则，要分别核对入口。</p>
+<p>同一个通用加载器也支持调用方显式传入兼容指令源。此时兼容用户源排在原生用户文件前，声明属于当前工作区的兼容项目源排在对应层的原生文件前。普通 CLI 不传这些来源，所以相邻目录即使放了同名文件，也不会经这条入口自动进入本轮项目指令。</p>
 <p>对每个候选文件，内部的 <code>read</code>先读取并清理首尾空白与BOM，再按内容判断是否已经出现：</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-input/project_doc.py#L34" rel="noopener" target="_blank">project_doc.py:34 · 缺失处理与完整内容去重</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/project_doc.py#L34" rel="noopener" target="_blank">project_doc.py:34 · 缺失处理与完整内容去重</a></p>
 <figure class="ruocun-code" data-language="python">
-<figcaption class="ruocun-code-caption"><span>Python</span><span>11 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="34"></span><span data-line="35"></span><span data-line="36"></span><span data-line="37"></span><span data-line="38"></span><span data-line="39"></span><span data-line="40"></span><span data-line="41"></span><span data-line="42"></span><span data-line="43"></span><span data-line="44"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">read</span>(label: <span class="hljs-built_in">str</span>, file: Path, source_id: <span class="hljs-built_in">str</span> | <span class="hljs-keyword">None</span> = <span class="hljs-keyword">None</span>) -&gt; <span class="hljs-keyword">None</span>:
+<figcaption class="ruocun-code-caption"><span>Python</span><span>11 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="34"></span><span data-line="35"></span><span data-line="36"></span><span data-line="37"></span><span data-line="38"></span><span data-line="39"></span><span data-line="40"></span><span class="ruocun-comment-gutter"></span><span data-line="41"></span><span data-line="42"></span><span data-line="43"></span><span data-line="44"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">read</span>(label: <span class="hljs-built_in">str</span>, file: Path, source_id: <span class="hljs-built_in">str</span> | <span class="hljs-keyword">None</span> = <span class="hljs-keyword">None</span>) -&gt; <span class="hljs-keyword">None</span>:
         <span class="hljs-keyword">try</span>:
             content = file.read_bytes().decode(<span class="hljs-string">"</span><span class="hljs-string">utf-8</span><span class="hljs-string">"</span>, errors=<span class="hljs-string">"</span><span class="hljs-string">replace</span><span class="hljs-string">"</span>).strip().strip(<span class="hljs-string">"</span><span class="hljs-string">\ufeff</span><span class="hljs-string">"</span>).strip()
         <span class="hljs-keyword">except</span> OSError:
             <span class="hljs-keyword">if</span> sourceStates is not <span class="hljs-keyword">None</span> and source_id is not <span class="hljs-keyword">None</span>:
                 sourceStates[source_id] = <span class="hljs-string">"</span><span class="hljs-string">缺失或不可读；该源未加载</span><span class="hljs-string">"</span>
             <span class="hljs-keyword">return</span>
-        <span class="hljs-keyword">if</span> content and content not in seen:
+<span class="hljs-comment ruocun-teaching-note">        # 按清理后的完整文本去重，先读到的来源保留。
+</span>        <span class="hljs-keyword">if</span> content and content not in seen:
             seen.add(content)
             parts.append(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">### </span><span class="hljs-string">{</span>label<span class="hljs-string">}</span><span class="hljs-string">\n</span><span class="hljs-string">{</span>content<span class="hljs-string">}</span><span class="hljs-string">"</span>)
             state = <span class="hljs-string">"</span><span class="hljs-string">生效：内容已注入</span><span class="hljs-string">"</span></code></pre></div></figure>
@@ -197,24 +209,21 @@
 <section class="design-section" id="captured-inputs">
 <h3>4.1 为什么刷新 system 后仍是旧规则？</h3>
 <p>假设启动时读到了“改完核对两种价格”。会话中途，有人把磁盘里的规则改成“只核对普通价”，然后切换模型，触发重建首条 <code>system</code>。新请求究竟带哪一句？沿源码先找读取文件发生在什么时候。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-input/runtime.py#L589" rel="noopener" target="_blank">runtime.py:589 · 项目指令在启动阶段读取</a></p>
-<figure class="ruocun-code" data-language="python">
-<figcaption class="ruocun-code-caption"><span>Python</span><span>1 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="589"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    project_text = <span class="hljs-string">"</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> args.no_project_instructions <span class="hljs-keyword">else</span> loadProjectInstructions(cwd, userRoot=user_root)</code></pre></div></figure>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-input/runtime.py#L607" rel="noopener" target="_blank">runtime.py:607 · 启动记忆先形成快照</a></p>
+<p>回看<a href="#instruction-order-and-dedup">普通 CLI 读取项目指令</a>的调用。它在启动时就给 <code>project_text</code> 赋值。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/runtime.py#L607" rel="noopener" target="_blank">runtime.py:607 · 启动记忆先形成快照</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>4 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="607"></span><span data-line="608"></span><span data-line="609"></span><span data-line="610"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    recall_counts: RecallCounts = {<span class="hljs-string">"</span><span class="hljs-string">injected</span><span class="hljs-string">"</span>: <span class="hljs-number">0</span>, <span class="hljs-string">"</span><span class="hljs-string">stale</span><span class="hljs-string">"</span>: <span class="hljs-number">0</span>, <span class="hljs-string">"</span><span class="hljs-string">changed</span><span class="hljs-string">"</span>: <span class="hljs-number">0</span>, <span class="hljs-string">"</span><span class="hljs-string">types</span><span class="hljs-string">"</span>: {}}
     startup_snapshot = (StartupMemorySnapshot() <span class="hljs-keyword">if</span> args.no_memory <span class="hljs-keyword">else</span>
                         <span class="hljs-keyword">await</span> buildStartupMemorySnapshot(memory_store, onRecall=recall_counts.update))
     memory_text = startup_snapshot.text</code></pre></div></figure>
-<p>第一处赋值发生在启动时。“改完核对两种价格”已经成了 <code>project_text</code> 字符串。前面见过的 <code>system_prompt(selected_model)</code> 在装配时取这个外层变量。内层函数能访问外层变量的关系叫闭包。切换模型会给构造函数一个新模型，规则变量仍是原值，所以这次请求仍会带上第一句。</p>
+<p>“改完核对两种价格”已经成了 <code>project_text</code> 字符串。前面见过的 <code>system_prompt(selected_model)</code> 在装配时取这个外层变量。内层函数能访问外层变量的关系叫闭包。切换模型会给构造函数一个新模型，规则变量仍是原值，所以这次请求仍会带上第一句。</p>
 <p><strong>「重建首条 system 时，项目规则沿用启动时读出的 project_text」</strong>。每次装配可以复用这份规则，代价是磁盘改动要经过实际重读与重新赋值才能进入提示。启动记忆的 <code>memory_text</code> 也用已选材料。任务记忆走按任务召回的路径，新增内容会出现在后面的消息位置。</p>
 </section>
 <section class="design-section" id="rebuild-first-system">
 <h3>4.2 替换首条 system，保留后续消息</h3>
 <p>真正刷新时，<code>refresh_system_prompt</code>先取得当前模型，重新装配提示，再用新system加上原来下标1之后的历史：</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-input/runtime.py#L697" rel="noopener" target="_blank">runtime.py:697 · 重建并替换首条system</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/runtime.py#L697" rel="noopener" target="_blank">runtime.py:697 · 重建并替换首条system</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>5 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="697"></span><span data-line="698"></span><span data-line="699"></span><span data-line="700"></span><span data-line="701"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">refresh_system_prompt</span>(*, sanitize: <span class="hljs-built_in">bool</span> = <span class="hljs-keyword">False</span>) -&gt; <span class="hljs-keyword">None</span>:
@@ -235,7 +244,7 @@
 <section class="design-section" id="mutable-skill-catalog">
 <h3>4.3 Skills 清单确认后原地扩充</h3>
 <p>也不能反过来说“启动读过的东西以后全都不变”。<code>skills</code>是一个列表，动态发现与安装的确认流程可以扩充它。运行时先把新增目录作为后续system消息提交，再确认候选并扩展已安装项：</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-input/runtime.py#L1985" rel="noopener" target="_blank">runtime.py:1985 · 新增目录与活跃清单更新</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/runtime.py#L1985" rel="noopener" target="_blank">runtime.py:1985 · 新增目录与活跃清单更新</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>6 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1985"></span><span data-line="1986"></span><span data-line="1987"></span><span data-line="1988"></span><span data-line="1989"></span><span data-line="1990"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">                <span class="hljs-keyword">if</span> catalog_texts:
@@ -253,13 +262,13 @@
 <section class="design-section" id="command-cd-versus-context">
 <h3>5.1 Shell 的 cd 只改变本次子进程的目录</h3>
 <p>先回到进入工作树之前，排除一个常见误会。此时会话还在pricing，若一条普通Shell命令执行 <code>cd ../reports</code>，即使命令成功，变的也是这次子进程的工作目录；它没有把 <code>ctx.cwd</code>写回reports。下一次工具调用仍以会话当前执行目录为依据。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-input/exec_shell.py#L122" rel="noopener" target="_blank">exec_shell.py:122 · 每次命令取执行上下文中的目录</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/exec_shell.py#L122" rel="noopener" target="_blank">exec_shell.py:122 · 每次命令取执行上下文中的目录</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>1 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="122"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    cwd = ctx.cwd or ctx.workspaceRoot</code></pre></div></figure>
 <p>从初始pricing目录运行这一条命令后，再调用 <code>Read</code>读取 <code>prices.mjs</code>，目标仍是pricing下的文件；不会因此加载reports的规则，也不需要追加“会话cwd已到reports”的快照。把命令输出里的路径当成会话事实，会制造一份与程序实际执行状态不一致的输入。</p>
 <p>回到图 2。执行 <code>EnterWorktree</code> 成功后，程序明确把新根目录写入执行上下文。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-input/enter_worktree.py#L49" rel="noopener" target="_blank">enter_worktree.py:49 · 显式更新当前执行目录</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/enter_worktree.py#L49" rel="noopener" target="_blank">enter_worktree.py:49 · 显式更新当前执行目录</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>5 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="49"></span><span data-line="50"></span><span data-line="51"></span><span data-line="52"></span><span data-line="53"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-comment"># 切换文件和命令的当前目录，继续用原工作区的项目配置。</span>
@@ -278,7 +287,7 @@ Runtime directory facts; supersede older directory facts in history and summarie
 {"workspace_root":"/shop/packages/pricing","cwd":"/shop/packages/pricing/.ruocun/worktrees/discount"}
 &lt;/ruocun-runtime-context&gt;</code></pre></div>
 <p>英文说明提醒模型用刚生成的目录事实理解路径。生成这份消息时，<code>buildRuntimeContext</code> 直接读取工具执行上下文 <code>ToolContext</code>。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-input/runtime_context.py#L18" rel="noopener" target="_blank">runtime_context.py:18 · 目录事实的来源与消息形状</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/runtime_context.py#L18" rel="noopener" target="_blank">runtime_context.py:18 · 目录事实的来源与消息形状</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>8 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="18"></span><span data-line="19"></span><span data-line="20"></span><span data-line="21"></span><span data-line="22"></span><span data-line="23"></span><span data-line="24"></span><span data-line="25"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">_content</span>(workspace: <span class="hljs-built_in">str</span>, cwd: <span class="hljs-built_in">str</span>) -&gt; <span class="hljs-built_in">str</span>:
@@ -296,7 +305,7 @@ Runtime directory facts; supersede older directory facts in history and summarie
 <h3>5.3 为什么只和最近一份目录快照比较？</h3>
 <p>假设模型在 <code>discount</code> 连续读取两个文件，目录始终相同。若每次发请求都重新附加同一份快照，历史就会多出重复消息，占用请求空间。只在变化时追加可以省下这些重复，但比较对象要选对。</p>
 <p>再看退出工作树这一步。历史里先有 <code>pricing</code>，后有 <code>discount</code>，现在实际目录又回到 <code>pricing</code>。如果只要历史里出现过 <code>pricing</code> 就跳过追加，最近的目录说明还会指向 <code>discount</code>。模型若沿用它，就可能仍提交 <code>packages/pricing/prices.mjs</code>，工具会在原价格目录下再拼出一个 <code>packages/pricing/</code>，找错位置。为此，程序从历史尾部向前找最近一条标准目录快照。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-input/runtime_context.py#L43" rel="noopener" target="_blank">runtime_context.py:43 · 与最近一条标准快照比较</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/runtime_context.py#L43" rel="noopener" target="_blank">runtime_context.py:43 · 与最近一条标准快照比较</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>5 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="43"></span><span data-line="44"></span><span data-line="45"></span><span data-line="46"></span><span data-line="47"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">needsRuntimeContext</span>(messages: Sequence[ChatMessage], snapshot: ChatMessage) -&gt; <span class="hljs-built_in">bool</span>:
@@ -305,7 +314,7 @@ Runtime directory facts; supersede older directory facts in history and summarie
             <span class="hljs-keyword">return</span> message != snapshot
     <span class="hljs-keyword">return</span> <span class="hljs-keyword">True</span></code></pre></div></figure>
 <p><strong>「目录快照与最近一份比较，回到旧目录也是一次变化」</strong>。第一次遇到的标准快照就是 <code>discount</code>。当前快照写的是 <code>pricing</code>，两者不同，函数返回 <code>True</code>。找不到快照也会返回 <code>True</code>，只有最近一份与当前相同时才返回 <code>False</code>。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-input/context_runtime.py#L208" rel="noopener" target="_blank">context_runtime.py:208 · 请求前确认新增的目录事实</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/context_runtime.py#L208" rel="noopener" target="_blank">context_runtime.py:208 · 请求前确认新增的目录事实</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>6 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="208"></span><span data-line="209"></span><span data-line="210"></span><span data-line="211"></span><span data-line="212"></span><span data-line="213"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">_ensureRuntimeContext</span>(<span class="hljs-built_in">self</span>) -&gt; <span class="hljs-keyword">None</span>:
@@ -330,7 +339,7 @@ Runtime directory facts; supersede older directory facts in history and summarie
 <section class="design-section" id="session-start-position">
 <h3>6.1 SessionStart 上下文单独放在下标 1</h3>
 <p>前面讨论的是首条system。Hook是在指定事件前后运行的扩展处理，可以提供附加信息或参与决策。启动或恢复时，SessionStart Hook可以提供 <code>additional_context</code>。运行时清理历史中带若存 SessionStart 标记的系统消息，再把本次非空的附加内容插入下标 1。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-input/runtime.py#L2111" rel="noopener" target="_blank">runtime.py:2111 · SessionStart附加上下文的位置</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/runtime.py#L2111" rel="noopener" target="_blank">runtime.py:2111 · SessionStart附加上下文的位置</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>10 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="2111"></span><span data-line="2112"></span><span data-line="2113"></span><span data-line="2114"></span><span data-line="2115"></span><span data-line="2116"></span><span data-line="2117"></span><span data-line="2118"></span><span data-line="2119"></span><span data-line="2120"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        start_hook = <span class="hljs-keyword">await</span> session_hook(<span class="hljs-string">"</span><span class="hljs-string">SessionStart</span><span class="hljs-string">"</span>, lifecycle_id,
@@ -348,31 +357,76 @@ Runtime directory facts; supersede older directory facts in history and summarie
 </section>
 <section class="design-section" id="later-system-context">
 <h3>6.2 任务上下文与建议按事件追加</h3>
-<p>另一些内容应当贴近它出现的时点。例如真实用户输入被接受时，UserPromptSubmit的附加上下文与满足条件的任务记忆会汇总；会话先追加用户消息，再追加这一份非空system上下文：</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-input/conversation.py#L246" rel="noopener" target="_blank">conversation.py:246 · 用户输入与任务上下文的相对位置</a></p>
+<p>用户在当前工具批还没收尾时补一句“会员价保持 200”，会话先给这次输入分配 ID 和递增序号，再提交排队记录。接纳回执确认它已经排队，这次提交仍沿用原来的 <code>session.messages</code>。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/conversation.py#L227" rel="noopener" target="_blank">conversation.py:227 · 确认接纳时写入排队记录</a></p>
 <figure class="ruocun-code" data-language="python">
-<figcaption class="ruocun-code-caption"><span>Python</span><span>9 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="246"></span><span data-line="247"></span><span data-line="248"></span><span data-line="249"></span><span data-line="250"></span><span data-line="251"></span><span data-line="252"></span><span data-line="253"></span><span data-line="254"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            messages = session.messages
-            <span class="hljs-keyword">if</span> not rejected:
+<figcaption class="ruocun-code-caption"><span>Python</span><span>4 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="227"></span><span data-line="228"></span><span class="ruocun-comment-gutter"></span><span data-line="229"></span><span data-line="230"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            seq = <span class="hljs-built_in">max</span>((entry.seq <span class="hljs-keyword">for</span> entry in <span class="hljs-built_in">self</span>._accepted_inputs), default=<span class="hljs-number">0</span>) + <span class="hljs-number">1</span>
+            item = AcceptedInput(<span class="hljs-built_in">str</span>(uuid.uuid4()), seq, packQueuedInput(safe_content, model_content), (), <span class="hljs-string">"</span><span class="hljs-string">queued</span><span class="hljs-string">"</span>)
+<span class="hljs-comment ruocun-teaching-note">            # 这次提交沿用当前消息历史，只把排队记录纳入检查点。
+</span>            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._commit(session, session.messages, (*<span class="hljs-built_in">self</span>._accepted_inputs, item))
+            <span class="hljs-keyword">return</span> item</code></pre></div></figure>
+<p>到能安全处理输入的调度边界，运行时才执行 <code>UserPromptSubmit</code>。Hook 放行后，再按配置补任务记忆。调用方把两种非空内容汇总成一个 <code>hook_context</code>。会话把这句补充写成 <code>user</code>，随后放入附加的 <code>system</code>，并在一次提交中更新消费状态。Hook 阻止时，这条输入标记为 <code>discarded</code>，模型历史沿用原值。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/conversation.py#L246" rel="noopener" target="_blank">conversation.py:246 · 安全边界消费并提交消息</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>14 行 · 2 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="246"></span><span class="ruocun-comment-gutter"></span><span data-line="247"></span><span data-line="248"></span><span data-line="249"></span><span data-line="250"></span><span data-line="251"></span><span data-line="252"></span><span data-line="253"></span><span data-line="254"></span><span data-line="255"></span><span data-line="256"></span><span data-line="257"></span><span class="ruocun-comment-gutter"></span><span data-line="258"></span><span data-line="259"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            messages = session.messages
+<span class="hljs-comment ruocun-teaching-note">            # 只有未被拒绝的输入才生成模型要看的消息。
+</span>            <span class="hljs-keyword">if</span> not rejected:
                 <span class="hljs-built_in">self</span>._require_paired(session)
                 projected = modelInput(item.payload) <span class="hljs-keyword">if</span> model_content is <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> model_content
                 <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>._safe(projected) != projected:
                     <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"</span><span class="hljs-string">模型输入无法完整保存，保留排队原文，停止本次消费。</span><span class="hljs-string">"</span>)
                 messages = [*messages, {<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">user</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: copy.deepcopy(projected)}]
                 <span class="hljs-keyword">if</span> hook_context:
-                    messages.append({<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">system</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: <span class="hljs-built_in">self</span>.redact(hook_context)})</code></pre></div></figure>
-<p>这里的 <code>hook_context</code>是调用方汇总后传入的字符串，可能同时包含Hook附加内容和本次任务召回的记忆。只有相应功能启用、内容非空时才有这条消息，不能说每个用户请求后都固定跟着一段记忆。</p>
-<p>工具批结果确认后，进度判断可能给出建议。生成建议的一方把文字交给 <code>append_feedback</code>，由回合将这段文字追加成系统消息并提交：</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-input/loop.py#L195" rel="noopener" target="_blank">loop.py:195 · 有建议时追加后续system</a></p>
+                    messages.append({<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">system</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: <span class="hljs-built_in">self</span>.redact(hook_context)})
+            replacement = replace(item, state=<span class="hljs-string">"</span><span class="hljs-string">discarded</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> rejected <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">consumed</span><span class="hljs-string">"</span>,
+                                  payload=item.payload <span class="hljs-keyword">if</span> rejected <span class="hljs-keyword">else</span> packQueuedInput(originalInput(item.payload)))
+            updated = <span class="hljs-built_in">tuple</span>(replacement <span class="hljs-keyword">if</span> entry.input_id == input_id <span class="hljs-keyword">else</span> entry <span class="hljs-keyword">for</span> entry in <span class="hljs-built_in">self</span>._accepted_inputs)
+<span class="hljs-comment ruocun-teaching-note">            # 把消息与输入状态一起提交，确认后再换内存里的历史。
+</span>            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._commit(session, messages, updated)
+            session.messages = messages</code></pre></div></figure>
+<p>工具批结果确认后，<code>ToolBatchFeedback.after_tool_batch()</code> 还会判断要不要补一条进度建议，并按本批状态判断是否启动反思。生成建议后，回调 <code>append_feedback</code> 将已有文字追加成系统消息并提交。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/tool_batch_feedback.py#L48" rel="noopener" target="_blank">tool_batch_feedback.py:48 · 先判断进度，再交给写入回调</a></p>
 <figure class="ruocun-code" data-language="python">
-<figcaption class="ruocun-code-caption"><span>Python</span><span>6 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="195"></span><span data-line="196"></span><span data-line="197"></span><span data-line="198"></span><span data-line="199"></span><span data-line="200"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">append_feedback</span>(text: <span class="hljs-built_in">str</span>) -&gt; <span class="hljs-keyword">None</span>:
-        messages = [*session.messages, {<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">system</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: text}]
+<figcaption class="ruocun-code-caption"><span>Python</span><span>9 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="48"></span><span data-line="49"></span><span data-line="50"></span><span data-line="51"></span><span class="ruocun-comment-gutter"></span><span data-line="52"></span><span data-line="53"></span><span data-line="54"></span><span data-line="55"></span><span data-line="56"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        advice = <span class="hljs-built_in">self</span>._progress.step(
+            batch_names, runningBackground=running_background,
+            interactive=<span class="hljs-built_in">self</span>._interactive, enabled=<span class="hljs-built_in">self</span>._progress_advice,
+        )
+<span class="hljs-comment ruocun-teaching-note">        # 先确认有建议且本轮未取消，再把建议交给消息写入回调。
+</span>        <span class="hljs-keyword">if</span> advice and not <span class="hljs-built_in">self</span>._cancelled():
+            <span class="hljs-comment"># 反思会读取当前会话，先提交本批的进度提醒。</span>
+            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._append_feedback(advice)
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>._progress.notice and <span class="hljs-built_in">self</span>._notice:
+                <span class="hljs-built_in">self</span>._notice(<span class="hljs-built_in">self</span>._progress.notice)</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/tool_batch_feedback.py#L70" rel="noopener" target="_blank">tool_batch_feedback.py:70 · 根据反思结果追加建议</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>12 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="70"></span><span data-line="71"></span><span data-line="72"></span><span data-line="73"></span><span data-line="74"></span><span data-line="75"></span><span data-line="76"></span><span data-line="77"></span><span data-line="78"></span><span data-line="79"></span><span class="ruocun-comment-gutter"></span><span data-line="80"></span><span data-line="81"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        reflection_note = <span class="hljs-string">"</span><span class="hljs-string">"</span>
+        <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>._reflect is not <span class="hljs-keyword">None</span> and (decision[<span class="hljs-string">"</span><span class="hljs-string">challenger</span><span class="hljs-string">"</span>] or decision[<span class="hljs-string">"</span><span class="hljs-string">refocuser</span><span class="hljs-string">"</span>]):
+            label = <span class="hljs-string">"</span><span class="hljs-string">审视者</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> decision[<span class="hljs-string">"</span><span class="hljs-string">challenger</span><span class="hljs-string">"</span>] <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">纠偏者</span><span class="hljs-string">"</span>
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>._notice:
+                <span class="hljs-built_in">self</span>._notice(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">[反思：</span><span class="hljs-string">{</span>label<span class="hljs-string">}</span><span class="hljs-string">…]</span><span class="hljs-string">"</span>)
+            verdict = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._reflect(<span class="hljs-string">"</span><span class="hljs-string">challenger</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> decision[<span class="hljs-string">"</span><span class="hljs-string">challenger</span><span class="hljs-string">"</span>] <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">refocuser</span><span class="hljs-string">"</span>)
+            <span class="hljs-keyword">if</span> verdict and not <span class="hljs-built_in">self</span>._cancelled():
+                reflection_note = <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">[</span><span class="hljs-string">{</span>label<span class="hljs-string">}</span><span class="hljs-string">]</span><span class="hljs-string">\n</span><span class="hljs-string">{</span>verdict<span class="hljs-string">}</span><span class="hljs-string">"</span>
+        <span class="hljs-keyword">elif</span> <span class="hljs-built_in">self</span>._self_challenge and decision[<span class="hljs-string">"</span><span class="hljs-string">challenger</span><span class="hljs-string">"</span>]:
+            reflection_note = SELF_CHALLENGE_NUDGE
+<span class="hljs-comment ruocun-teaching-note">        # 只有本次得到了非空反思建议，才复用同一个写入回调。
+</span>        <span class="hljs-keyword">if</span> reflection_note:
+            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._append_feedback(reflection_note)</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L195" rel="noopener" target="_blank">loop.py:195 · 有建议时追加后续system</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>6 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="195"></span><span class="ruocun-comment-gutter"></span><span data-line="196"></span><span data-line="197"></span><span data-line="198"></span><span data-line="199"></span><span data-line="200"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">append_feedback</span>(text: <span class="hljs-built_in">str</span>) -&gt; <span class="hljs-keyword">None</span>:
+<span class="hljs-comment ruocun-teaching-note">        # 这里负责追加和提交建议，触发判断留在工具批反馈模块。
+</span>        messages = [*session.messages, {<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">system</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: text}]
         <span class="hljs-keyword">if</span> journal is <span class="hljs-keyword">None</span>:
             session.messages = messages
         <span class="hljs-keyword">else</span>:
             <span class="hljs-keyword">await</span> journal.replace_context(session, messages, reset_prompt=<span class="hljs-keyword">False</span>)</code></pre></div></figure>
-<p>反思建议另有触发判断，同样在有内容时追加system；前面见到的动态Skills目录也走后续追加。它们不会因为使用相同的role，就与基础system拥有相同的来源或更新生命周期。</p>
+<p>前面见到的动态 Skill 目录也走后续追加。进度建议、反思建议和 Skill 目录都使用 <code>system</code> 角色，各自仍有自己的触发时机。</p>
 <div class="table-scroll"><table><thead><tr><th>信息</th><th>消息位置</th><th>更新责任</th></tr></thead><tbody>
 <tr><td>基础system</td><td>首条消息，下标0。</td><td>状态变化时重新装配并替换。</td></tr>
 <tr><td>SessionStart附加上下文</td><td>非空时插在下标1，角色system。</td><td>启动或恢复时清理带若存 SessionStart 标记的历史消息，再提交本次内容。</td></tr>
@@ -394,12 +448,12 @@ Runtime directory facts; supersede older directory facts in history and summarie
 <section class="design-section" id="tool-summary-versus-schema">
 <h3>7.1 tools 按当前模式和可见性生成</h3>
 <p>system中的工具摘要来自启动时的注册表转换，生成后保存在 <code>tool_summaries</code>字符串中。当前请求的 <code>tools</code>则由独立回调取得：</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-input/runtime.py#L1673" rel="noopener" target="_blank">runtime.py:1673 · 取当前模式下的接口</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/runtime.py#L1673" rel="noopener" target="_blank">runtime.py:1673 · 取当前模式下的接口</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>2 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1673"></span><span data-line="1674"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">def</span> <span class="hljs-title">api_tools</span>() -&gt; <span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any]]:
             <span class="hljs-keyword">return</span> apiToolsForMode(registry, <span class="hljs-string">"</span><span class="hljs-string">plan</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> permissions.getMode() == <span class="hljs-string">"</span><span class="hljs-string">plan</span><span class="hljs-string">"</span> <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">normal</span><span class="hljs-string">"</span>, ctx.lang)</code></pre></div></figure>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-input/tools_for_mode.py#L10" rel="noopener" target="_blank">tools_for_mode.py:10 · 过滤当前可见工具</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/tools_for_mode.py#L10" rel="noopener" target="_blank">tools_for_mode.py:10 · 过滤当前可见工具</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>4 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="10"></span><span data-line="11"></span><span data-line="12"></span><span data-line="13"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">apiToolsForMode</span>(registry: ToolRegistry, mode: Mode, lang: <span class="hljs-built_in">str</span> | <span class="hljs-keyword">None</span> = <span class="hljs-keyword">None</span>) -&gt; <span class="hljs-built_in">list</span>[ApiTool]:
@@ -411,7 +465,7 @@ Runtime directory facts; supersede older directory facts in history and summarie
 <section class="design-section" id="actual-path-and-result">
 <h3>7.2 路径依据执行状态，需求依据行为结果核对</h3>
 <p>再回到价格文件。进入worktree后，模型应根据新目录使用 <code>packages/pricing/prices.mjs</code>。它即使仍在回答里说“我在原pricing目录”，也不会因此把实际工具目录改回去。路径处理直接依据执行上下文：</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/model-input/paths.py#L65" rel="noopener" target="_blank">paths.py:65 · 工具路径解析的实际基准</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/paths.py#L65" rel="noopener" target="_blank">paths.py:65 · 工具路径解析的实际基准</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>4 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="65"></span><span data-line="66"></span><span data-line="67"></span><span data-line="68"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">approvedPath</span>(ctx: ToolContext, p: <span class="hljs-built_in">str</span>, *, write: <span class="hljs-built_in">bool</span> = <span class="hljs-keyword">False</span>) -&gt; <span class="hljs-built_in">str</span>:
@@ -428,7 +482,7 @@ Runtime directory facts; supersede older directory facts in history and summarie
 <section class="design-section" id="check-source-and-time">
 <h3>8.1 消息来源、刷新时机与执行目录</h3>
 <p><strong>1．从pricing启动，根目录、pricing、reports各有一份不同的RUOCUN.md。哪些项目规则进入？若没有Git标记，行为又怎样？</strong></p>
-<details class="answer-box"><summary>展开答案</summary><div><p>有本例的Git标记时，链是 <code>/shop → /shop/packages → /shop/packages/pricing</code>，因此根目录和pricing的规则进入，reports不在链上，不会被顺带读取。用户级与显式兼容来源另按相应规则处理。若向上始终找不到 <code>.git</code>，项目链只保留传入的pricing目录，不继续收集全部祖先。</p></div></details>
+<details class="answer-box"><summary>展开答案</summary><div><p>有本例的 Git 标记时，链是 <code>/shop → /shop/packages → /shop/packages/pricing</code>，因此根目录和 pricing 的规则进入，reports 不在读取链上。普通 CLI 还会尝试读取用户级 <code>RUOCUN.md</code>，兼容来源使用默认空列表。若向上始终找不到 <code>.git</code>，项目链只保留传入的 pricing 目录。</p></div></details>
 <p><strong>2．根规则和local文件各有不同文字。后读local是否会删除根规则？两份内容完全相同呢？</strong></p>
 <details class="answer-box"><summary>展开答案</summary><div><p>不同内容会按顺序一起拼接，程序没有实现按语义覆盖或删除父规则。清理首尾空白与BOM后，完整内容相同才被 <code>seen</code>去重，保留先进入的一份。读取顺序、内容去重、语义冲突是三件事。</p></div></details>
 <p><strong>3．启动后修改了磁盘上的项目规则，接着因模型变化重建system。新规则会自动进入吗？如果动态Skills清单已确认扩充呢？</strong></p>

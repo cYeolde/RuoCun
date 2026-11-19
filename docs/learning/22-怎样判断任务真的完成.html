@@ -61,21 +61,35 @@
 <header class="v2-group-heading"><span>02</span><h2>清单、工具回包与回合终态</h2></header><div class="design-section">
 </div><section class="design-section" id="todo-updates"><h3>2.1 TodoWrite 替换清单并给验收提醒</h3>
 <p><a href="12-长任务怎样有序推进.html#todo-replacement" rel="noopener" target="_blank">整份清单替换</a>解决当前要记哪些待办。此处看写完后的提醒。当至少三项待办都勾完，回包提醒模型逐条回看需求，实质改动还要独立验证。检查是否真的运行，要另外寻找带实际结果的工具回复。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/todo_write.py#L22" rel="noopener" target="_blank">src/ruocun/tools/todo_write.py · 第 22–29 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>8 行 · 2 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span class="ruocun-comment-gutter"></span><span data-line="22"></span><span data-line="23"></span><span data-line="24"></span><span data-line="25"></span><span class="ruocun-comment-gutter"></span><span data-line="26"></span><span data-line="27"></span><span data-line="28"></span><span data-line="29"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-comment ruocun-teaching-note">    # 当前清单整体换成模型提交的待办。
+</span>    ctx.todos = deepcopy(todos)
+    <span class="hljs-keyword">if</span> not todos:
+        <span class="hljs-keyword">return</span> <span class="hljs-string">"</span><span class="hljs-string">(任务清单已清空)</span><span class="hljs-string">"</span>
+    out = formatTodos(todos)
+<span class="hljs-comment ruocun-teaching-note">    # 满足数量和完成状态只会追加一段交付提醒。
+</span>    <span class="hljs-keyword">if</span> <span class="hljs-built_in">len</span>(todos) &gt;= <span class="hljs-number">3</span> and <span class="hljs-built_in">all</span>(todo[<span class="hljs-string">"</span><span class="hljs-string">status</span><span class="hljs-string">"</span>] == <span class="hljs-string">"</span><span class="hljs-string">completed</span><span class="hljs-string">"</span> <span class="hljs-keyword">for</span> todo in todos):
+        out += (<span class="hljs-string">"</span><span class="hljs-string">\n</span><span class="hljs-string">\n</span><span class="hljs-string">（所有待办已标为完成。交付前回到用户的原始要求，逐条检查实际证据。</span><span class="hljs-string">"</span>
+                <span class="hljs-string">"</span><span class="hljs-string">涉及实质改动时，安排 verify 子代理独立核验。）</span><span class="hljs-string">"</span>)
+    <span class="hljs-keyword">return</span> out</code></pre></div></figure>
 <p>部分无人值守路径有“先列计划”的程序门槛：工具批出现名为 <code>TodoWrite</code> 的调用，便可标志这一门槛已跨过。清单内容能否通过工具校验、计划是否充分、要求是否做完，仍是后续核对项。用程序门槛约束最低行为时，要清楚它究竟观察了什么。</p>
 </section><section class="design-section" id="turn-ends"><h3>2.2 回合 complete 表示已保存回复且无后续调用</h3>
 <p>这次模型已经给出有效回复，<a href="09-请求出错怎样继续.html#request-empty" rel="noopener" target="_blank">空响应补救</a>不再需要。程序保存助手消息，见到无后续工具调用就返回 <code>complete</code>。因此在这条分支里找不到会员预览的实测断言，它还需要实际执行。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/agent/loop.py#L411" rel="noopener" target="_blank">src/ruocun/agent/loop.py · 第 411–421 行</a></p><figure class="ruocun-code" data-language="python">
-<figcaption class="ruocun-code-caption"><span>Python</span><span>11 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="411"></span><span data-line="412"></span><span data-line="413"></span><span data-line="414"></span><span data-line="415"></span><span data-line="416"></span><span data-line="417"></span><span data-line="418"></span><span data-line="419"></span><span data-line="420"></span><span data-line="421"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        assistant: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any] = message
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L411" rel="noopener" target="_blank">src/ruocun/agent/loop.py · 第 411–421 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>11 行 · 2 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="411"></span><span data-line="412"></span><span data-line="413"></span><span data-line="414"></span><span data-line="415"></span><span class="ruocun-comment-gutter"></span><span data-line="416"></span><span data-line="417"></span><span data-line="418"></span><span data-line="419"></span><span class="ruocun-comment-gutter"></span><span data-line="420"></span><span data-line="421"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        assistant: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any] = message
         assistant[<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>] = <span class="hljs-string">"</span><span class="hljs-string">assistant</span><span class="hljs-string">"</span>
         assistant[<span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>] = content
         <span class="hljs-keyword">if</span> saved_calls:
             assistant[<span class="hljs-string">"</span><span class="hljs-string">tool_calls</span><span class="hljs-string">"</span>] = saved_calls
-        session.messages.append(assistant)
+<span class="hljs-comment ruocun-teaching-note">        # 先保存助手回复，回合状态在提交返回后决定。
+</span>        session.messages.append(assistant)
         <span class="hljs-keyword">await</span> save()
         <span class="hljs-keyword">if</span> events.on_assistant_saved is not <span class="hljs-keyword">None</span>:
             events.on_assistant_saved(assistant)
-        <span class="hljs-keyword">if</span> not calls:
+<span class="hljs-comment ruocun-teaching-note">        # 分支只检查有无后续工具调用，业务验收证据来自独立检查。
+</span>        <span class="hljs-keyword">if</span> not calls:
             <span class="hljs-keyword">return</span> TurnResult(<span class="hljs-string">"</span><span class="hljs-string">complete</span><span class="hljs-string">"</span>)</code></pre></div></figure>
 <p><strong>「从原需求找每一条验收证据，不能用执行状态补缺口」</strong>。RuoCun 的系统提示要求逐条返回需求原文，对照读回结果或命令证据，非琐碎改动还要求安排 <code>verify</code> 并抽查报告。这个约定指导模型行动。<code>complete</code> 分支没有程序化验证任意业务目标的条件。</p>
 </section></section>
@@ -97,12 +111,37 @@
 <p>如果把验收范围扩大到日期格式和日历合法性，就要实际运行相应校验。只看末尾 <code>Z</code> 的证据不足以验收扩大的条件，生成端能否持续产出也要另作检查。</p>
 </section><section class="design-section" id="progress-signal"><h3>3.3 停滞提醒提示换一种更能分辨问题的动作</h3>
 <p><a href="12-长任务怎样有序推进.html#tool-based-progress" rel="noopener" target="_blank">停滞提醒</a>靠工具动作估计有没有推进。假设模型围着同一个旧函数读了几轮，这时可以用实际预览请求对照会员和普通用户，直接确定验收表里哪一项还有问题。若本轮借用了旧经验，按<a href="17-经验怎样用到当前任务.html#memory-targeted-verify" rel="noopener" target="_blank">最后一次改动后的旧错检查</a>核对当前入口和断言。提醒和经验都可以帮你找下一步，结果还要由证据来填。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L463" rel="noopener" target="_blank">src/ruocun/agent/loop.py · 第 463–467 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>5 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span class="ruocun-comment-gutter"></span><span data-line="463"></span><span data-line="464"></span><span data-line="465"></span><span data-line="466"></span><span data-line="467"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-comment ruocun-teaching-note">        # 工具批已经结算，收集本批动作和后台运行状态交给反馈模块。
+</span>        batch_names = [name <span class="hljs-keyword">for</span> _, name, _ in calls]
+        running_background = (
+            feedback.has_running_background() <span class="hljs-keyword">if</span> feedback.has_running_background is not <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> <span class="hljs-keyword">False</span>
+        )
+        <span class="hljs-keyword">await</span> tool_feedback.after_tool_batch(batch_names, batch.failure_messages(), running_background=running_background)</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/tool_batch_feedback.py#L44" rel="noopener" target="_blank">src/ruocun/agent/tool_batch_feedback.py · 第 44–56 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>13 行 · 2 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="44"></span><span data-line="45"></span><span data-line="46"></span><span data-line="47"></span><span class="ruocun-comment-gutter"></span><span data-line="48"></span><span data-line="49"></span><span data-line="50"></span><span data-line="51"></span><span class="ruocun-comment-gutter"></span><span data-line="52"></span><span data-line="53"></span><span data-line="54"></span><span data-line="55"></span><span data-line="56"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">after_tool_batch</span>(
+        <span class="hljs-built_in">self</span>, batch_names: Sequence[<span class="hljs-built_in">str</span>], failures: Sequence[<span class="hljs-built_in">str</span>], *,
+        running_background: <span class="hljs-built_in">bool</span>,
+    ) -&gt; <span class="hljs-keyword">None</span>:
+<span class="hljs-comment ruocun-teaching-note">        # 启用选项和后台状态共同影响进度判断。
+</span>        advice = <span class="hljs-built_in">self</span>._progress.step(
+            batch_names, runningBackground=running_background,
+            interactive=<span class="hljs-built_in">self</span>._interactive, enabled=<span class="hljs-built_in">self</span>._progress_advice,
+        )
+<span class="hljs-comment ruocun-teaching-note">        # 产生提醒且当前回合未取消时，才提交提醒。
+</span>        <span class="hljs-keyword">if</span> advice and not <span class="hljs-built_in">self</span>._cancelled():
+            <span class="hljs-comment"># 反思会读取当前会话，先提交本批的进度提醒。</span>
+            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._append_feedback(advice)
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>._progress.notice and <span class="hljs-built_in">self</span>._notice:
+                <span class="hljs-built_in">self</span>._notice(<span class="hljs-built_in">self</span>._progress.notice)</code></pre></div></figure>
 </section></section>
 <section class="v2-topic-group" id="resource-budget">
 <header class="v2-group-heading"><span>04</span><h2>累计用量、本次进程估价与边界停止</h2></header><div class="design-section">
 </div><section class="design-section" id="usage-accounting"><h3>4.1 恢复的 token 与本次费用使用不同口径</h3>
 <p>每次服务返回用量时，<code>addUsage</code> 把输入、输出、命中和未命中 token 同时累加到账面总计与对应模型的用量桶。累计指标可能含恢复的历史 token，费用只用本次进程的模型桶按配置价格估算。如果当前输出“累计输入 25,000 token，本次进程费用约 0.08 元”，两个数字可能覆盖不同时间范围，不能拿 0.08 元去估算全部历史成本。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/session/session.py#L58" rel="noopener" target="_blank">src/ruocun/session/session.py · 第 58–78 行</a></p><figure class="ruocun-code" data-language="python">
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/session.py#L58" rel="noopener" target="_blank">src/ruocun/session/session.py · 第 58–78 行</a></p><figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>21 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="58"></span><span data-line="59"></span><span data-line="60"></span><span data-line="61"></span><span data-line="62"></span><span data-line="63"></span><span data-line="64"></span><span data-line="65"></span><span data-line="66"></span><span data-line="67"></span><span data-line="68"></span><span data-line="69"></span><span data-line="70"></span><span data-line="71"></span><span data-line="72"></span><span data-line="73"></span><span data-line="74"></span><span data-line="75"></span><span data-line="76"></span><span data-line="77"></span><span data-line="78"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">addUsage</span>(<span class="hljs-built_in">self</span>, u: Usage, model: <span class="hljs-built_in">str</span> | <span class="hljs-keyword">None</span> = <span class="hljs-keyword">None</span>) -&gt; <span class="hljs-keyword">None</span>:
         <span class="hljs-string">"""累加本次模型调用的 token 和费用依据。"""</span>
@@ -125,8 +164,16 @@
         hit = u.get(<span class="hljs-string">"</span><span class="hljs-string">prompt_cache_hit_tokens</span><span class="hljs-string">"</span>, <span class="hljs-number">0</span>) or <span class="hljs-number">0</span>
         <span class="hljs-keyword">if</span> model == <span class="hljs-built_in">self</span>.model and prompt:
             <span class="hljs-built_in">self</span>.lastPromptTokens = prompt</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/session.py#L99" rel="noopener" target="_blank">src/ruocun/session/session.py · 第 99–103 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>5 行 · 1 条注释</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span class="ruocun-comment-gutter"></span><span data-line="99"></span><span data-line="100"></span><span data-line="101"></span><span data-line="102"></span><span data-line="103"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-comment ruocun-teaching-note">    # 费用走本次进程的各模型用量桶，累计 token 还能含恢复的历史。
+</span>    <span class="hljs-keyword">def</span> <span class="hljs-title">costCNY</span>(<span class="hljs-built_in">self</span>) -&gt; <span class="hljs-built_in">float</span>:
+        <span class="hljs-keyword">return</span> estimateCostByModel(<span class="hljs-built_in">self</span>._modelUsage, <span class="hljs-built_in">self</span>._env)
+
+    <span class="hljs-keyword">def</span> <span class="hljs-title">overBudget</span>(<span class="hljs-built_in">self</span>) -&gt; <span class="hljs-built_in">bool</span>:
+        <span class="hljs-keyword">return</span> <span class="hljs-built_in">self</span>.budgetCNY is not <span class="hljs-keyword">None</span> and <span class="hljs-built_in">self</span>.costCNY() &gt;= <span class="hljs-built_in">self</span>.budgetCNY</code></pre></div></figure>
 <p>例如主请求输入 18,000 token，随后同一个模型又用 6,000 token 写反思。<code>/usage</code> 累计增加 24,000，<code>/context</code> 中上次主请求的输入仍是 18,000。<code>addPrimaryUsage</code> 在记账之外更新主回合读数和前缀缓存诊断，反思与摘要的用量只进入累计和费用计算。判断用途要看调用来自工具循环还是辅助步骤，单看模型名称无法区分。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/agent/context_runtime.py#L477" rel="noopener" target="_blank">src/ruocun/agent/context_runtime.py · 第 477–486 行</a></p><figure class="ruocun-code" data-language="python">
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/context_runtime.py#L477" rel="noopener" target="_blank">src/ruocun/agent/context_runtime.py · 第 477–486 行</a></p><figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>10 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="477"></span><span data-line="478"></span><span data-line="479"></span><span data-line="480"></span><span data-line="481"></span><span data-line="482"></span><span data-line="483"></span><span data-line="484"></span><span data-line="485"></span><span data-line="486"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">_usageReport</span>(<span class="hljs-built_in">self</span>) -&gt; <span class="hljs-built_in">str</span>:
         usage = <span class="hljs-built_in">self</span>.session.usage
@@ -141,7 +188,7 @@
 <p><a href="16-前缀缓存怎样配合请求.html#usage-versus-layout" rel="noopener" target="_blank">前缀篇的服务回报</a>给出总输入和命中输入。现在把两类输入量和输出量分别计入成本，再核对两次工作实际验收了几项。成本是按本次进程与配置单价算出的估价，实际账单要用服务侧记录核对。</p>
 </section><section class="design-section" id="soft-hard-budget"><h3>4.2 默认只提醒，显式硬预算在安全边界停止</h3>
 <p><code>MAX_BUDGET</code> 提供有效的正数时形成费用阈值。到了回合内部的边界，程序先看 <code>MAX_TURNS</code> 限额，再看进程估价是否达到阈值。默认提醒后可以继续，显式 <code>MAX_BUDGET_HARD=1</code> 时先保存再返回 <code>budget_limit</code>；模型请求轮数先达上限时返回 <code>turn_limit</code>。它们描述不同停止原因，也与业务是否完成独立。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/course/agent/loop.py#L236" rel="noopener" target="_blank">src/ruocun/agent/loop.py · 第 236–247 行</a></p><figure class="ruocun-code" data-language="python">
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L236" rel="noopener" target="_blank">src/ruocun/agent/loop.py · 第 236–247 行</a></p><figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>12 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
 <div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="236"></span><span data-line="237"></span><span data-line="238"></span><span data-line="239"></span><span data-line="240"></span><span data-line="241"></span><span data-line="242"></span><span data-line="243"></span><span data-line="244"></span><span data-line="245"></span><span data-line="246"></span><span data-line="247"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">while</span> not ctx.signal.is_set():
         <span class="hljs-keyword">if</span> boundary:
