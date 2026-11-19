@@ -11,8 +11,21 @@ from .types import Tool, ToolContext
 Approval = Callable[[str, dict[str, Any]], Awaitable[bool]]
 
 
+class ShellToolOutput(str):
+    """保留工具文字接口，并携带由 Shell 后端确认的失败状态。"""
+
+    failed: bool
+
+    def __new__(cls, content: str, *, failed: bool) -> ShellToolOutput:
+        output = super().__new__(cls, content)
+        output.failed = failed
+        return output
+
+
 def looksFailed(content: str) -> bool:
-    """识别 Bash 结果中的错误、非零退出、超时或中断，供批执行器阻止后续有副作用的工具。"""
+    """优先读取命令执行状态，纯文字结果沿用原有分类规则。"""
+    if isinstance(content, ShellToolOutput):
+        return content.failed
     return content.startswith("Error") or bool(re.search(
         r"\[exit -?[1-9]\d*(?:\]|,)|\[超时|\[已中断(?:\]|,)", content,
     ))

@@ -523,7 +523,7 @@ def parseSimpleCommand(P: ParseState) -> Node | None:
         return None
     restoreLex(P.L, save)
     fnSave = saveLex(P.L)
-    nm = parseWord(P, "cmd")
+    nm = parseWord(P)
     if nm and nm.type == "word":
         skipBlanks(P.L)
         if peek(P.L) == "(" and peek(P.L, 1) == ")":
@@ -540,7 +540,7 @@ def parseSimpleCommand(P: ParseState) -> Node | None:
                 return mk(P, "function_definition", nm.startIndex, bodyKids[-1].endIndex,
                           [nm, oParen, cParen, *bodyKids])
     restoreLex(P.L, fnSave)
-    nameArg = parseWord(P, "cmd")
+    nameArg = parseWord(P)
     if not nameArg:
         return assignments[0] if len(assignments) == 1 else None
     cmdName = mk(P, "command_name", nameArg.startIndex, nameArg.endIndex, [nameArg])
@@ -567,7 +567,7 @@ def parseSimpleCommand(P: ParseState) -> Node | None:
             restoreLex(P.L, save2)
             break
         restoreLex(P.L, save2)
-        arg = parseWord(P, "arg")
+        arg = parseWord(P)
         if not arg:
             if peek(P.L) == "(":
                 openNode = leaf(P, "(", nextToken(P.L, "cmd"))
@@ -663,7 +663,7 @@ def tryParseAssignment(P: ParseState) -> Node | None:
             skipBlanks(P.L)
             if peek(P.L) == ")":
                 break
-            e = parseWord(P, "arg")
+            e = parseWord(P)
             if not e:
                 break
             elems.append(e)
@@ -673,7 +673,7 @@ def tryParseAssignment(P: ParseState) -> Node | None:
         elems.append(aClose)
         val = mk(P, "array", aOpen.startIndex, aClose.endIndex, elems)
     elif peek(P.L) and peek(P.L) not in {" ", "\t", "\n", ";", "&", "|", ")", "}"}:
-        val = parseWord(P, "arg")
+        val = parseWord(P)
     return mk(P, "variable_assignment", startB, val.endIndex if val else opNode.endIndex,
               [lhs, opNode, val] if val else [lhs, opNode])
 
@@ -750,7 +750,7 @@ def tryParseRedirect(P: ParseState, greedy: bool = False) -> Node | None:
     if v == "<<<":
         op = leaf(P, v, t)
         skipBlanks(P.L)
-        target = parseWord(P, "arg")
+        target = parseWord(P)
         kids = [op, target] if target else [op]
         return mk(P, "herestring_redirect", fd.startIndex if fd else op.startIndex,
                   target.endIndex if target else op.endIndex, [fd, *kids] if fd else kids)
@@ -829,7 +829,7 @@ def tryParseRedirect(P: ParseState, greedy: bool = False) -> Node | None:
                     advance(P.L)
                 kids.append(mk(P, "ERROR", eStart, P.L.b, []))
                 break
-            w = parseWord(P, "arg")
+            w = parseWord(P)
             if w:
                 kids.append(w)
                 continue
@@ -845,7 +845,7 @@ def tryParseRedirect(P: ParseState, greedy: bool = False) -> Node | None:
         kids = [fd, op] if fd else [op]
         skipBlanks(P.L)
         dSave = saveLex(P.L)
-        dest = parseWord(P, "arg") if isRedirectLiteralStart(P) else None
+        dest = parseWord(P) if isRedirectLiteralStart(P) else None
         if dest:
             kids.append(dest)
         else:
@@ -861,7 +861,7 @@ def tryParseRedirect(P: ParseState, greedy: bool = False) -> Node | None:
             if not isRedirectLiteralStart(P) or not greedy and taken >= 1:
                 break
             target = (parseProcessSub(P) if peek(P.L) in {"<", ">"} and peek(P.L, 1) == "("
-                      else parseWord(P, "arg"))
+                      else parseWord(P))
             if not target:
                 break
             kids.append(target)
@@ -956,7 +956,7 @@ def parseHeredocBodyContent(P: ParseState, start: int, end: int) -> list[Node]:
     return out
 
 
-def parseWord(P: ParseState, _ctx: str) -> Node | None:
+def parseWord(P: ParseState) -> Node | None:
     skipBlanks(P.L)
     parts: list[Node] = []
     while P.L.i < P.L.len:
@@ -1712,7 +1712,7 @@ def parseFor(P: ParseState, forTok: Token) -> Node:
             skipBlanks(P.L)
             if peek(P.L) in {";", "\n", ""}:
                 break
-            w = parseWord(P, "arg")
+            w = parseWord(P)
             if not w:
                 break
             kids.append(w)
@@ -1747,7 +1747,7 @@ def parseCase(P: ParseState, caseTok: Token) -> Node:
     caseKw = leaf(P, "case", caseTok)
     kids = [caseKw]
     skipBlanks(P.L)
-    word = parseWord(P, "arg")
+    word = parseWord(P)
     if word:
         kids.append(word)
     skipBlanks(P.L)
@@ -1877,7 +1877,7 @@ def parseCasePattern(P: ParseState) -> list[Node]:
         return parseCasePatternSegmented(P)
     if not hasExtglobParen and (hasDollar or hasBracketOutsideParen):
         restoreLex(P.L, save)
-        w = parseWord(P, "arg")
+        w = parseWord(P)
         return [w] if w else []
     typ = "extglob_pattern" if hasExtglobParen or re.search(r"[*?]|^[-+?*@!][a-zA-Z]", text) else "word"
     return [mk(P, typ, start, P.L.b, [])]
@@ -1949,7 +1949,7 @@ def parseDeclaration(P: ParseState, kwTok: Token) -> Node:
             kids.append(a)
             continue
         if c in {'"', "'", "$"}:
-            w = parseWord(P, "arg")
+            w = parseWord(P)
             if w:
                 kids.append(w)
                 continue
@@ -1971,7 +1971,7 @@ def parseUnset(P: ParseState, kwTok: Token) -> Node:
         skipBlanks(P.L)
         if peek(P.L) in {"", "\n", ";", "&", "|", ")", "<", ">"}:
             break
-        arg = parseWord(P, "arg")
+        arg = parseWord(P)
         if not arg:
             break
         if arg.type == "word" and not arg.text.startswith("-"):
@@ -2207,7 +2207,7 @@ def parseTestPrimary(P: ParseState, closer: str) -> Node | None:
     skipBlanks(P.L)
     if closer == "]" and peek(P.L) == "]" or closer == "]]" and peek(P.L) == "]" and peek(P.L, 1) == "]":
         return None
-    return parseWord(P, "arg")
+    return parseWord(P)
 
 
 ARITH_PREC = {

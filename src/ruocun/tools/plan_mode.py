@@ -5,7 +5,7 @@ from .schema import objectSchema
 from .types import Tool, ToolContext
 
 
-async def _enter(args: dict[str, Any], ctx: ToolContext) -> str:
+async def _enter(_args: dict[str, Any], ctx: ToolContext) -> str:
     if ctx.setMode is None:
         return "当前环境不支持模式切换。"
     if ctx.headless:
@@ -14,7 +14,7 @@ async def _enter(args: dict[str, Any], ctx: ToolContext) -> str:
     return "已进入规划模式(只读)。探索代码库、设计方案,完成后用 ExitPlanMode 退出。"
 
 
-async def _exit(args: dict[str, Any], ctx: ToolContext) -> str:
+async def _exit(_args: dict[str, Any], ctx: ToolContext) -> str:
     if ctx.setMode is None:
         return "当前环境不支持模式切换。"
     if ctx.askChoice is not None:
@@ -35,26 +35,14 @@ enterPlanModeTool = Tool(
         "verification steps. Submit it with ExitPlanMode and wait for approval before "
         "implementation."
     ),
-    capability="plan", approval="auto", shouldDefer=True,
+    capability="plan", shouldDefer=True,
     schema=objectSchema({}, []), handler=_enter,
 )
 
 exitPlanModeTool = Tool(
     name="ExitPlanMode",
-    description=(
-        "提交当前规划并等待用户批准后退出规划模式。用 allowedPrompts 列出方案确实需要预授权的 Bash 操作，按用途描述。"
-    ),
-    descriptionEn=(
-        "Submit the current plan and leave planning mode after approval. In allowedPrompts, "
-        "list only the Bash operations needed to carry out the plan and describe their "
-        "purpose."
-    ),
-    capability="plan", approval="auto", shouldDefer=True,
-    schema=objectSchema({"allowedPrompts": {
-        "type": "array", "description": "实现方案需要的权限预声明",
-        "items": objectSchema({
-            "tool": {"type": "string", "enum": ["Bash"], "description": "要预授权的工具(目前只支持 Bash)"},
-            "prompt": {"type": "string", "description": "语义化描述,如 'run tests'、'install dependencies'"},
-        }, ["tool", "prompt"]),
-    }}, []), handler=_exit,
+    description="在交互会话中提交当前规划，获准后退出规划模式。",
+    descriptionEn="Submit the current plan for approval in an interactive session and leave planning mode when approved.",
+    capability="plan", shouldDefer=True,
+    schema=objectSchema({}, []), handler=_exit,
 )

@@ -48,10 +48,6 @@ class SkillDiscovery:
         self._checked_dirs: set[Path] = set()
         self._pending: dict[str, tuple[Skill, list[re.Pattern[str]]]] = {}
 
-    @property
-    def pending_count(self) -> int:
-        return len(self._pending)
-
     def disable_disk(self) -> None:
         self.disk_enabled = False
         self._pending.clear()

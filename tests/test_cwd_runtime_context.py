@@ -34,7 +34,7 @@ def test_cwd_snapshot_is_persisted_after_input_and_deduplicated_across_reopen_an
         checkout.mkdir()
         ctx = ToolContext(str(workspace), cwd=str(workspace))
         session = Session("STABLE SYSTEM", "synthetic-cwd", env={})
-        session.addUser("the actual task")
+        session.messages.append({"role": "user", "content": "the actual task"})
         original = copy.deepcopy(session.messages)
         journal = Journal()
         options = {"model": session.model, "maxTokens": 256, "messages": session.messages}
@@ -66,7 +66,7 @@ def test_cwd_snapshot_is_persisted_after_input_and_deduplicated_across_reopen_an
 def test_runtime_tail_does_not_make_an_unanswered_first_user_eligible_for_summary():
     async def scenario():
         session = Session("SYSTEM", "synthetic-cwd", env={})
-        session.addUser("x" * 2100)
+        session.messages.append({"role": "user", "content": "x" * 2100})
         original = copy.deepcopy(session.messages)
         sent = []
 
@@ -89,7 +89,7 @@ def test_runtime_tail_does_not_make_an_unanswered_first_user_eligible_for_summar
 def test_automatic_summary_reinjects_a_removed_snapshot_without_pinning_the_first_user():
     async def scenario():
         session = Session("SYSTEM", "synthetic-cwd", env={})
-        session.addUser("original task " * 100)
+        session.messages.append({"role": "user", "content": "original task " * 100})
         ctx, journal, sent = ToolContext("synthetic-workspace"), Journal(), []
 
         def summary(options, _context):
@@ -121,7 +121,7 @@ def test_automatic_summary_reinjects_a_removed_snapshot_without_pinning_the_firs
 def test_snapshot_journal_failure_keeps_the_original_projection_and_marker_text_is_not_a_snapshot():
     async def scenario():
         session = Session("summary mentions <ruocun-runtime-context>", "synthetic-cwd", env={})
-        session.addUser("<ruocun-runtime-context> user task about a tag")
+        session.messages.append({"role": "user", "content": "<ruocun-runtime-context> user task about a tag"})
         original = copy.deepcopy(session.messages)
 
         class FailedJournal(Journal):

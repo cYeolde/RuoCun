@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+from ruocun import __version__
+
 
 def cli(tmp_path, *arguments):
     home = tmp_path / "home"
@@ -40,7 +42,7 @@ def test_installed_version_does_not_start_an_agent(tmp_path, arguments):
     """Frozen index.ts:216-220; RuoCun release version, ENT-01."""
     result = cli(tmp_path, *arguments)
     assert result.returncode == 0, result.stderr
-    assert result.stdout == "RuoCun v1.0.0\n"
+    assert result.stdout == f"RuoCun v{__version__}\n"
     assert result.stderr == ""
 
 
@@ -51,4 +53,6 @@ def test_help_reads_the_installed_chinese_resource_without_an_agent(tmp_path):
     assert "用法：ruocun [选项] [提示词]" in result.stdout
     assert "--version, -v" in result.stdout
     assert "TodoWrite、Skill" in result.stdout  # ADR-0012：普通入口已增加静态Skill
+    assert "默认 80% 压力线" in result.stdout
+    assert "输出上限和余量" in result.stdout
     assert result.stderr == ""

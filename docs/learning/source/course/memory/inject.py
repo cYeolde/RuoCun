@@ -106,12 +106,6 @@ def _selectIndexEntries(
     return tail[:indexCap]
 
 
-def selectIndexNames(
-    items: Sequence[ValidatedMemory], today: str, fullText: Sequence[ValidatedMemory], indexCap: int = 200,
-) -> list[str]:
-    return [item.mem.title or item.mem.name for item in _selectIndexEntries(items, today, fullText, indexCap)]
-
-
 def buildIndexSection(names: Sequence[str]) -> str:
     if not names:
         return ""
@@ -156,8 +150,3 @@ async def buildStartupMemorySnapshot(
                      for item in items if item.scope is not None)
 
     return StartupMemorySnapshot(text, identities(full), identities(index))
-
-
-async def buildStartupMemory(store: MemoryStore, *, onRecall: Callable[[RecallCounts], None] | None = None) -> str:
-    """返回沿用原格式渲染的启动记忆文本。"""
-    return (await buildStartupMemorySnapshot(store, onRecall=onRecall)).text

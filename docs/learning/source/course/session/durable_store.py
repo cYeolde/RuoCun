@@ -1311,52 +1311,6 @@ class DurableStore:
 
         return self._atomic(owner, body)
 
-    def record_recovery_decision(
-        self,
-        owner: DbOwner,
-        decision_id: str,
-        target: str,
-        decision: str,
-        explanation: str,
-    ) -> None:
-        """按决定 ID 查找已提交结果，拒绝相同 ID 下的内容冲突。核实不会再次执行旧工具。"""
-
-        def body(con: "sqlite3.Connection") -> None:
-            if not explanation.strip():
-                raise StoreError("请明确填写核实结果或处理决定。")
-            payload = {
-                "decision_id": decision_id,
-                "target": target,
-                "decision": decision,
-                "explanation": explanation,
-            }
-            row = con.execute(
-                "SELECT json FROM decisions WHERE id=?", (decision_id,)
-            ).fetchone()
-            if row is not None:
-                if _loads(row[0]) != payload:
-                    raise StoreError("恢复决定 ID 幂等冲突：同 ID 内容不符，拒绝。")
-                return
-            con.execute(
-                "INSERT INTO decisions VALUES (?,?)",
-                (decision_id, _dumps(payload)),
-            )
-            if decision == "resolve":
-                scope, separator, call_id = target.partition(":")
-                if not separator:
-                    raise StoreError("resolve 目标应为 scope:tool_call_id。")
-                record = _read_tool(con, ToolRef(scope=scope, tool_call_id=call_id))
-                if record is None or record.state != "outcome_unknown":
-                    raise StoreError("只允许处理尚未核实的操作。")
-                _put_tool(con, replace(
-                    record,
-                    state="result_committed",
-                    result=f"[用户处理未决操作] {explanation}",
-                    decision_ref=decision_id,
-                ))
-
-        self._atomic(owner, body)
-
     def prepare_recovery(self, owner: DbOwner, material_errors: dict[str, str] | None = None) -> None:
         """恢复时标记找不到可信结果的工具和失联代理，保留现场供后续核实。"""
         from .recovery import attachmentToolRef
@@ -1532,16 +1486,6 @@ class DurableStore:
 
     def read_pending_events(self) -> tuple[OutboxEvent, ...]:
         return tuple(_pending_events(self._require_con()))
-
-    def mark_interrupted_tools(self, owner: DbOwner) -> None:
-        """把已开始但没有可信结果的工具标为结果未知，留待核实。"""
-
-        def body(con: "sqlite3.Connection") -> None:
-            for record in _all_tools(con):
-                if record.state == "started":
-                    _put_tool(con, replace(record, state="outcome_unknown"))
-
-        self._atomic(owner, body)
 
     def add_attachment(self, owner: DbOwner, file: str, digest: str) -> None:
         """登记工具结果附件的摘要，以便恢复时发现文件缺失或变化。"""

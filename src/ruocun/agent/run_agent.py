@@ -57,6 +57,12 @@ from .resume_agent import (
     agentRecoveryMaterial,
     prepareAgentArchive,
 )
+from .turn_options import (
+    ContextHooks,
+    ToolAuthorization,
+    ToolFeedbackOptions,
+    TurnPolicy,
+)
 from .worktree import GitBoundaryError, Worktree, finishAgentWorktree, openAgentWorktree
 
 if TYPE_CHECKING:
@@ -224,7 +230,7 @@ def _child_permission(parent_mode: PermissionMode, requested: str | None, defini
 
 
 def _system_prompt(
-    definition: AgentDefinition, project: str, cwd: Path, available: list[str], *,
+    definition: AgentDefinition, project: str, available: list[str], *,
     memory_root: Path, user_root: Path,
 ) -> str:
     prompt = definition.system_prompt
@@ -288,7 +294,7 @@ def prepareAgentRun(
         working = Path(cwd or parent_ctx.cwd or workspace).resolve()
         if initial_messages is None:
             initial_tools = apiToolsForMode(child_registry, "plan" if mode == "plan" else "normal", parent_ctx.lang)
-            prompt = _system_prompt(definition, project_instructions, working,
+            prompt = _system_prompt(definition, project_instructions,
                                     [tool["function"]["name"] for tool in initial_tools], memory_root=project_root,
                                     user_root=user_root if user_root is not None else Path.home() / ".ruocun")
     except ValueError as error:
@@ -356,15 +362,10 @@ async def runPreparedAgent(
     prepared: PreparedAgentRun, *, journal: Journal, request: Request | None = None,
     tool_batch_scope: AbstractAsyncContextManager[None] | None = None,
     on_boundary: Callable[[], Awaitable[None]] | None = None,
-    on_assistant_saved: Callable[[dict[str, Any]], None] | None = None,
-    on_tool_message: Callable[[dict[str, Any], dict[str, Any]], None] | None = None,
 ) -> TurnResult:
     """以同一套子代理回合引擎驱动同步和受管后台执行。"""
     def request_model(opts: StreamChatOptions, context: ResilientContext) -> ResilientResult:
         return wrapRequest(streamChatResilient)(opts, env=dict(prepared.env), context=context)
-
-    async def deny_unbound(_name: str, _args: dict[str, Any]) -> bool:
-        return False
 
     def api_tools() -> list[dict[str, Any]]:
         if prepared.exact_tools is not None:
@@ -392,13 +393,21 @@ async def runPreparedAgent(
         with observationScope(identity="sub", depth=prepared.ctx.subagentDepth,
                               taskId=ref.task_id if ref else None, runId=ref.run_id if ref else None), spanScope("turn"):
             return await run_turn(
-                prepared.session, prepared.options, prepared.registry, prepared.ctx, approve=deny_unbound,
-                request=request or request_model, journal=journal, authorize_batch=permit.authorizeBatch,
-                call_scope=sandbox_call_scope if permit.sandboxPolicy is not None else prepared.parent_permissions.callScope,
-                permission_mode=permit.getMode, tool_batch_scope=tool_batch_scope,
-                api_tools=api_tools, max_turns=prepared.max_turns, reasoning_effort=prepared.reasoning_effort,
-                on_boundary=on_boundary, on_assistant_saved=on_assistant_saved, on_tool_message=on_tool_message,
-                self_challenge=True, compact=context.recover_overflow, request_preflight=context.before_request,
+                prepared.session, prepared.options, prepared.registry, prepared.ctx,
+                authorization=ToolAuthorization(
+                    authorize_batch=permit.authorizeBatch,
+                    call_scope=(
+                        sandbox_call_scope if permit.sandboxPolicy is not None else prepared.parent_permissions.callScope
+                    ),
+                    permission_mode=permit.getMode,
+                ),
+                request=request or request_model, journal=journal, tool_batch_scope=tool_batch_scope,
+                api_tools=api_tools, on_boundary=on_boundary,
+                context_hooks=ContextHooks(
+                    compact=context.recover_overflow, request_preflight=context.before_request,
+                ),
+                policy=TurnPolicy(max_turns=prepared.max_turns, reasoning_effort=prepared.reasoning_effort),
+                feedback=ToolFeedbackOptions(self_challenge=True),
             )
     finally:
         agentApprovalSignal.reset(owner)

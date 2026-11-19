@@ -53,7 +53,7 @@ async def _handler(args: dict[str, Any], ctx: ToolContext) -> str:
 
 
 taskSendTool = Tool(
-    name="TaskSend", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN, capability="plan", approval="auto",
+    name="TaskSend", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN, capability="plan",
     handler=_handler, schema=objectSchema({
         "id": {"type": "string", "description": "后台任务 id(如 task-3)"},
         "message": {"type": "string", "minLength": 1, "description": "要追加给该任务的指令"},

@@ -18,7 +18,7 @@ from pathlib import Path
 sys.path.insert(0, sys.argv[3])
 from ruocun.session.runtime import verify_controlled_runtime, verify_official_archive
 from ruocun.session.conversation import Conversation
-from ruocun.session.inputs import originalInput
+from ruocun.session.inputs import modelInput, originalInput
 from ruocun.session.session import Session
 root = Path(sys.argv[1])
 runtime = verify_controlled_runtime(verify_official_archive(Path(sys.argv[2]), root / 'dll'))
@@ -26,8 +26,15 @@ async def scenario():
     session = Session('SYS', 'synthetic', env={})
     c = await Conversation.open(root / 'session', 'one', root, runtime, session, 'synthetic-key', resume=False)
     try:
-        await c.accept_user(session, '已确认原始需求')
+        original = list(session.messages)
+        receipt = await c.queue_user(session, '已确认原始需求')
+        assert session.messages == original
+        saved = (await c.worker.load_recovery_view()).checkpoint
+        assert saved.accepted_inputs == (receipt,) and receipt.state == 'queued'
+        assert await c.consume_user(session, receipt.input_id)
+        assert session.messages == [*original, {'role': 'user', 'content': '已确认原始需求'}]
         first = (await c.worker.load_recovery_view()).checkpoint.accepted_inputs[0]
+        assert first.input_id == receipt.input_id and first.state == 'consumed'
         projection = [{'role': 'system', 'content': 'SYS'}, {'role': 'system', 'content': '压缩摘要'}]
         await c.replace_context(session, projection)
         assert session.messages == projection
@@ -37,7 +44,10 @@ async def scenario():
     restored = Session('SYS', 'synthetic', env={})
     c = await Conversation.open(root / 'session', 'one', root, runtime, restored, 'synthetic-key', resume=True)
     try:
-        await c.accept_user(restored, '/synthetic-skill', model_content='第二次需求')
+        receipt = await c.queue_user(restored, '/synthetic-skill', model_content='第二次需求')
+        assert originalInput(receipt.payload) == '/synthetic-skill'
+        assert modelInput(receipt.payload) == '第二次需求'
+        assert await c.consume_user(restored, receipt.input_id)
         assert restored.messages[-1]['content'] == '第二次需求'
         view = await c.worker.load_recovery_view()
         assert view.checkpoint.accepted_inputs[0] == first
@@ -70,6 +80,16 @@ async def scenario():
     try:
         assert c.foreground_state == 'paused'
         assert [a.input_id for a in c.queued_inputs()] == [one.input_id, two.input_id, projected.input_id]
+        before_out_of_order = (await c.worker.load_recovery_view()).checkpoint
+        before_messages = list(reopened.messages)
+        try:
+            await c.consume_user(reopened, projected.input_id)
+        except ValueError as error:
+            assert '按已确认输入序号消费' in str(error)
+        else:
+            raise AssertionError('越序消费必须拒绝')
+        assert reopened.messages == before_messages
+        assert (await c.worker.load_recovery_view()).checkpoint == before_out_of_order
         assert await c.consume_user(reopened, one.input_id)
         assert not await c.consume_user(reopened, one.input_id)
         assert reopened.messages[-1]['content'] == '相同文本'

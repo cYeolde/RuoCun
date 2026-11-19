@@ -1,4 +1,4 @@
-"""定义工具、执行上下文和派发接口。工具通过上下文使用当前回合绑定的目录、权限、取消状态和服务。"""
+"""定义工具和执行上下文。工具通过上下文使用当前回合绑定的目录、权限、取消状态和服务。"""
 
 from __future__ import annotations
 
@@ -109,14 +109,9 @@ class Tool:
     description: str
     schema: dict[str, Any]
     capability: Literal["read", "write", "exec", "plan", "network"]
-    approval: Literal["auto", "suggest", "required"]
     handler: Callable[[dict[str, Any], ToolContext], Awaitable[str]]
     descriptionEn: str | None = None
     apiParameters: dict[str, Any] | None = None
     checkPermissions: Callable[[str], Literal["deny", "ask"] | None] | None = None
     shouldDefer: bool = False
     persistentEffect: bool = False  # 需要独占执行并持久记录意图，原有能力标签仍用于权限判断。
-
-
-class ToolDispatcher(Protocol):
-    async def dispatch(self, name: str, rawArgs: str, ctx: ToolContext) -> str: ...

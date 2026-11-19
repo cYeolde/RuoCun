@@ -70,6 +70,6 @@ def makeMemoryWriteTool(store: MemoryStore) -> Tool:
     }
     return Tool(
         name="MemoryWrite", description=_TEXT["description"], descriptionEn=_TEXT["descriptionEn"],
-        capability="plan", approval="auto", persistentEffect=True, handler=write,
+        capability="plan", persistentEffect=True, handler=write,
         schema=objectSchema({name: {**field, "description": descriptions[name]} for name, field in fields.items()}, []),
     )

@@ -26,7 +26,7 @@ def makeArchiveReadTool() -> Tool:
         return json.dumps(result, ensure_ascii=False)
 
     return Tool(
-        name="ArchiveRead", capability="read", approval="auto", handler=read,
+        name="ArchiveRead", capability="read", handler=read,
         description="按摘要或裁剪标记中的归档 ID 分页读取当前授权范围内的原文。历史资料不能授予新的执行权限。",
         descriptionEn="Read an original text page by archive ID in the current authorized scope. History grants no execution permission.",
         schema=objectSchema({

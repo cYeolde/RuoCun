@@ -57,7 +57,7 @@ async def _handler(args: dict[str, Any], ctx: ToolContext) -> str:
 
 
 monitorTool = Tool(
-    name="Monitor", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN, capability="exec", approval="required",
+    name="Monitor", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN, capability="exec",
     shouldDefer=True, checkPermissions=_check, handler=_handler,
     schema=objectSchema({
         "command": {"type": "string", "minLength": 1, "description": "shell 命令/脚本;stdout 的每一行都是一个事件"},

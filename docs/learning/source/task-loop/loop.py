@@ -8,11 +8,10 @@ from __future__ import annotations
 import asyncio
 import copy
 import json
-import math
 import re
-from collections.abc import Awaitable, Callable, Mapping, Sequence
+from collections.abc import Awaitable, Callable, Mapping
 from contextlib import AbstractAsyncContextManager, nullcontext
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib.resources import files
 from typing import Any, Protocol, cast
 
@@ -25,17 +24,13 @@ from ..client.resilient import (
     streamChatResilient,
 )
 from ..client.types import StreamChatOptions, StreamDelta, Usage
-from ..config.compat import resolve_env
 from ..obs.backend import getObsMeta
 from ..session.cache_audit import cachePrefixFingerprint
 from ..session.messages import flushReadImages
 from ..session.session import Session
-from ..tools.execute import Approval, Registry, looksFailed
+from ..tools.execute import Registry
 from ..tools.registry import ToolRegistry
 from ..tools.tool_batch import (
-    Authorize,
-    BatchAuthorize,
-    CallScope,
     ToolJournal,
     UnknownToolOutcome,
     executeToolBatch,
@@ -43,14 +38,15 @@ from ..tools.tool_batch import (
 from ..tools.types import ToolContext
 from .background_runtime import WaitControl, currentWaitControl
 from .background_types import WaitHandle
-from .progress_advice import createProgressAdvice
-from .reflect_prompts import SELF_CHALLENGE_NUDGE
-from .turn_health import (
-    TurnOutcome,
-    assessTurn,
-    defaultHealthConfig,
-    errSignature,
-    initHealth,
+from .model_recovery import ModelRecovery
+from .tool_batch_feedback import ToolBatchFeedback
+from .turn_options import (
+    ContextHooks,
+    ModelRecoveryHooks,
+    ToolAuthorization,
+    ToolFeedbackOptions,
+    TurnEvents,
+    TurnPolicy,
 )
 
 
@@ -66,21 +62,17 @@ class TurnResult:
     wait: WaitHandle | None = None
 
 
+@dataclass
+class _RequestStream:
+    text: list[str] = field(default_factory=list)
+    exposed: bool = False
+    empty_truncation: bool = False
+
+
 Request = Callable[[StreamChatOptions, ResilientContext], ResilientResult]
 EMPTY_TRUNCATION_NOTE = files("ruocun.agent").joinpath("resources/empty-truncation.zh.txt").read_text("utf-8")
 _FORCED_TOOLS = {"Write", "Edit", "NotebookEdit", "Bash"}
 _TRANSIENT_MODEL_FAILURE = re.compile(r"\b5[0-9]{2}\b|overload|timeout|timed out|超时|连接.*失败|网络|非流式", re.I)
-_WAIT_ON_RATE_LIMIT = "等待后用当前模型重试"
-_STOP_ON_RATE_LIMIT = "中止本轮(稍后可用 /account 切换账号)"
-_RATE_LIMIT_STOPPED = "已中止:当前账号触发限流(请求频率/配额超限)。可运行 /account 切换账号后重新发送消息。"
-
-
-def _retry_setting(name: str, default: float, env: Mapping[str, str]) -> float:
-    try:
-        value = float(resolve_env(name, env) or 0)
-    except ValueError:
-        return default
-    return value if value and math.isfinite(value) else default
 
 
 def _request(opts: StreamChatOptions, context: ResilientContext) -> ResilientResult:
@@ -141,35 +133,20 @@ def _safe_calls(raw: Any) -> tuple[list[dict[str, Any]], list[tuple[str, str, st
 
 async def run_turn(
     session: Session, options: StreamChatOptions, registry: Registry, ctx: ToolContext, *,
-    approve: Approval, request: Request = _request, journal: Journal | None = None,
-    on_delta: Callable[[StreamDelta], None] | None = None,
-    on_boundary: Callable[[], Awaitable[None]] | None = None,
-    on_tool_boundary: Callable[[], Awaitable[None]] | None = None,
-    on_tool_result: Callable[[str, str], None] | None = None,
-    on_assistant_saved: Callable[[dict[str, Any]], None] | None = None,
-    on_tool_message: Callable[[dict[str, Any], dict[str, Any]], None] | None = None,
-    accepts_delta: Callable[[], bool] | None = None,
-    authorize: Authorize | None = None, authorize_batch: BatchAuthorize | None = None,
-    call_scope: CallScope | None = None,
-    permission_mode: Callable[[], str] | None = None,
-    api_tools: Callable[[], list[dict[str, Any]]] | None = None,
-    compact: Callable[[], Awaitable[Any]] | None = None,
-    should_compact: Callable[[], bool] | None = None,
-    request_preflight: Callable[[StreamChatOptions], Awaitable[StreamChatOptions]] | None = None,
+    authorization: ToolAuthorization,
+    request: Request = _request,
+    journal: Journal | None = None,
     wait_control: WaitControl | None = None,
     tool_batch_scope: AbstractAsyncContextManager[None] | None = None,
-    max_turns: float = float("inf"), budget_hard: bool = False,
-    notice: Callable[[str], None] | None = None,
-    reasoning_effort: str = "max", empty_max_retries: float = 2,
-    empty_retry_max_tokens: float = 256000,
-    model_recovery_env: Mapping[str, str] | None = None,
-    list_other_accounts: Callable[[], Sequence[str]] | None = None,
-    switch_account_and_wait: Callable[[str], Awaitable[bool]] | None = None,
-    on_model_unavailable: Callable[[], Awaitable[None]] | None = None,
-    reflect: Callable[[str], Awaitable[str | None]] | None = None,
-    self_challenge: bool = False, long_task: bool = False,
-    progress_advice: bool = False, interactive: bool = True,
-    has_running_background: Callable[[], bool] | None = None,
+    api_tools: Callable[[], list[dict[str, Any]]] | None = None,
+    on_boundary: Callable[[], Awaitable[None]] | None = None,
+    on_tool_boundary: Callable[[], Awaitable[None]] | None = None,
+    env: Mapping[str, str] | None = None,
+    events: TurnEvents = TurnEvents(),
+    context_hooks: ContextHooks = ContextHooks(),
+    policy: TurnPolicy = TurnPolicy(),
+    recovery: ModelRecoveryHooks = ModelRecoveryHooks(),
+    feedback: ToolFeedbackOptions = ToolFeedbackOptions(),
 ) -> TurnResult:
     """执行一个已保存用户输入的回合。造成副作用前须先提交相应执行意图。"""
     wait_control = (wait_control or currentWaitControl()) if ctx.subagentDepth == 0 else None
@@ -180,16 +157,10 @@ async def run_turn(
     budget_warned = False
     retry_reasoning = False
     forcing_unsupported = False
-    generic_retried = False
-    rate_retries = 0
-    recovery_env = model_recovery_env if model_recovery_env is not None else {}
-    health, health_cfg = initHealth(), defaultHealthConfig(recovery_env)
-    progress = createProgressAdvice(recovery_env)
-    foreground = ctx.subagentDepth == 0 and not options.get("background")
-    ctx.sessionModel = session.model
-    ctx.forkToolSnapshot = None
-    event_loop = asyncio.get_running_loop()
-    active_request: object | None = None
+    recovery_env = env if env is not None else {}
+    notice = events.notice
+    on_delta = events.on_delta
+    compact = context_hooks.compact
 
     async def save() -> None:
         if journal is not None:
@@ -201,6 +172,50 @@ async def run_turn(
                         session.messages[-1]["content"] = "Error: 等待状态保存失败,未激活等待;后台结果仍待投递。"
                     wait_control.rollback()
                 raise
+
+    async def save_assistant_notice(text: str) -> None:
+        assistant = {"role": "assistant", "content": text}
+        session.messages.append(assistant)
+        await save()
+        if events.on_assistant_saved is not None:
+            events.on_assistant_saved(assistant)
+
+    model_recovery = ModelRecovery(
+        recovery_env,
+        cancelled=lambda: ctx.signal.is_set(),
+        ask_choice=lambda: ctx.askChoice,
+        save=save,
+        save_assistant_notice=save_assistant_notice,
+        notice=notice,
+        list_other_accounts=recovery.list_other_accounts,
+        switch_account_and_wait=recovery.switch_account_and_wait,
+        on_model_unavailable=recovery.on_model_unavailable,
+    )
+
+    async def append_feedback(text: str) -> None:
+        messages = [*session.messages, {"role": "system", "content": text}]
+        if journal is None:
+            session.messages = messages
+        else:
+            await journal.replace_context(session, messages, reset_prompt=False)
+
+    tool_feedback = ToolBatchFeedback(
+        recovery_env,
+        cancelled=lambda: ctx.signal.is_set(),
+        append_feedback=append_feedback,
+        notice=notice,
+        reflect=feedback.reflect,
+        self_challenge=feedback.self_challenge,
+        long_task=feedback.long_task,
+        interactive=feedback.interactive,
+        progress_advice=feedback.progress_advice,
+        productive_tools=_FORCED_TOOLS,
+    )
+    foreground = ctx.subagentDepth == 0 and not options.get("background")
+    ctx.sessionModel = session.model
+    ctx.forkToolSnapshot = None
+    event_loop = asyncio.get_running_loop()
+    active_request: _RequestStream | None = None
 
     async def compress() -> TurnResult | None:
         assert compact is not None
@@ -218,94 +233,18 @@ async def run_turn(
             return TurnResult("compaction_failed", "没有可安全缩小的历史，原文保留；本轮停止。")
         return None
 
-    async def retry_delay(ms: float) -> TurnResult | None:
-        deadline = event_loop.time() + max(0, ms) / 1000
-        while not ctx.signal.is_set():
-            remaining = deadline - event_loop.time()
-            if remaining <= 0:
-                return None
-            await asyncio.sleep(min(remaining, .05))
-        return TurnResult("cancelled", "本轮已取消。")
-
-    async def recover_rate_limit() -> TurnResult | None:
-        nonlocal rate_retries
-        await save()
-        if ctx.signal.is_set():
-            return TurnResult("cancelled", "本轮已取消。")
-        if ctx.askChoice is not None:
-            accounts = ({f"切到账号「{name}」重试": name for name in list_other_accounts()}
-                        if list_other_accounts is not None and switch_account_and_wait is not None else {})
-            choice = await ctx.askChoice("当前账号触发限流(请求频率/配额超限)。接下来怎么办?",
-                                         [_WAIT_ON_RATE_LIMIT, *accounts, _STOP_ON_RATE_LIMIT])
-            if ctx.signal.is_set():
-                return TurnResult("cancelled", "本轮已取消。")
-            if choice in accounts and switch_account_and_wait is not None:
-                target = accounts[choice]
-                try:
-                    switched = await switch_account_and_wait(target)
-                except Exception:
-                    # 配置可能已经确认写入，回执异常后直接保留现场。
-                    return TurnResult("failed", "限流时切换账号的结果未确认，原现场已保留；本轮已停止。")
-                if ctx.signal.is_set():
-                    return TurnResult("cancelled", "本轮已取消。")
-                if switched:
-                    if notice is not None:
-                        notice(f"[已切换到账号「{target}」,继续重试…]")
-                    return None
-                if notice is not None:
-                    notice(f"[切换到账号「{target}」失败,仍在原账号]")
-                return TurnResult("failed", _RATE_LIMIT_STOPPED)
-            if choice != _WAIT_ON_RATE_LIMIT:
-                return TurnResult("failed", _RATE_LIMIT_STOPPED)
-        elif rate_retries >= _retry_setting("RATE_LIMIT_MAX_RETRIES", 5, recovery_env):
-            return TurnResult("failed", _RATE_LIMIT_STOPPED)
-        rate_retries += 1
-        ms = min(_retry_setting("RATE_LIMIT_WAIT_MS", 5000, recovery_env) * rate_retries, 30000)
-        if notice is not None:
-            notice(f"[限流,等待 {max(0, ms) / 1000:g}s 后用当前模型重试…]")
-        return await retry_delay(ms)
-
-    async def recover_unavailable() -> TurnResult | None:
-        nonlocal generic_retried
-        if not generic_retried:
-            generic_retried = True
-            await save()
-            if notice is not None:
-                notice("[请求失败(疑似过载/超时/网络问题),用当前模型重试一次…]")
-            return await retry_delay(_retry_setting("HARD_RETRY_DELAY_MS", 1000, recovery_env))
-        end = ("已停止本轮，已有进展、对话上下文和任务清单均已保留；可稍后重新发送消息继续，或用 /account 切换账号。"
-               if ctx.askChoice is not None else "本次运行到此结束，已保留的上下文和任务清单不受影响。")
-        note = "模型请求持续失败(疑似过载/超时/网络问题),重试一次仍未恢复。" + end
-        assistant = {"role": "assistant", "content": note}
-        session.messages.append(assistant)
-        await save()
-        if on_assistant_saved is not None:
-            on_assistant_saved(assistant)
-        if on_model_unavailable is not None and not ctx.signal.is_set():
-            try:
-                await on_model_unavailable()
-            except Exception:
-                return TurnResult("model_unavailable", note + "后台停止结果未确认，请查看任务状态。")
-        return TurnResult("model_unavailable", note)
-
     while not ctx.signal.is_set():
         if boundary:
-            if turns >= max_turns:
+            if turns >= policy.max_turns:
                 await save()
                 return TurnResult("turn_limit", "已达最大轮数，记录已保存。")
             if session.overBudget():
                 if not budget_warned and notice:
                     notice(f"[成本提醒] 本次进程费用约 ¥{session.costCNY():.2f}，已达阈值 ¥{session.budgetCNY}。")
                 budget_warned = True
-                if budget_hard:
+                if policy.budget_hard:
                     await save()
                     return TurnResult("budget_limit", "已达显式硬预算上限，本轮停止。")
-            if turns > 0 and compact and should_compact and should_compact():
-                if notice:
-                    notice("[轮内接近上下文上限，自动压缩…]")
-                stopped = await compress()
-                if stopped:
-                    return stopped
             if on_boundary is not None:
                 await on_boundary()
                 if ctx.signal.is_set():
@@ -317,18 +256,18 @@ async def run_turn(
         opts["tools"] = api_tools() if api_tools is not None else registry.toApiTools()
         if opts["tools"]:
             opts["parallelToolCalls"] = True
-        opts["extra"] = {**options.get("extra", {}), "reasoning_effort": reasoning_effort}
+        opts["extra"] = {**options.get("extra", {}), "reasoning_effort": policy.reasoning_effort}
         forced = retry_reasoning and not forcing_unsupported
         if retry_reasoning:
             opts["extra"]["reasoning_effort"] = "low"
-            opts["maxTokens"] = cast(int, empty_retry_max_tokens)
+            opts["maxTokens"] = cast(int, policy.empty_retry_max_tokens)
             if forced:
                 productive = [tool for tool in opts["tools"] if tool["function"]["name"] in _FORCED_TOOLS]
                 opts["tools"] = productive or opts["tools"]
                 opts["extra"]["tool_choice"] = "required"
-        if request_preflight is not None:
+        if context_hooks.request_preflight is not None:
             try:
-                opts = await request_preflight(opts)
+                opts = await context_hooks.request_preflight(opts)
             except InterruptedError:
                 return TurnResult("cancelled", "上下文检查已取消，原文保留。")
             except Exception as preflight_error:
@@ -338,35 +277,32 @@ async def run_turn(
         if (ctx.subagentDepth == 0 and isinstance(registry, ToolRegistry)
                 and (ctx.runAgent is not None or ctx.launchAgent is not None)):
             ctx.forkToolSnapshot = registry.forkSnapshot(opts["tools"])
-        empty_truncation = False
+        stream = _RequestStream()
 
-        def on_empty_truncation() -> None:
-            nonlocal empty_truncation
-            empty_truncation = True
+        def on_empty_truncation(current: _RequestStream = stream) -> None:
+            if active_request is current:
+                current.empty_truncation = True
 
         opts["onEmptyTruncation"] = on_empty_truncation
         session.lastSentLength = len(session.messages)
         system = opts["messages"][0].get("content") if opts["messages"] else ""
         tools_raw = json.dumps(opts["tools"], ensure_ascii=False, separators=(",", ":"))
         session.notePrefix(cachePrefixFingerprint(opts["model"], system if isinstance(system, str) else "", tools_raw))
-        token = object()
-        active_request = token
+        active_request = stream
 
-        exposed = False
-        streamed_text: list[str] = []
-
-        def receive_delta(value: StreamDelta, request_token: object = token) -> None:
-            nonlocal exposed
+        def receive_delta(value: StreamDelta, current: _RequestStream = stream) -> None:
+            if active_request is not current:
+                return
             if value.get("kind") in {"content", "reasoning", "tool_call"}:
-                exposed = True
+                current.exposed = True
             if value.get("kind") == "content" and isinstance(value.get("text"), str):
-                streamed_text.append(value["text"])
+                current.text.append(value["text"])
             if on_delta is None:
                 return
 
             def deliver() -> None:
-                if (active_request is request_token and not ctx.signal.is_set()
-                        and (accepts_delta is None or accepts_delta())):
+                if (active_request is current and not ctx.signal.is_set()
+                        and (events.accepts_delta is None or events.accepts_delta())):
                     on_delta(value)
             try:
                 event_loop.call_soon_threadsafe(deliver)
@@ -386,7 +322,7 @@ async def run_turn(
         finally:
             active_request = None
         if response is not None and response.usage:
-            session.addUsage(cast(Usage, response.usage), opts["model"])
+            session.addPrimaryUsage(cast(Usage, response.usage), opts["model"])
             if ctx.cacheAudit is not None:
                 redact = ctx.auditRedact or str
                 identity = getObsMeta()
@@ -402,7 +338,7 @@ async def run_turn(
                 except Exception:
                     pass  # 观测失败时，模型结果和工具派发照常完成。
         message = copy.deepcopy(response.message) if response is not None else {}
-        content = message.get("content") or "".join(streamed_text)
+        content = message.get("content") or "".join(stream.text)
         if ctx.signal.is_set() or response is not None and response.cancelled:
             if content:
                 # 取消时保留已展示的部分文字，收集到的工具调用不再派发。
@@ -412,7 +348,7 @@ async def run_turn(
         if response is None or response.status != "complete":
             failure = (response.error or "模型回答未完成，工具未执行。" if response is not None
                        else f"模型请求失败：{type(request_error).__name__}")
-            if (exposed or content or message.get("tool_calls") or
+            if (stream.exposed or content or message.get("tool_calls") or
                     response is not None and (response.status == "partial" or response.deltas)):
                 if content:
                     session.messages.append({"role": "assistant", "content": content})
@@ -430,15 +366,15 @@ async def run_turn(
                     continue
                 return TurnResult("context_limit", "上下文仍达模型上限，记录已保留；请调整窗口或启动新会话。")
             if foreground and (status == 429 or isRateLimitError(error)):
-                stopped = await recover_rate_limit()
-                if stopped is not None:
-                    return stopped
+                recovery_stopped = await model_recovery.recover_rate_limit()
+                if recovery_stopped is not None:
+                    return TurnResult(*recovery_stopped)
                 continue
             if foreground and (isRetryable(error) or _TRANSIENT_MODEL_FAILURE.search(f"{type(error).__name__} {error}")
                                or isinstance(status, int) and 500 <= status <= 599):
-                stopped = await recover_unavailable()
-                if stopped is not None:
-                    return stopped
+                recovery_stopped = await model_recovery.recover_unavailable()
+                if recovery_stopped is not None:
+                    return TurnResult(*recovery_stopped)
                 continue
             if forced:
                 forcing_unsupported = True
@@ -447,7 +383,7 @@ async def run_turn(
                 continue
             await save()
             return TurnResult("failed", failure)
-        generic_retried, rate_retries = False, 0
+        model_recovery.reset()
         try:
             saved_calls, calls = _safe_calls(message.get("tool_calls", []))
         except ValueError as exc:
@@ -455,10 +391,10 @@ async def run_turn(
             return TurnResult("failed", str(exc))
         if not (isinstance(content, str) and content.strip()) and not calls:
             empty += 1
-            if empty > empty_max_retries:
+            if empty > policy.empty_max_retries:
                 await save()
                 return TurnResult("failed", "模型连续返回空回答，已停止本轮。")
-            retry_reasoning = empty_truncation
+            retry_reasoning = stream.empty_truncation
             forcing_unsupported = False
             if retry_reasoning:
                 session.messages.append({"role": "system", "content": EMPTY_TRUNCATION_NOTE})
@@ -479,16 +415,17 @@ async def run_turn(
             assistant["tool_calls"] = saved_calls
         session.messages.append(assistant)
         await save()
-        if on_assistant_saved is not None:
-            on_assistant_saved(assistant)
+        if events.on_assistant_saved is not None:
+            events.on_assistant_saved(assistant)
         if not calls:
             return TurnResult("complete")
 
         try:
             async with tool_batch_scope if tool_batch_scope is not None else nullcontext():
                 batch = await executeToolBatch(
-                    calls, registry, ctx, approve=approve, journal=journal, authorize=authorize,
-                    authorize_batch=authorize_batch, call_scope=call_scope, permission_mode=permission_mode,
+                    calls, registry, ctx, approve=authorization.approve, journal=journal,
+                    authorize=authorization.authorize, authorize_batch=authorization.authorize_batch,
+                    call_scope=authorization.call_scope, permission_mode=authorization.permission_mode,
                 )
         except UnknownToolOutcome as exc:
             return TurnResult("outcome_unknown", str(exc))
@@ -497,14 +434,14 @@ async def run_turn(
             wait_control.rollback()
             return TurnResult("failed", "TaskWait 需要会话保存接口。")
         await save()
-        if on_tool_message is not None:
+        if events.on_tool_message is not None:
             saved_by_id = {call["id"]: call for call in saved_calls}
             for tool_message in batch.messages:
-                on_tool_message(saved_by_id[tool_message["tool_call_id"]], tool_message)
-        if on_tool_result is not None:
+                events.on_tool_message(saved_by_id[tool_message["tool_call_id"]], tool_message)
+        if events.on_tool_result is not None:
             names = {call_id: name for call_id, name, raw in calls}
             for tool_message in batch.messages:
-                on_tool_result(names[tool_message["tool_call_id"]], tool_message["content"])
+                events.on_tool_result(names[tool_message["tool_call_id"]], tool_message["content"])
         if batch.approval_incomplete:
             return TurnResult("failed", "权限确认未完成，现场已保存，本轮已停止。")
         if wait_control is not None and wait_control.pending:
@@ -524,44 +461,12 @@ async def run_turn(
             # 助手和工具结果配对、图片投影也已提交后，才发布工具批产生的会话状态。
             await on_tool_boundary()
         batch_names = [name for _, name, _ in calls]
-        running_background = has_running_background() if has_running_background is not None else False
-        advice = progress.step(batch_names, runningBackground=running_background, interactive=interactive, enabled=progress_advice)
-        if advice and not ctx.signal.is_set():
-            messages = [*session.messages, {"role": "system", "content": advice}]
-            if journal is None:
-                session.messages = messages
-            else:
-                await journal.replace_context(session, messages, reset_prompt=False)
-            if progress.notice and notice:
-                notice(progress.notice)
-        if (reflect is not None or self_challenge) and not ctx.signal.is_set():
-            failures = [m["content"] for m in batch.messages if looksFailed(m["content"])]
-            progressed = any(name in _FORCED_TOOLS for name in batch_names) or bool(batch_names and running_background and all(
-                name in {"BashOutput", "TaskOutput", "TaskGet", "TaskList"} for name in batch_names))
-            outcome: TurnOutcome = {"progressed": progressed,
-                                    "toolFailures": len(failures)}
-            if failures:
-                outcome["errSig"] = errSignature(failures[-1])
-            decision = assessTurn(health, outcome, health_cfg, {"longTask": long_task})
-            health = decision["next"]
-            advice = ""
-            if reflect is not None and (decision["challenger"] or decision["refocuser"]):
-                label = "审视者" if decision["challenger"] else "纠偏者"
-                if notice:
-                    notice(f"[反思：{label}…]")
-                verdict = await reflect("challenger" if decision["challenger"] else "refocuser")
-                if verdict and not ctx.signal.is_set():
-                    advice = f"[{label}]\n{verdict}"
-            elif self_challenge and decision["challenger"]:
-                advice = SELF_CHALLENGE_NUDGE
-            if advice:
-                messages = [*session.messages, {"role": "system", "content": advice}]
-                if journal is None:
-                    session.messages = messages
-                else:
-                    await journal.replace_context(session, messages, reset_prompt=False)
-        if turns == max_turns - 5 and notice:
-            notice(f"[轮数提醒：接近最大轮数 {turns + 1}/{max_turns:g}]")
+        running_background = (
+            feedback.has_running_background() if feedback.has_running_background is not None else False
+        )
+        await tool_feedback.after_tool_batch(batch_names, batch.failure_messages(), running_background=running_background)
+        if turns == policy.max_turns - 5 and notice:
+            notice(f"[轮数提醒：接近最大轮数 {turns + 1}/{policy.max_turns:g}]")
         turns += 1
         boundary = True
     return TurnResult("cancelled", "本轮已取消。")

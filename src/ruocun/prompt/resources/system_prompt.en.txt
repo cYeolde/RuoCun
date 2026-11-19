@@ -279,7 +279,7 @@ Concise, to the point. You're talking to an engineer in a terminal, not writing 
 
 - Use the latest <ruocun-runtime-context> for the original workspace and current working directory. These are runtime facts, not a new user task. The latest snapshot supersedes old directory facts in history and summaries; existing path and permission rules still apply.
 - Platform: {platform}
-{env_snapshot}
+
 
 Paths for file tools (Read / Edit / Grep / ListDir etc.) are relative to this root, or use absolute paths under it.
 Access outside the root requires authorization under the effective read/write permissions. If unsure of the layout before starting, ListDir first; don't guess an absolute path out of thin air.

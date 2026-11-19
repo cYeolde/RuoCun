@@ -2,17 +2,18 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from .background_types import ExecutionStatus
 
 if TYPE_CHECKING:
-    from ..session.session import Session
+    from ..client.types import ChatMessage
     from .loop import TurnResult
 
 
-def settleAgentTurn(session: Session, outcome: TurnResult, *, output_start: int) -> tuple[ExecutionStatus, str]:
-    last = next((message["content"] for message in reversed(session.messages[output_start:])
+def settleAgentTurn(messages: Sequence[ChatMessage], outcome: TurnResult) -> tuple[ExecutionStatus, str]:
+    last = next((message["content"] for message in reversed(messages)
                  if message.get("role") == "assistant" and isinstance(message.get("content"), str)
                  and message["content"]), "")
     if outcome.status == "complete":

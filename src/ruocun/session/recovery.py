@@ -22,6 +22,7 @@ from .contract import (
     ToolRecord,
     ToolRef,
 )
+from .messages import projectToolResult
 from .sqlite_port import CommitUnconfirmedError, RollbackError
 
 if TYPE_CHECKING:
@@ -62,8 +63,7 @@ def repairToolPairs(
             if call_id in existing:
                 output.append(existing[call_id])
             elif record is not None and record.state == 'result_committed' and record.result is not None:
-                output.append(copy.deepcopy(record.result) if isinstance(record.result, dict) else
-                              {'role': 'tool', 'tool_call_id': call_id, 'content': record.result})
+                output.append(projectToolResult(record.result, call_id))
             else:
                 content = ('[恢复：结果未知] 操作可能已执行；必须先核实，禁止自动重试。'
                            if records is None or record is not None else

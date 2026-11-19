@@ -31,7 +31,6 @@ taskWaitTool = Tool(
     description=_TEXT["description"],
     descriptionEn=_TEXT["descriptionEn"],
     capability="read",
-    approval="auto",
     handler=_handler,
     schema=objectSchema(
         {

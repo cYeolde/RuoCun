@@ -8,8 +8,8 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from typing import Literal, TypedDict
 
-from ..client.types import ChatMessage, ContentPart, Usage
-from .cost import estimateCostByModel, formatCNY
+from ..client.types import ChatMessage, Usage
+from .cost import estimateCostByModel
 
 Mode = Literal["normal", "plan"]
 
@@ -34,7 +34,6 @@ class Session:
     def __init__(
         self, systemPrompt: str, model: str, *, env: Mapping[str, str] | None = None,
     ) -> None:
-        self._systemPrompt = systemPrompt
         self._env = env
         self.model = model
         self.mode: Mode = "normal"
@@ -44,7 +43,7 @@ class Session:
         self.lastPromptTokens: int | None = None
         self.lastSentLength = 0
         self.budgetCNY: float | None = None
-        self._lastCall: tuple[int, float] | None = None
+        self._lastCacheRatio: float | None = None
         self._cacheBustWarner: Callable[[CacheBustInfo], None] | None = None
         self._prevFp: dict[str, str] | None = None
         self._curFp: dict[str, str] | None = None
@@ -57,6 +56,7 @@ class Session:
         self._curFp = fp
 
     def addUsage(self, u: Usage, model: str | None = None) -> None:
+        """累加本次模型调用的 token 和费用依据。"""
         selected = self.model if model is None else model
         prompt = u.get("prompt_tokens", 0) or 0
         completion = u.get("completion_tokens", 0) or 0
@@ -68,17 +68,23 @@ class Session:
             totals["completionTokens"] += completion
             totals["cacheHitTokens"] += hit
             totals["cacheMissTokens"] += miss
-        if selected == self.model and prompt:
+
+    def addPrimaryUsage(self, u: Usage, model: str) -> None:
+        """登记工具循环的模型调用，并更新该循环的上下文和缓存诊断。"""
+        self.addUsage(u, model)
+        prompt = u.get("prompt_tokens", 0) or 0
+        hit = u.get("prompt_cache_hit_tokens", 0) or 0
+        if model == self.model and prompt:
             self.lastPromptTokens = prompt
-        ratio = hit / prompt if prompt > 0 else 0
         if prompt >= 4000:
-            if (self._lastCall is not None and self._lastCall[1] >= .5
-                    and self._lastCall[1] - ratio >= .5 and self._cacheBustWarner is not None):
+            ratio = hit / prompt
+            if (self._lastCacheRatio is not None and self._lastCacheRatio >= .5
+                    and self._lastCacheRatio - ratio >= .5 and self._cacheBustWarner is not None):
                 self._cacheBustWarner({
-                    "from": self._lastCall[1], "to": ratio, "promptTokens": prompt,
+                    "from": self._lastCacheRatio, "to": ratio, "promptTokens": prompt,
                     "changed": self._changedDims(),
                 })
-            self._lastCall = (prompt, ratio)
+            self._lastCacheRatio = ratio
 
     def _changedDims(self) -> list[str]:
         if self._prevFp is None or self._curFp is None:
@@ -96,37 +102,5 @@ class Session:
     def overBudget(self) -> bool:
         return self.budgetCNY is not None and self.costCNY() >= self.budgetCNY
 
-    def usageSummary(self) -> str:
-        prompt = self.usage["promptTokens"]
-        if prompt == 0:
-            return "本会话暂无 token 统计。"
-        suffix = f"(提醒阈值 {formatCNY(self.budgetCNY)})" if self.budgetCNY is not None else ""
-        return (f"累计token（可含已恢复历史）:输入 {prompt} tok(cache 命中 {self.usage['cacheHitTokens']},"
-                f"命中率 {self.cacheHitRatio() * 100:.1f}%)· 输出 {self.usage['completionTokens']} tok"
-                f" · 本次进程费用约 {formatCNY(self.costCNY())}{suffix}；历史费用不完整")
-
-    def addUser(self, content: str | list[ContentPart]) -> None:
-        self.messages.append({"role": "user", "content": content})
-
-    def clear(self) -> None:
-        self.messages = [{"role": "system", "content": self._systemPrompt}]
-        self.lastPromptTokens = None
-        self.lastSentLength = 0
-        self.usage.update(_emptyUsage())
-        self._modelUsage.clear()
-        self._lastCall = None
-
     def setModel(self, model: str) -> None:
         self.model = model
-
-    def setSystemPrompt(self, prompt: str) -> None:
-        """恢复当前能力所需的系统提示，同时保留已有对话和输入账本。"""
-        self._systemPrompt = prompt
-        if self.messages and self.messages[0].get("role") == "system":
-            self.messages[0] = {"role": "system", "content": prompt}
-        else:
-            self.messages.insert(0, {"role": "system", "content": prompt})
-
-    def toggleMode(self) -> Mode:
-        self.mode = "plan" if self.mode == "normal" else "normal"
-        return self.mode

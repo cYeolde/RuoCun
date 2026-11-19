@@ -23,7 +23,7 @@ async def _handler(args: dict[str, Any], ctx: ToolContext) -> str:
 
 notifyUserTool = Tool(
     name="NotifyUser", description=_TEXT["description"], descriptionEn=_TEXT["descriptionEn"],
-    capability="plan", approval="auto", shouldDefer=True, handler=_handler,
+    capability="plan", shouldDefer=True, handler=_handler,
     schema=objectSchema({"message": {"type": "string", "minLength": 1,
                                     "description": "要提示的内容(简明，仅显示在终端内，不发送桌面通知)"}}, ["message"]),
 )

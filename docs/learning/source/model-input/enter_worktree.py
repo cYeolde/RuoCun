@@ -55,7 +55,7 @@ async def _handler(args: dict[str, Any], ctx: ToolContext) -> str:
 
 enterWorktreeTool = Tool(
     name="EnterWorktree", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN,
-    capability="write", approval="suggest", shouldDefer=True, persistentEffect=True, handler=_handler,
+    capability="write", shouldDefer=True, persistentEffect=True, handler=_handler,
     schema=objectSchema({"name": {"type": "string", "pattern": NAME_PATTERN,
                                   "description": "worktree 名字(用作目录名和分支后缀);省略则随机生成"}}, []),
 )

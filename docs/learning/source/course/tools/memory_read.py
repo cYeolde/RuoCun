@@ -45,7 +45,7 @@ def makeMemoryReadTool(store: MemoryStore) -> Tool:
     descriptions = _TEXT["parameters"]
     return Tool(
         name="MemoryRead", description=_TEXT["description"], descriptionEn=_TEXT["descriptionEn"],
-        capability="read", approval="auto", handler=read,
+        capability="read", handler=read,
         schema=objectSchema({
             "query": {"type": "string", "minLength": 1, "description": descriptions["query"]},
             "limit": {"type": "integer", "minimum": 1, "maximum": 20, "description": descriptions["limit"]},

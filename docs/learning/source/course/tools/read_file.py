@@ -118,5 +118,5 @@ readFileTool = Tool(
         "path": {"type": "string", "description": "相对工作区根目录的文件路径"},
         "offset": {"type": "integer", "minimum": 1, "description": "起始行号(1-based,含)"},
         "limit": {"type": "integer", "minimum": 1, "description": "最多读取的行数"},
-    }, ["path"]), capability="read", approval="auto", handler=_read,
+    }, ["path"]), capability="read", handler=_read,
 )

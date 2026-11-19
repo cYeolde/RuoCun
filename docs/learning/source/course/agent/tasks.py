@@ -103,7 +103,6 @@ class _Execution:
     parent: ToolRef
     request: Request | None
     material: dict[str, Any]
-    output_start: int
     executor: asyncio.Task[None] | None = None
     worktree: Worktree | None = None
     task_send: ToolRef | None = None
@@ -501,7 +500,7 @@ class TaskManager:
         if continuation is not None:
             data.update(decision_ref=continuation.decision_id, continuation_of=asdict(continuation.previous.run_ref),
                         phase="continuation-running")
-        return _Execution(task, RunRecord(ref, kind, "running", False, data), prepared, parent, request, material, output_start)
+        return _Execution(task, RunRecord(ref, kind, "running", False, data), prepared, parent, request, material)
 
     async def launch(self, prepared: PreparedAgentRun, *, description: str, parent: ToolRef,
                      request: Request | None = None, parent_signal: Event | None = None,
@@ -548,7 +547,6 @@ class TaskManager:
                 execution = self._new(prepared, ref, entry.task.description, parent, request,
                                       kind="fork" if source.kind == "fork" else "agent")
                 execution.prepared = replace(prepared, max_turns=remaining)
-                execution.output_start = output_start
                 execution.worktree = worktree
                 execution.material["turnsRemaining"] = remaining
                 execution.archive_import = await prepareAgentArchive(self.conversation, prepared)
@@ -818,9 +816,8 @@ class TaskManager:
                                           prepared.ctx.workspaceRoot, prepared.ctx.signal, journal)
             outcome = await runPreparedAgent(prepared, journal=journal, request=execution.request,
                                              tool_batch_scope=self.conversation.agent_tool_batches, on_boundary=boundary)
-            output_view = copy.copy(prepared.session)
-            output_view.messages = await agentOutputMessages(self.conversation, execution.record)
-            status, result = settleAgentTurn(output_view, outcome, output_start=0)
+            output_messages = await agentOutputMessages(self.conversation, execution.record)
+            status, result = settleAgentTurn(output_messages, outcome)
             if status == "completed" and self.handoff is not None and prepared.parent_mode == "auto" and not prepared.ctx.signal.is_set():
                 warning = await self.handoff(self.conversation.redacted_messages(prepared.session.messages), prepared.definition.agent_type)
                 if warning:

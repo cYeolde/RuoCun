@@ -41,11 +41,6 @@ class ForegroundResult:
     outputCapped: bool = False
 
 
-def shell_argv(command: str) -> list[str]:
-    from .shell_plan import buildShellPlan
-    return list(buildShellPlan(command, os.getcwd(), analyze=False).argv)
-
-
 def scrubbed_env(environ: Mapping[str, str] | None = None) -> dict[str, str]:
     values = os.environ if environ is None else environ
     return {key: value for key, value in values.items() if not _SENSITIVE_ENV.search(key)}
@@ -133,13 +128,6 @@ def _run_posix(
     finally:
         stop_group()
         process.wait()
-
-
-def run_foreground(command: str, cwd: str, signal: threading.Event) -> ForegroundResult:
-    if signal.is_set():
-        return ForegroundResult("", "", 1, True, 0)
-    from .shell_plan import buildShellPlan
-    return run_foreground_plan(buildShellPlan(command, cwd, analyze=False), signal)
 
 
 def run_foreground_argv(

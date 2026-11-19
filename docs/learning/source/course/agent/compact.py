@@ -39,10 +39,6 @@ def estimateTokens(messages: list[ChatMessage]) -> int:
     return math.ceil(chars / 3)
 
 
-def shouldCompact(messages: list[ChatMessage], maxTokens: float, ratio: float = .85) -> bool:
-    return estimateTokens(messages) >= maxTokens * ratio
-
-
 class CompactOptions(TypedDict):
     summarize: Callable[[list[ChatMessage]], Awaitable[str]]
     retainTokens: NotRequired[int]
@@ -267,32 +263,3 @@ async def buildCompaction(
     replacements.extend(CompactionReplacement("prune", len(anchors) + 1 + tail_index, (index,), pruned[index])
                         for tail_index, index in enumerate(tail) if index in pruned)
     return CompactionCandidate(result, tuple(origins), tuple(replacements), before, after, "summarized")
-
-
-async def compactMessages(
-    messages: list[ChatMessage], opts: CompactOptions, pinned: str | None = None,
-) -> list[ChatMessage]:
-    """兼容入口只准备压缩候选。归档和上下文替换由调用方确认。"""
-    return (await buildCompaction(messages, opts, pinned)).messages
-
-
-def stripImagesFromMessages(messages: list[ChatMessage]) -> list[ChatMessage]:
-    """摘要请求把图片替换为 [image]，纯文本沿用原对象，保留完整原消息供归档。"""
-    result: list[ChatMessage] = []
-    for message in messages:
-        content = message.get("content")
-        if not isinstance(content, list):
-            result.append(message)
-            continue
-        changed = False
-        stripped: list[ContentPart] = []
-        for part in content:
-            if part["type"] == "image_url":
-                changed = True
-                if not (stripped and stripped[-1].get("type") == "text"
-                        and stripped[-1].get("text") == "[image]"):
-                    stripped.append({"type": "text", "text": "[image]"})
-            else:
-                stripped.append(part)
-        result.append({**message, "content": stripped} if changed else message)
-    return result

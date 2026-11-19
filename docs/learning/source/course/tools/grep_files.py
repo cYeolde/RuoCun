@@ -221,5 +221,5 @@ grepFilesTool = Tool(
         "<<...>> match and match_context for nearby characters. Check the reported search "
         "scope and truncation."
     ), schema=objectSchema(_PROPERTIES, ["pattern"]),
-    capability="read", approval="auto", handler=_grep,
+    capability="read", handler=_grep,
 )

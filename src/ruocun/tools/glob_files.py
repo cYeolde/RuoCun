@@ -48,7 +48,7 @@ globFilesTool = Tool(
     schema=objectSchema({
         "glob": {"type": "string", "description": "文件名/路径 glob"},
         "path": {"type": "string", "description": "搜索子目录或具体某个文件,默认工作区根"},
-    }, ["glob"]), capability="read", approval="auto", handler=_glob,
+    }, ["glob"]), capability="read", handler=_glob,
 )
 
 # 为调用方保留文件搜索工具的原有名称。

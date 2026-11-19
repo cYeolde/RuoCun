@@ -72,27 +72,6 @@ def summarizePermTrace(events: Iterable[Mapping[str, object]]) -> list[PermStat]
     return sorted(groups.values(), key=lambda row: (-row["askRate"], -row["total"]))
 
 
-def readAllPermTraces(sessionsRoot: str | Path) -> list[dict[str, object]]:
-    events: list[dict[str, object]] = []
-    try:
-        directories = sorted(Path(sessionsRoot).iterdir())
-    except OSError:
-        return events
-    for directory in directories:
-        try:
-            raw = (directory / "perm-trace.jsonl").read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            continue
-        for line in raw.split("\n"):
-            try:
-                event = json.loads(line)
-            except ValueError:
-                continue
-            if isinstance(event, dict):
-                events.append(event)
-    return events
-
-
 def formatPermReport(stats: list[PermStat]) -> str:
     if not stats:
         return "暂无权限裁决记录。"

@@ -12,7 +12,7 @@ import threading
 import time
 from collections.abc import Awaitable, Callable, Sequence
 from contextlib import AbstractContextManager, nullcontext
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from typing import Any, Protocol
 
 from ..client.types import ChatMessage, ImageData
@@ -21,7 +21,8 @@ from ..hooks.journal import HookOutcomeUnknown, hookJSON, runJournaledHooks
 from ..obs.backend import getObsMeta, getObsSession, observationScope
 from ..obs.wrap import wrapToolHandler
 from ..session.contract import ToolResult
-from .execute import Approval, Registry, looksFailed, permitted
+from ..session.messages import projectToolResult
+from .execute import Approval, Registry, ShellToolOutput, looksFailed, permitted
 from .types import Tool, ToolContext, ToolRejected
 
 _MAX_CONCURRENCY = 8
@@ -62,6 +63,18 @@ class _ApprovalIncomplete(RuntimeError):
 class BatchOutcome:
     messages: list[ChatMessage]
     approval_incomplete: bool
+    shell_failures: dict[str, bool] = field(default_factory=dict)
+
+    def failure_messages(self) -> list[str]:
+        failures = []
+        for message in self.messages:
+            content = message["content"]
+            failed = self.shell_failures.get(message["tool_call_id"])
+            if failed is None:
+                failed = looksFailed(content)
+            if failed:
+                failures.append(content)
+        return failures
 
 
 def _message(call_id: str, text: str, image: ImageData | None = None) -> ChatMessage:
@@ -89,7 +102,7 @@ async def _invoke_tool_hook(
 
 async def executeToolBatch(
     calls: list[tuple[str, str, str]], registry: Registry, ctx: ToolContext, *,
-    approve: Approval, journal: ToolJournal | None,
+    approve: Approval | None, journal: ToolJournal | None,
     authorize: Authorize | None, authorize_batch: BatchAuthorize | None,
     call_scope: CallScope | None, permission_mode: Callable[[], str] | None,
 ) -> BatchOutcome:
@@ -107,7 +120,7 @@ async def executeToolBatch(
                                            call_scope=call_scope, permission_mode=permission_mode) if others else BatchOutcome([], False)
         by_id = {message["tool_call_id"]: message for message in completed.messages}
         return BatchOutcome([by_id.get(call_id, _message(call_id, "Error: TaskWait 必须单独调用,本批未登记等待。"))
-                             for call_id, _, _ in calls], completed.approval_incomplete)
+                             for call_id, _, _ in calls], completed.approval_incomplete, completed.shell_failures)
     ctx.currentImageData = None
     todo_missing = False
     if ctx.headless and ctx.todoWriteRequired and not ctx.todoWriteRequired.get("done"):
@@ -129,6 +142,7 @@ async def executeToolBatch(
     arguments: dict[str, dict[str, Any]] = {}
     invalid_exec: set[str] = set()
     failed_exec: set[str] = set()
+    shell_failures: dict[str, bool] = {}
     hooks = ctx.toolHooks
     pre_hooks: dict[str, HookOutcome] = {}
     post_hooks: dict[str, tuple[HookSpec, ...]] = {}
@@ -207,6 +221,8 @@ async def executeToolBatch(
                 return _message(call_id, hook_denied(call))
             if authorize_batch is None:
                 try:
+                    if approve is None:
+                        raise _ApprovalIncomplete
                     allowed = await (authorize(tool, raw) if authorize is not None
                                      else permitted(tool, arguments[call_id], approve))
                     if allowed and call.hook_decision == "ask":
@@ -224,8 +240,15 @@ async def executeToolBatch(
             if journal is not None:
                 cached = await journal.intent(call_id, tool.name, raw, effect)
                 if cached is not None:
-                    message = copy.deepcopy(cached) if isinstance(cached, dict) else _message(call_id, cached)
-                    if tool.capability == "exec" and looksFailed(message["content"]):
+                    shell_failed = cached.get("shellFailed") if isinstance(cached, dict) else None
+                    if isinstance(cached, ShellToolOutput):
+                        shell_failed = cached.failed
+                    if type(shell_failed) is bool:
+                        shell_failures[call_id] = shell_failed
+                    message = projectToolResult(cached, call_id)
+                    if tool.capability == "exec" and (
+                        shell_failed if type(shell_failed) is bool else looksFailed(message["content"])
+                    ):
                         failed_exec.add(call_id)
                     return message
             image = None
@@ -233,6 +256,7 @@ async def executeToolBatch(
             if reason := stop_reason(tool):
                 # 执行意图已经落盘，此时仍可在进入处理器前停止。
                 result = reason
+                failed = True
             else:
                 # 给每次 Read 单独留出图片结果槽，避免并行读取串用结果。
                 # 读取基线、取消信号和技能回调继续使用业务循环的共享上下文。
@@ -242,13 +266,22 @@ async def executeToolBatch(
                     with observationScope(toolCallId=call_id):
                         result = await wrapToolHandler(registry.dispatch, tool.name, raw)(tool.name, raw, call_ctx)
                     finished_handler = True
+                    if isinstance(result, ShellToolOutput):
+                        shell_failures[call_id] = result.failed
+                        result = str(result)
                     if hooks is not None and (pre := pre_hooks.get(call_id)) is not None and pre.additional_context:
                         result += "\n[hook 提示] " + hooks.redacted(pre.additional_context)
                     if tool.name == "Read":
                         image = call_ctx.currentImageData
-                    trace_ok = not looksFailed(result) and "被 hook 阻止" not in result
+                    if call_id in shell_failures:
+                        failed = shell_failures[call_id]
+                        trace_ok = not failed
+                    else:
+                        failed = looksFailed(result)
+                        trace_ok = not failed and "被 hook 阻止" not in result
                 except ToolRejected as exc:
                     result = f"Error: {exc}"
+                    failed = True
                 except Exception as exc:
                     if effect:
                         if isinstance(exc, UnknownToolOutcome):
@@ -257,6 +290,7 @@ async def executeToolBatch(
                             f"工具执行结果未确认（{type(exc).__name__}），已停止；请检查工作目录。"
                         ) from exc
                     result = f"Error: 工具读取失败（{type(exc).__name__}）。"
+                    failed = True
                 finally:
                     if ctx.toolAudit is not None:
                         try:
@@ -265,12 +299,14 @@ async def executeToolBatch(
                                 metadata={**getObsMeta(), "sessionId": getObsSession() or "", "toolCallId": call_id})
                         except Exception:
                             pass  # 审计失败时保留已经取得的工具结果，避免重放。
-                if tool.capability == "exec" and looksFailed(result):
+                if tool.capability == "exec" and failed:
                     failed_exec.add(call_id)
             if journal is not None:
                 try:
                     if image is None:
-                        await journal.result(call_id, result)
+                        saved = (ShellToolOutput(result, failed=shell_failures[call_id])
+                                 if call_id in shell_failures else result)
+                        await journal.result(call_id, saved)
                     else:
                         await journal.result(call_id, result, image)
                 except Exception as exc:
@@ -283,7 +319,7 @@ async def executeToolBatch(
                 post_ctx = RunCtx(hook_cwd, tool_name=tool.name, args_json=raw,
                                   payload={"tool": tool.name, "args": raw, "result": result})
                 await _invoke_tool_hook(hooks, "PostToolUse", call_id, post_ctx, ctx.signal, post_hooks[call_id], journal)
-            await audit(call, "failed" if looksFailed(result) else "completed")
+            await audit(call, "failed" if failed else "completed")
             return _message(call_id, result, image)
 
     async def settle(group: list[BatchCall]) -> None:
@@ -367,4 +403,4 @@ async def executeToolBatch(
         for call_id, _, _ in calls:
             results.setdefault(call_id, _message(call_id, _APPROVAL_INCOMPLETE))
 
-    return BatchOutcome([results[call_id] for call_id, _, _ in calls], incomplete)
+    return BatchOutcome([results[call_id] for call_id, _, _ in calls], incomplete, shell_failures)

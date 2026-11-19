@@ -57,8 +57,13 @@ def test_missing_old_throws(tmp_path):
         edit(tmp_path, "hello", "nope", "x")
 
 
-def test_normalizes_lookalike_punctuation(tmp_path):
-    out = edit(tmp_path, "免一次审批——下一步", "免一次审批--下一步", "done")
+@pytest.mark.parametrize(("raw", "old"), [
+    ("免一次审批——下一步", "免一次审批--下一步"),
+    ('const s = "hello";', "const s = “hello”;"),
+    ("先做 A,再做 B。", "先做 A，再做 B."),
+])
+def test_normalizes_lookalike_punctuation(tmp_path, raw, old):
+    out = edit(tmp_path, raw, old, "done")
     assert "done" in out
     assert (tmp_path / "f.txt").read_text(encoding="utf-8") == "done"
 
@@ -79,8 +84,8 @@ def test_dollars_are_literal(tmp_path):
     assert (tmp_path / "f.txt").read_text(encoding="utf-8") == "price $100 & $& and $1 end"
 
 
-def test_declares_write_required():
-    assert (editFileTool.name, editFileTool.capability, editFileTool.approval) == ("Edit", "write", "required")
+def test_declares_write_capability():
+    assert (editFileTool.name, editFileTool.capability) == ("Edit", "write")
     expected = json.loads((Path(__file__).parent / "fixtures/n2-editjournal/descriptions.json").read_text(encoding="utf-8"))["Edit"]
     registry = ToolRegistry()
     registry.register(editFileTool)

@@ -14,7 +14,7 @@ from ..config.compat import resolve_env
 
 class SkillTraceEvent(TypedDict):
     kind: Literal["loaded"]
-    round: int
+    inputId: str
     ts: int
     name: str
 
@@ -26,11 +26,11 @@ class SkillStat(TypedDict):
 
 
 class SkillAuditSink(Protocol):
-    def loaded(self, round: int, name: str) -> None: ...
+    def loaded(self, input_id: str, name: str) -> None: ...
 
 
 class _Noop:
-    def loaded(self, round: int, name: str) -> None:
+    def loaded(self, input_id: str, name: str) -> None:
         pass
 
 
@@ -42,8 +42,10 @@ class _Sink:
         except OSError:
             pass
 
-    def loaded(self, round: int, name: str) -> None:
-        event: SkillTraceEvent = {"kind": "loaded", "round": round, "ts": time.time_ns() // 1_000_000, "name": name}
+    def loaded(self, input_id: str, name: str) -> None:
+        event: SkillTraceEvent = {
+            "kind": "loaded", "inputId": input_id, "ts": time.time_ns() // 1_000_000, "name": name,
+        }
         try:
             with self.file.open("a", encoding="utf-8", errors="backslashreplace", newline="\n") as trace:
                 trace.write(json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n")
@@ -60,42 +62,20 @@ def createSkillAuditSink(sessionDir: str | Path, env: Mapping[str, str] | None =
 
 
 def summarizeSkillTrace(events: Iterable[Mapping[str, object]]) -> list[SkillStat]:
-    groups: dict[str, tuple[set[int], int]] = {}
+    groups: dict[str, tuple[set[str], int]] = {}
     for event in events:
-        if event.get("kind") != "loaded":
+        if event.get("kind") != "loaded" or type(event.get("ts")) is not int:
             continue
-        name, round_id = event.get("name"), event.get("round")
-        if not isinstance(name, str) or not isinstance(round_id, int):
+        name, input_id = event.get("name"), event.get("inputId")
+        if not isinstance(name, str) or not (isinstance(input_id, str) or type(event.get("round")) is int):
             continue
         rounds, total = groups.setdefault(name, (set(), 0))
-        rounds.add(round_id)
+        if isinstance(input_id, str) and input_id:
+            rounds.add(input_id)
         groups[name] = (rounds, total + 1)
     stats: list[SkillStat] = [{"name": name, "loaded": len(rounds), "total": total}
                              for name, (rounds, total) in groups.items()]
     return sorted(stats, key=lambda stat: (-stat["loaded"], -stat["total"]))
-
-
-def readAllSkillTraces(sessionsRoot: str | Path) -> list[SkillTraceEvent]:
-    try:
-        sessions = sorted(Path(sessionsRoot).iterdir())
-    except OSError:
-        return []
-    events: list[SkillTraceEvent] = []
-    for session in sessions:
-        try:
-            raw = (session / "skill-trace.jsonl").read_bytes().decode("utf-8", errors="replace")
-            lines = raw.split("\n")  # JSONL 记录以 LF 切分，字段里的 Unicode 分隔符仍属于内容。
-        except OSError:
-            continue
-        for line in lines:
-            try:
-                event = json.loads(line)
-            except ValueError:
-                continue
-            if (isinstance(event, dict) and event.get("kind") == "loaded" and isinstance(event.get("name"), str)
-                    and type(event.get("round")) is int and type(event.get("ts")) is int):
-                events.append({"kind": "loaded", "name": event["name"], "round": event["round"], "ts": event["ts"]})
-    return events
 
 
 def formatSkillReport(stats: Iterable[SkillStat]) -> str:
@@ -107,7 +87,8 @@ def formatSkillReport(stats: Iterable[SkillStat]) -> str:
     if not rows:
         return "暂无技能加载记录(跑几轮带技能的任务后再看;RUOCUN_SKILL_AUDIT=0 会关闭记录)。"
     return "\n".join([
-        "技能加载审计(跨会话聚合):",
+        "技能加载审计（本会话）",
+        "  加载轮数按已确认输入 ID 去重；缺少输入 ID 的记录只计入总次数。",
         "  记的是模型实际加载了哪些 skill;'该加载却没加载'需 LLM 裁判判断(本表不含)。",
         *rows,
     ])

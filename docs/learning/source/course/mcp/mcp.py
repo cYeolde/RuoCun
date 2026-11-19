@@ -423,10 +423,6 @@ class McpManager:
             self.on_server_change(self.redact(text))
 
     @property
-    def connectedCount(self) -> int:
-        return len(self._holders)
-
-    @property
     def executionConfigDigest(self) -> str:
         value = {name: holder.config for name, holder in self._holders.items()}
         raw = json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
@@ -489,7 +485,7 @@ class McpManager:
                 result = await self._invoke(connection, method, params, ctx)
                 return result if isinstance(result, str) else format_result(result)
             return Tool(name=f"mcp__{name}__{suffix}", description=description, schema=schema, apiParameters=api,
-                        capability="network", approval="suggest", handler=handler, persistentEffect=True)
+                        capability="network", handler=handler, persistentEffect=True)
 
         if "resources" in connection.capabilities:
             tools.append(capability("list_resources", f"列出 MCP server「{name}」当前暴露的全部 resource(uri + 名称,实时查询)。",
@@ -559,7 +555,7 @@ class McpManager:
             return result if isinstance(result, str) else unpack(result)
 
         return Tool(name=f"mcp__{server}__{name}", description=definition.get("description", f"MCP {server} 工具 {name}"),
-                    schema={"type": "object"}, apiParameters=parameters, capability="network", approval="suggest",
+                    schema={"type": "object"}, apiParameters=parameters, capability="network",
                     handler=handler, persistentEffect=True)
 
     async def disconnectServer(self, name: str) -> None:
@@ -625,7 +621,7 @@ class McpManager:
         for name in self.config.get("mcpServers", {}):
             connected, disabled = name in self._holders, name in self._disabled
             result.append({"name": name, "tools": self.registry.countByPrefix(f"mcp__{name}__") if connected else 0,
-                           "resources": 0, "prompts": 0, "ok": connected, "disabled": disabled and not connected,
+                           "ok": connected, "disabled": disabled and not connected,
                            **({"error": self._errors.get(name, "未连接")} if not connected and not disabled else {})})
         return result
 

@@ -9,7 +9,7 @@ from typing import Any, TypeVar
 from ..client.types import StreamChatOptions, Usage
 from ..tools.execute import looksFailed
 from .attrs import TAGS_KEY, cacheLow, cacheTag, llmAttributes
-from .backend import getBackend, obsEvent, safeValue, spanScope, startSpan
+from .backend import getBackend, obsEvent, safeValue, spanScope
 
 R = TypeVar("R")
 SPAN_OUTPUT = "lmnr.span.output"
@@ -62,22 +62,6 @@ def wrapRequest(inner: Callable[..., R]) -> Callable[..., R]:
     return wrapped
 
 
-# streamChat 和 streamChatResilient 都在 Python 侧返回完整请求结果。
-# 增量仍由回调在同一次请求期间逐步转发。
-wrapStreamChat = wrapRequest
-
-
-def wrapRunTurn(inner: Callable[..., Awaitable[R]]) -> Callable[..., Awaitable[R]]:
-    if getBackend() is None:
-        return inner
-
-    @wraps(inner)
-    async def wrapped(*args: Any, **kwargs: Any) -> R:
-        with spanScope("turn"):
-            return await inner(*args, **kwargs)
-    return wrapped
-
-
 def wrapToolHandler(inner: Callable[..., Awaitable[R]], name: str,
                     raw_args: str = "") -> Callable[..., Awaitable[R]]:
     if getBackend() is None:
@@ -93,31 +77,4 @@ def wrapToolHandler(inner: Callable[..., Awaitable[R]], name: str,
                 if looksFailed(content):
                     obsEvent("tool_error", {"tool": name})
             return result
-    return wrapped
-
-
-def wrapToolExec(inner: Callable[..., Awaitable[R]]) -> Callable[..., Awaitable[R]]:
-    """对批工具调用沿用批耗时近似。普通分发按各处理器的真实范围观测。"""
-    if getBackend() is None:
-        return inner
-
-    @wraps(inner)
-    async def wrapped(calls: list[tuple[str, str, str]], *args: Any, **kwargs: Any) -> R:
-        spans = {call_id: startSpan("tool." + name, spanType="TOOL", input=truncate(raw))
-                 for call_id, name, raw in calls}
-        names = {call_id: name for call_id, name, _ in calls}
-        try:
-            result = await inner(calls, *args, **kwargs)
-            for message in getattr(result, "messages", []):
-                content = message.get("content", "")
-                content = content if isinstance(content, str) else ""
-                call_id = message.get("tool_call_id")
-                if call_id in spans:
-                    spans[call_id].setAttributes({SPAN_OUTPUT: truncate(content)})
-                if looksFailed(content):
-                    obsEvent("tool_error", {"tool": names.get(call_id, "?")})
-            return result
-        finally:
-            for span in spans.values():
-                span.end()
     return wrapped

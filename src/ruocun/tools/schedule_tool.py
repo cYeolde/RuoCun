@@ -40,7 +40,7 @@ def createScheduleTools(service: ScheduleService | None = None) -> tuple[Tool, T
             await current.remove(args["index"], output.append, ctx.signal)
         return "".join(output).strip() or "(完成)"
     tool = Tool(name="Schedule", description=scheduleTool_DESCRIPTION, descriptionEn=scheduleTool_DESCRIPTIONEN,
-                schema=_SCHEMA, capability="exec", approval="required", shouldDefer=True, handler=handler)
+                schema=_SCHEMA, capability="exec", shouldDefer=True, handler=handler)
     return tool, *createCronTools(current)
 
 

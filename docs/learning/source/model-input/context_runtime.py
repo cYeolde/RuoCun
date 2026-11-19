@@ -172,33 +172,38 @@ class ContextManager:
 
     def needs_compaction(self, options: StreamChatOptions) -> bool:
         prepared = self.prepare_request(options)
-        body = self.request_body(prepared)
-        budget = self.request_budget(prepared)
-        return estimateRequestTokens(body) >= budget.threshold_tokens
+        used, threshold = self._measure_request(prepared)
+        return used >= threshold
 
     def request_budget(self, options: StreamChatOptions) -> CompactionBudget:
-        body = self.request_body(options)
+        return self._budget_from_body(self.request_body(options))
+
+    def _budget_from_body(self, body: dict[str, object]) -> CompactionBudget:
         output = body.get("max_output_tokens", body.get("max_completion_tokens", body.get("max_tokens")))
         return resolveCompactionBudget(int(self.context_window), cast(int, output), env=self.env)
 
+    def _measure_request(self, prepared: StreamChatOptions) -> tuple[int, int]:
+        body = self.request_body(prepared)
+        budget = self._budget_from_body(body)
+        return estimateRequestTokens(body), budget.threshold_tokens
+
     async def before_request(self, options: StreamChatOptions) -> StreamChatOptions:
         """核对当前完整请求。需要压缩时，要求结果确实缩短上下文后再继续。"""
-        for _attempt in range(2):
+        for attempt in range(3):
             await self._ensureRuntimeContext()
             current = cast(StreamChatOptions, {**options, "messages": copy.deepcopy(self.session.messages)})
-            prepared = self.prepare_request(current)
-            if not self.needs_compaction(prepared):
+            # 发请求的调用方会加流式回调，留给压缩的请求快照需保持独立。
+            prepared = self.prepare_request(current).copy()
+            before, threshold = self._measure_request(prepared)
+            if before < threshold:
                 return prepared
-            before = estimateRequestTokens(self.request_body(prepared))
+            if attempt == 2:
+                break
             await self.compact(request_options=prepared)
             following = cast(StreamChatOptions, {**prepared, "messages": copy.deepcopy(self.session.messages)})
             if estimateRequestTokens(self.request_body(following)) >= before:
                 raise CompactionFailed("上下文超出预算且没有可安全缩小的历史，原文保留；本轮停止。")
-        await self._ensureRuntimeContext()
-        final = self.prepare_request(cast(StreamChatOptions, {**options, "messages": copy.deepcopy(self.session.messages)}))
-        if self.needs_compaction(final):
-            raise CompactionFailed("有界压缩后上下文仍超出预算，已保存进展；本轮停止。")
-        return final
+        raise CompactionFailed("有界压缩后上下文仍超出预算，已保存进展；本轮停止。")
 
     async def _ensureRuntimeContext(self) -> None:
         if self.ctx.signal.is_set():

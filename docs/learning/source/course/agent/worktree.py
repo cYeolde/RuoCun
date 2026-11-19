@@ -191,31 +191,22 @@ class Worktree:
         except (OSError, UnicodeError) as exc:
             raise GitBoundaryError("无法核实 worktree 身份，保留现场。") from exc
 
-    def _dirty(self, *, ignored: bool = False) -> bool:
-        args = ["status", "--porcelain=v1", "-z", "--untracked-files=all"]
-        if ignored:
-            args.append("--ignored=matching")
+    def _dirty(self) -> bool:
+        args = ["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored=matching"]
         return bool(self._git.run(Path(self.root), args).stdout)
 
     def _commits(self, head: str) -> bool:
         # 双横线分隔路径参数，避免 Git 把长修订范围误当作文件名。
         return bool(self._git.read(Path(self.root), "rev-list", "-1", f"{self._base}..{head}", "--"))
 
-    def hasChanges(self) -> bool:
-        self._checked_head()
-        return self._dirty()
-
     def verify(self) -> None:
         """检查活动所有权凭证是否仍指向同一工作树。"""
         self._checked_head()
 
-    def hasUnpushedCommits(self) -> bool:
-        return self._commits(self._checked_head())
-
     def cleanup(self, *, discard_changes: bool = False) -> None:
         head = self._checked_head()
         if not discard_changes:
-            dirty, commits = self._dirty(ignored=True), self._commits(head)
+            dirty, commits = self._dirty(), self._commits(head)
             if dirty or commits:
                 raise WorktreeChanges(dirty, commits)
         if self._checked_head() != head:

@@ -443,12 +443,6 @@ class StoragePort(Protocol):
         """读取已提交的检查点回执。未找到时仍可能有请求在执行。"""
         ...
 
-    def record_recovery_decision(
-        self, owner: DbOwner, decision_id: str, target: str, decision: str, explanation: str
-    ) -> None:
-        """同一决定可用原 ID 读取此前结果，内容冲突会被拒绝。核实结果不会重放工具。"""
-        ...
-
     def prepare_recovery(self, owner: DbOwner, material_errors: dict[str, str] | None = None) -> None:
         """标记已失联的执行器和缺失附件，供恢复流程核对。"""
         ...

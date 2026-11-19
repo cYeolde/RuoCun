@@ -44,7 +44,7 @@ async def _handler(args: dict[str, Any], ctx: ToolContext) -> str:
 
 
 taskListTool = Tool(
-    name="TaskList", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN, capability="read", approval="auto",
+    name="TaskList", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN, capability="read",
     handler=_handler, schema=objectSchema({
         "include_finished": {"type": "boolean", "description": "是否连已结束(完成/失败/取消)的任务也列出,默认 false"},
     }, []),

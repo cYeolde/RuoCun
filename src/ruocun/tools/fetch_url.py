@@ -67,4 +67,4 @@ DESCRIPTION_EN = (
 )
 
 fetchUrlTool = Tool(name="WebFetch", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN,
-                    schema=_SCHEMA, capability="network", approval="suggest", handler=_handler)
+                    schema=_SCHEMA, capability="network", handler=_handler)

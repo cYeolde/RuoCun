@@ -76,7 +76,7 @@ DESCRIPTION_EN = (
 
 askUserTool = Tool(
     name="AskUserQuestion", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN,
-    capability="read", approval="auto", handler=_handle,
+    capability="read", handler=_handle,
     schema=objectSchema({
         "question": {"type": "string", "description": "要问用户的问题(简写模式,与 questions 二选一)"},
         "options": {"type": "array", "items": {"type": "string"}, "minItems": 2,

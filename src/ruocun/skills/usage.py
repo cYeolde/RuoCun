@@ -1,11 +1,9 @@
-"""读写技能使用记录，并按调用频次和时间衰减计算排序分数。"""
+"""保存技能调用次数和最近使用日期。"""
 
 from __future__ import annotations
 
 import asyncio
 import json
-import math
-from datetime import date
 from pathlib import Path
 from typing import Literal, TypedDict, cast
 
@@ -25,17 +23,6 @@ UsageSaveResult = Literal["saved", "failed", "unknown"]
 def recordUsage(usage: UsageMap, name: str, today: str) -> UsageMap:
     count = usage[name]["count"] if name in usage else 0
     return {**usage, name: {"count": count + 1, "lastUsedAt": today}}
-
-
-def usageScore(usage: UsageMap, name: str, today: str) -> float:
-    if name not in usage:
-        return 0
-    entry = usage[name]
-    try:
-        days = abs((date.fromisoformat(today) - date.fromisoformat(entry["lastUsedAt"])).days)
-    except ValueError:
-        days = 0
-    return entry["count"] * max(math.pow(0.5, days / 7), 0.1)
 
 
 def _read(file: Path) -> UsageMap:

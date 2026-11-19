@@ -29,7 +29,7 @@ async def _handler(args: dict[str, Any], ctx: ToolContext) -> str:
 
 
 taskCreateTool = Tool(
-    name="TaskCreate", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN, capability="plan", approval="auto",
+    name="TaskCreate", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN, capability="plan",
     handler=_handler, schema=objectSchema({
         "description": {"type": "string", "minLength": 1, "description": "任务描述(简明扼要,会展示给用户)"},
     }, ["description"]), persistentEffect=True,

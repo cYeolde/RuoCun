@@ -39,19 +39,6 @@ def findActualString(raw: str, old: str) -> str | None:
     return old if old in raw else _lookalike_match(raw, old)
 
 
-def diagnoseMismatch(raw: str, old: str) -> str | None:
-    actual = _lookalike_match(raw, old)
-    if actual is None:
-        return None
-    for index, (wanted, found) in enumerate(zip(old, actual)):
-        if wanted != found:
-            position = _utf16_length(old[:index]) + 1
-            return (f'old_string 第 {position} 个字符是"{wanted}"(U+{ord(wanted):04X}),'
-                    f'文件里同一位置为"{found}"(U+{ord(found):04X})。'
-                    "两处字符看起来相似。请用 Read 重新取得该段文字并保留原标点。")
-    return None
-
-
 def buildEditHunk(raw: str, old: str, new: str, ctx: int = 3) -> list[str]:
     index = raw.find(old)
     if index < 0:
@@ -134,5 +121,5 @@ editFileTool = Tool(
         "old_string": {"type": "string", "description": "要被替换的原文(需唯一)"},
         "new_string": {"type": "string", "description": "替换成的新文本"},
         "replace_all": {"type": "boolean", "description": "是否替换全部出现"},
-    }, ["path", "old_string", "new_string"]), capability="write", approval="required", handler=_edit,
+    }, ["path", "old_string", "new_string"]), capability="write", handler=_edit,
 )

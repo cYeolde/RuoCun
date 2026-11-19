@@ -64,19 +64,6 @@ def max_output_tokens(environ: Mapping[str, str]) -> int:
     return _number_or(resolve_env("MAX_OUTPUT_TOKENS", environ), 128000)
 
 
-def stream_idle_ms(environ: Mapping[str, str]) -> int:
-    return _number_or(resolve_env("STREAM_IDLE_MS", environ), 240000)
-
-
-def max_continue(environ: Mapping[str, str]) -> int:
-    return _number_or(resolve_env("MAX_CONTINUE", environ), 3)
-
-
 def reasoning_effort(environ: Mapping[str, str]) -> str:
     value = resolve_env("REASONING_EFFORT", environ)
     return value if value else "max"
-
-
-def third_party(name: str, environ: Mapping[str, str]) -> str | None:
-    """按第三方协议约定的变量名读取环境值。"""
-    return environ.get(name)

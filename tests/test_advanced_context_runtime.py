@@ -57,9 +57,9 @@ def _response(text, usage=None, *, status="complete", cancelled=False):
 
 def _compactable_history(session, request):
     # B keeps a recent verbatim tail, so a summary fixture needs an actual old span.
-    session.addUser(request + "x" * 1600)
+    session.messages.append({"role": "user", "content": request + "x" * 1600})
     session.messages.append({"role": "assistant", "content": "old evidence " + "y" * 400})
-    session.addUser("最新请求原文")
+    session.messages.append({"role": "user", "content": "最新请求原文"})
 
 
 @pytest.mark.parametrize("explicit_clear", [False, True])
@@ -67,7 +67,7 @@ def test_reopened_compaction_preserves_the_pin_until_a_confirmed_empty_todo_writ
     # The two-process CLI red/green lives in evidence/test_todo_reopen_regression.py.
     async def scenario():
         manager, session, _, ctx, *_ = _manager(request=lambda _options, _context: _response("已核实的简短摘要"))
-        session.addUser("压缩前的旧材料" * 400)
+        session.messages.append({"role": "user", "content": "压缩前的旧材料" * 400})
         session.messages.append({"role": "system", "content": "[当前任务清单]\n▶ 保留尚未完成的任务"})
         if explicit_clear:
             session.messages.extend([
@@ -75,7 +75,7 @@ def test_reopened_compaction_preserves_the_pin_until_a_confirmed_empty_todo_writ
                  "function": {"name": "TodoWrite", "arguments": '{"todos":[]}'}}]},
                 {"role": "tool", "tool_call_id": "clear-todo", "content": "(任务清单已清空)"},
             ])
-        session.addUser("最新请求的原文" * 20)
+        session.messages.append({"role": "user", "content": "最新请求的原文" * 20})
         assert ctx.todos == []  # Reopened context no longer contains the old TodoWrite call.
         await manager.compact()
         assert any("保留尚未完成的任务" in str(item.get("content", ""))
@@ -196,9 +196,9 @@ def test_truncated_summary_preserves_the_original_context():
             return replace(_response("<摘要>incomplete but short</摘要>"), finish_reason="length")
 
         manager, session, journal, *_ = _manager(request=request)
-        session.addUser("最初约束" + "x" * 1600)
+        session.messages.append({"role": "user", "content": "最初约束" + "x" * 1600})
         session.messages.append({"role": "assistant", "content": "已核实" + "y" * 400})
-        session.addUser("最新请求")
+        session.messages.append({"role": "user", "content": "最新请求"})
         original = copy.deepcopy(session.messages)
         with pytest.raises(CompactionFailed):
             await manager.compact()
@@ -222,9 +222,9 @@ def test_compaction_commits_the_original_source_mapping_and_recent_text():
             {"RUOCUN_COMPACT_RETAIN_TOKENS": "20"}, lambda _o, _c: _response("<摘要>已核实旧约束</摘要>"))
         journal = ArchiveJournal()
         manager.journal = journal
-        session.addUser("早期约束" + "x" * 2000)
+        session.messages.append({"role": "user", "content": "早期约束" + "x" * 2000})
         session.messages.append({"role": "assistant", "content": "旧证据" + "y" * 1000})
-        session.addUser("最新请求必须原样保留")
+        session.messages.append({"role": "user", "content": "最新请求必须原样保留"})
         original = copy.deepcopy(session.messages)
         await manager.compact()
         assert len(journal.rewrites) == 1
@@ -257,18 +257,21 @@ def test_source_context_cost_status_queries_show_current_process_scope_and_do_no
         manager, session, journal, _, _, _ = _manager(
             {"RUOCUN_MAX_BUDGET": "2"}, permission_mode=lambda: "bypassPermissions",
         )
+        assert "输入 0 tok" in await manager.command("/usage")
         session.usage["promptTokens"] = 4000  # R1 恢复的累计token，没有伪造历史费用桶。
+        session.usage["cacheHitTokens"] = 3400
         session.lastPromptTokens = 170_000
         original = copy.deepcopy(session.messages)
         cost = await manager.command("/cost")
         assert "累计token（可能含历史）" in cost and "本次进程费用" in cost
         assert "历史费用不完整" in cost and "2.00" in cost
+        assert "命中率 85.0%" in cost
         assert await manager.command("/usage") == cost
         assert "170,000 / 200,000 tok (85%)" in await manager.command("/context")
         status = await manager.command("/status")
         assert "模式 bypassPermissions · 开关 免审批" in status and "思考 max" in status
         assert not manager.should_compact()  # 回合间检查粗估，不把上轮实际值当本轮全部输入。
         assert session.messages == original and journal.saved == []
-        session.addUser("x" * 510_000)
+        session.messages.append({"role": "user", "content": "x" * 510_000})
         assert manager.should_compact()
     asyncio.run(scenario())

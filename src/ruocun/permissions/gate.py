@@ -65,13 +65,6 @@ class PermissionGate:
             self.notifiedThisTrip = False
         return self.consecutiveDenials >= 3 or self.totalDenials >= 20
 
-    def withModeOverride(self, mode: PermissionMode, getMessages: MessageSource | None = None) -> PermissionGate:
-        return PermissionGate(
-            lambda: mode, self.getRules, self.prompt, self.onRemember, self.addSessionAllow,
-            self.classify, self.getMessages if getMessages is None else getMessages, parseBash=self.parseBash,
-            canClassify=self.canClassify,
-        )
-
     def _toolCheck(self, decision: GateDecision, argsJson: str, tool: Tool) -> GateDecision:
         if decision == "deny":
             return decision

@@ -55,7 +55,7 @@ def makeConfigTool(user_root: Path, *, user_files: Sequence[Path] = (),
         return f"已设置 {setting} = {encoded}(写入 {user_root / 'settings.json'})"
 
     return Tool(
-        name="Config", capability="plan", approval="auto", shouldDefer=True, persistentEffect=True,
+        name="Config", capability="plan", shouldDefer=True, persistentEffect=True,
         description="读取或设置 RuoCun 配置项。不传 value 时返回当前值;传 value 时写入。"
                     "支持 setting: 'permissions.defaultMode'(default/auto/bypassPermissions/plan)、"
                     "'theme'(light/dark)、'checkpoint.enabled'(影子 git 快照/回滚,默认关闭)。"

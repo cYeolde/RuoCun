@@ -48,5 +48,5 @@ async def _handler(args: dict[str, Any], ctx: ToolContext) -> str:
 execShellPollTool = Tool(
     name="BashOutput", description=_TEXT["description"], descriptionEn=_TEXT["descriptionEn"],
     schema=objectSchema({"id": {"type": "string", "description": _TEXT["parameters"]["id"]}}, ["id"]),
-    capability="read", approval="auto", handler=_handler,
+    capability="read", handler=_handler,
 )

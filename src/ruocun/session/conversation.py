@@ -8,7 +8,6 @@ from __future__ import annotations
 import asyncio
 import copy
 import hashlib
-import json
 import re
 import uuid
 from collections.abc import Sequence
@@ -19,6 +18,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from ..client.types import ImageData
+from ..tools.execute import ShellToolOutput
 from .contract import (
     AcceptedInput,
     ArchiveImport,
@@ -217,21 +217,15 @@ class Conversation:
     def queued_inputs(self) -> tuple[AcceptedInput, ...]:
         return tuple(item for item in self._accepted_inputs if item.state == "queued")
 
-    def _input(self, content: str | list[dict[str, Any]], *, queued: bool,
-               model_content: str | list[dict[str, Any]] | None = None) -> AcceptedInput:
-        seq = max((item.seq for item in self._accepted_inputs), default=0) + 1
-        return AcceptedInput(str(uuid.uuid4()), seq,
-                             packQueuedInput(self._safe(content), model_content) if queued else
-                             json.dumps(self._safe(content), ensure_ascii=False), (),
-                             "queued" if queued else "consumed")
-
     async def queue_user(self, session: Session, content: str | list[dict[str, Any]], *,
                          model_content: str | list[dict[str, Any]] | None = None) -> AcceptedInput:
         """把排队输入的身份和当前检查点一起提交，确认后才返回接纳回执。"""
         async with self._checkpoint_lock:
-            if self._safe(content) != content or self._safe(model_content) != model_content:
+            safe_content = self._safe(content)
+            if safe_content != content or self._safe(model_content) != model_content:
                 raise ValueError("此输入含当前账户凭据，无法完整保存；未接纳排队，请保留原输入并移除凭据后重试。")
-            item = self._input(content, queued=True, model_content=model_content)
+            seq = max((entry.seq for entry in self._accepted_inputs), default=0) + 1
+            item = AcceptedInput(str(uuid.uuid4()), seq, packQueuedInput(safe_content, model_content), (), "queued")
             await self._commit(session, session.messages, (*self._accepted_inputs, item))
             return item
 
@@ -274,19 +268,6 @@ class Conversation:
     async def set_foreground_state(self, session: Session, state: str) -> None:
         async with self._checkpoint_lock:
             await self._commit(session, session.messages, self._accepted_inputs, state=state)
-
-    async def accept_user(
-        self, session: Session, content: str | list[dict[str, Any]], *,
-        model_content: str | list[dict[str, Any]] | None = None,
-    ) -> None:
-        """提交确认后接受用户输入。输入账本保留的身份独立于可以压缩的模型上下文。"""
-        async with self._checkpoint_lock:
-            item = self._input(content, queued=False)
-            # 手动调用 Skill 时同时保留用户输入的原命令与发给模型的 Skill 正文。
-            projected = content if model_content is None else model_content
-            messages = [*session.messages, {"role": "user", "content": copy.deepcopy(projected)}]
-            await self._commit(session, messages, (*self._accepted_inputs, item))
-            session.messages = messages
 
     async def replace_context(
         self, session: Session, messages: list[dict[str, Any]], *, reset_prompt: bool = True,
@@ -622,10 +603,16 @@ class Conversation:
         await self.scoped_result(ToolRef("main", call_id), text, image_data)
 
     async def scoped_result(self, tool_ref: ToolRef, text: str, image_data: ImageData | None = None) -> None:
-        result: ToolResult = self.redact(text)
-        if image_data is not None:
-            result = self._safe({"role": "tool", "tool_call_id": tool_ref.tool_call_id, "content": text,
-                                 "imageData": copy.deepcopy(image_data)})
+        result: ToolResult
+        if isinstance(text, ShellToolOutput) or image_data is not None:
+            message: dict[str, Any] = {"role": "tool", "tool_call_id": tool_ref.tool_call_id, "content": str(text)}
+            if isinstance(text, ShellToolOutput):
+                message["shellFailed"] = text.failed
+            if image_data is not None:
+                message["imageData"] = copy.deepcopy(image_data)
+            result = self._safe(message)
+        else:
+            result = self.redact(text)
         await self.worker.enqueue_result_and_event(
             tool_ref, result, None, None,
         ).wait()

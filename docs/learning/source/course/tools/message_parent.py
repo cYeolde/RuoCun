@@ -36,7 +36,7 @@ async def _handler(args: dict[str, Any], ctx: ToolContext) -> str:
 
 
 messageParentTool = Tool(
-    name="MessageParent", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN, capability="plan", approval="auto",
+    name="MessageParent", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN, capability="plan",
     handler=_handler, schema=objectSchema({
         "kind": {"type": "string", "enum": ["progress", "attention"],
                  "description": "普通进展用 progress;需要父代理处理用 attention(默认)"},

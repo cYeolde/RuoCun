@@ -29,7 +29,7 @@ from ..platform.file_contract import AtomicFileError
 from ..platform.windows.durable_file import atomic_publish
 from ..session.contract import AcceptedInput
 from ..session.session import Session
-from ..tui.render import TurnEvents
+from ..tui.render import TurnDisplay
 from .background_runtime import BackgroundRuntime
 from .deck_messages import (
     contentText,
@@ -427,7 +427,7 @@ class DeckBridge:
         if len(self._events) > 120:
             self._events.pop(0)
 
-    def events(self, inner: TurnEvents | None = None) -> TurnEvents:
+    def events(self, inner: TurnDisplay | None = None) -> TurnDisplay:
         return _DeckEvents(self, inner)
 
     def _history(self, before: int | None = None) -> dict[str, Any]:
@@ -601,7 +601,7 @@ class DeckBridge:
 
 
 class _DeckEvents:
-    def __init__(self, deck: DeckBridge, inner: TurnEvents | None) -> None:
+    def __init__(self, deck: DeckBridge, inner: TurnDisplay | None) -> None:
         self._deck, self._inner = deck, inner
 
     def reasoning(self, chunk: str) -> None:

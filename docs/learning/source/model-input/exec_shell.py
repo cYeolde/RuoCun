@@ -18,6 +18,7 @@ from ..platform.process_tree import run_foreground_plan
 from ..platform.sandbox import SandboxUnavailable, sandboxExecutionPlan
 from ..platform.sandbox_policy import SandboxPolicy
 from ..platform.shell_plan import buildShellPlan
+from .execute import ShellToolOutput
 from .paths import classifyPath
 from .sandbox import prepareSandboxPlan
 from .types import Tool, ToolContext, ToolRejected
@@ -73,15 +74,6 @@ def _backup_databases(command: str, cwd: str, *, workspace_only: bool = False, p
         f"（{'、'.join(backed)}）；数据库查询也可能自动修复或重写原始文件。"
         "首版退出时保留这些备份；请确认无需恢复后手动清理。"
     )
-
-
-async def cleanupDbBackups(workspaceRoot: str) -> int:
-    """保留已创建的数据库备份。
-
-    仅凭路径无法确认同名文件仍属于这次运行，自动清理会误删用户后来放入的文件。
-    创建回执会给出备份位置。
-    """
-    return 0
 
 
 def _spill_output(content: str, cwd: str, *, workspace_only: bool = False, policy: SandboxPolicy | None = None) -> str:
@@ -223,7 +215,8 @@ async def _handler(args: dict[str, Any], ctx: ToolContext) -> str:
     if result.aborted and re.search(r"(?:^|[\s;&|])(apt-get|apt|dpkg|aptitude)(?=\s|$|;|&|\|)", command):
         # 恢复包管理器会再次写入系统，先提示用户单独批准恢复命令。
         parts.append("[需恢复] 包管理器命令被中断；继续前请审批并执行 dpkg --configure -a 检查修复状态。")
-    return _spill_output("\n".join(parts), plan.cwd, workspace_only=sandboxed, policy=plan.sandbox)
+    content = _spill_output("\n".join(parts), plan.cwd, workspace_only=sandboxed, policy=plan.sandbox)
+    return ShellToolOutput(content, failed=result.aborted or result.code != 0)
 
 
 execShellTool = Tool(
@@ -249,5 +242,5 @@ execShellTool = Tool(
         "required": ["command"],
         "additionalProperties": False,
     },
-    capability="exec", approval="required", checkPermissions=_check, handler=_handler,
+    capability="exec", checkPermissions=_check, handler=_handler,
 )

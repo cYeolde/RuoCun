@@ -44,6 +44,6 @@ async def _handler(args: dict[str, Any], ctx: ToolContext) -> str:
 
 
 taskGetTool = Tool(
-    name="TaskGet", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN, capability="read", approval="auto",
+    name="TaskGet", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN, capability="read",
     handler=_handler, schema=objectSchema({"id": {"type": "string", "minLength": 1, "description": "任务 id"}}, ["id"]),
 )

@@ -5,14 +5,11 @@ import copy
 
 import pytest
 
-from ruocun.agent.compact import (
-    buildCompaction,
-    compactMessages,
-    estimateTokens,
-    shouldCompact,
-    stripImagesFromMessages,
-)
+from ruocun.agent.compact import buildCompaction, estimateTokens
+from ruocun.agent.context_runtime import ContextManager
 from ruocun.client.types import ChatMessage
+from ruocun.session.session import Session
+from ruocun.tools.types import ToolContext
 
 
 def test_estimate_scales_with_text_and_counts_tool_arguments():
@@ -29,9 +26,13 @@ def test_estimate_scales_with_text_and_counts_tool_arguments():
 
 
 def test_compaction_only_at_or_over_threshold():
-    messages = [{"role": "user", "content": "x" * 300}]
-    assert shouldCompact(messages, 1000, 0.05)
-    assert not shouldCompact(messages, 1000, 0.9)
+    env = {"RUOCUN_CONTEXT_WINDOW": "1000", "RUOCUN_COMPACT_THRESHOLD_RATIO": "0.5"}
+    session = Session("SYS", "synthetic-model", env=env)
+    options = {"model": session.model, "messages": [*session.messages, {"role": "user", "content": "x" * 1470}]}
+    manager = ContextManager(session, object(), ToolContext("synthetic-workspace"), options, env, lambda _: None)
+    assert not manager.needs_compaction(options)
+    options["messages"][-1]["content"] += "xxx"
+    assert manager.needs_compaction(options)
 
 
 def test_confirmed_policy_summarizes_old_region_and_keeps_a_verbatim_tail():
@@ -45,7 +46,7 @@ def test_confirmed_policy_summarizes_old_region_and_keeps_a_verbatim_tail():
     async def summarize(received: list[ChatMessage]) -> str:
         return f"SUMMARY({len(received)})"
 
-    out = asyncio.run(compactMessages(messages, {"summarize": summarize, "retainTokens": 0}))
+    out = asyncio.run(buildCompaction(messages, {"summarize": summarize, "retainTokens": 0})).messages
     assert out[0] == messages[0]
     assert out[1]["role"] == "system"
     assert "早期对话摘要" in out[1]["content"]
@@ -64,7 +65,7 @@ def test_pinned_task_list_is_reinjected_after_compaction():
     async def summarize(_: list[ChatMessage]) -> str:
         return "早期摘要内容"
 
-    out = asyncio.run(compactMessages(messages, {"summarize": summarize, "retainTokens": 0}, "☐ 任务A\n▶ 任务B"))
+    out = asyncio.run(buildCompaction(messages, {"summarize": summarize, "retainTokens": 0}, "☐ 任务A\n▶ 任务B")).messages
     joined = "\n".join(message["content"] for message in out)
     assert "当前任务清单" in joined
     assert "任务A" in joined
@@ -77,7 +78,8 @@ def test_system_only_is_returned_unchanged():
     async def summarize(received: list[ChatMessage]) -> str:
         return f"SUMMARY({len(received)})"
 
-    assert asyncio.run(compactMessages(messages, {"summarize": summarize})) == messages
+    candidate = asyncio.run(buildCompaction(messages, {"summarize": summarize}))
+    assert candidate.status == "unchanged" and candidate.messages == messages
 
 
 def test_prior_summary_only_is_returned_unchanged():
@@ -89,7 +91,8 @@ def test_prior_summary_only_is_returned_unchanged():
     async def summarize(received: list[ChatMessage]) -> str:
         return f"SUMMARY({len(received)})"
 
-    assert asyncio.run(compactMessages(messages, {"summarize": summarize})) == messages
+    candidate = asyncio.run(buildCompaction(messages, {"summarize": summarize}))
+    assert candidate.status == "unchanged" and candidate.messages == messages
 
 
 def test_confirmed_policy_remerges_the_old_summary_instead_of_permanent_append():
@@ -106,7 +109,7 @@ def test_confirmed_policy_remerges_the_old_summary_instead_of_permanent_append()
         received_text = "|".join(message["content"] for message in received)
         return "新摘要:做了 B"
 
-    out = asyncio.run(compactMessages(messages, {"summarize": summarize, "retainTokens": 0}))
+    out = asyncio.run(buildCompaction(messages, {"summarize": summarize, "retainTokens": 0})).messages
     assert not out[1]["content"].startswith(prior)
     assert "[本次补充]" not in out[1]["content"]
     assert "新摘要:做了 B" in out[1]["content"]
@@ -114,27 +117,26 @@ def test_confirmed_policy_remerges_the_old_summary_instead_of_permanent_append()
     assert "SYS" in received_text and "新1" in received_text
 
 
-def test_image_placeholders_preserve_source_messages_and_deduplicate_adjacent_images():
-    # 来源 compact.ts stripImagesFromMessages，Python 适配所需最小确认；非新增压力矩阵。
+def test_summary_source_preserves_both_adjacent_images_and_keeps_original_history():
     system = {"role": "system", "content": "SYS"}
     user = {"role": "user", "content": [
         {"type": "text", "text": "看图"},
         {"type": "image_url", "image_url": {"url": "data:image/png;base64,U1lOVEhFVElD"}},
         {"type": "image_url", "image_url": {"url": "https://synthetic.invalid/example.png"}},
     ]}
-    messages = [system, user]
-    out = stripImagesFromMessages(messages)
-    assert out[0] is system
-    assert out[1]["content"] == [{"type": "text", "text": "看图"}, {"type": "text", "text": "[image]"}]
-    assert user["content"][1]["type"] == "image_url"
+    messages = [system, user, {"role": "assistant", "content": "recent answer"}]
+    original = copy.deepcopy(messages)
 
     async def summarize(received: list[ChatMessage]) -> str:
-        assert received == messages
+        assert received == original[:2]
+        received[1]["content"].clear()
         return "图片说明已保留"
 
-    with_tail = [*messages, {"role": "assistant", "content": "recent answer"}]
-    compacted = asyncio.run(compactMessages(with_tail, {"summarize": summarize, "retainTokens": 0}))
-    assert "图片说明已保留" in compacted[1]["content"]
+    candidate = asyncio.run(buildCompaction(messages, {"summarize": summarize, "retainTokens": 0}))
+    assert candidate.status == "summarized"
+    assert candidate.messages[0] is system and "图片说明已保留" in candidate.messages[1]["content"]
+    assert candidate.replacements[0].old_indices == (0, 1)
+    assert messages == original
 
 
 def test_summary_receives_an_original_contiguous_prefix_and_tracks_every_source():
@@ -180,7 +182,7 @@ def test_no_pinned_task_list_is_inserted_without_pinned_argument():
     async def summarize(_: list[ChatMessage]) -> str:
         return "x"
 
-    out = asyncio.run(compactMessages(messages, {"summarize": summarize, "retainTokens": 0}))
+    out = asyncio.run(buildCompaction(messages, {"summarize": summarize, "retainTokens": 0})).messages
     assert "当前任务清单" not in "\n".join(message["content"] for message in out)
 
 
@@ -194,7 +196,7 @@ def test_system_anchor_keeps_identity_and_bytes():
     async def summarize(_: list[ChatMessage]) -> str:
         return "SUMMARY"
 
-    out = asyncio.run(compactMessages(messages, {"summarize": summarize, "retainTokens": 0}))
+    out = asyncio.run(buildCompaction(messages, {"summarize": summarize, "retainTokens": 0})).messages
     assert out[0] is messages[0]
     assert out[0] == {"role": "system", "content": "SYS-ANCHOR"}
     assert out[1]["role"] == "system" and "SUMMARY" in out[1]["content"]
@@ -217,7 +219,7 @@ def test_confirmed_failure_policy_propagates_and_preserves_source_context():
         raise failure
 
     with pytest.raises(RuntimeError) as caught:
-        asyncio.run(compactMessages(messages, {"summarize": summarize, "retainTokens": 0}))
+        asyncio.run(buildCompaction(messages, {"summarize": summarize, "retainTokens": 0}))
     assert caught.value is failure
     assert messages == [{"role": "system", "content": "SYS"}, {"role": "user", "content": "已确认输入" * 300},
                         {"role": "assistant", "content": "latest answer"}]

@@ -74,7 +74,7 @@ async def _handler(args: dict[str, Any], ctx: ToolContext) -> str:
 
 
 taskOutputTool = Tool(
-    name="TaskOutput", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN, capability="read", approval="auto",
+    name="TaskOutput", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN, capability="read",
     handler=_handler, schema=objectSchema({"id": {"type": "string", "minLength": 1,
                                                 "description": "任务 id(来自 TaskList/agent(background:true) 的返回)"}}, ["id"]),
 )

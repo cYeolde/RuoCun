@@ -51,19 +51,3 @@ def paint(text: str, sem: str, caps: Capabilities | Mapping[str, object], bg: st
     else:
         prefix = f"\x1b[{ansi16}m"
     return prefix + text + _RESET_FOREGROUND
-
-
-def gradientBlock(lines: list[str], start: str, end: str, caps: Capabilities | Mapping[str, object], bg: str = "dark") -> list[str]:
-    tier = _tier(caps)
-    if tier == "none":
-        return list(lines)
-    if tier != "truecolor":
-        return [paint(line, start, caps, bg) for line in lines]
-    span = max(1, max(map(len, lines), default=0) - 1)
-    endpoints = tuple(zip(PALETTES[bg][start][0], PALETTES[bg][end][0], strict=True))
-    prefixes = [
-        _fg(tuple((2 * (left * (span - index) + right * index) + span) // (2 * span)
-                  for left, right in endpoints))
-        for index in range(span + 1)
-    ]
-    return ["".join(prefix + char for prefix, char in zip(prefixes, line)) + _RESET_FOREGROUND for line in lines]

@@ -175,7 +175,6 @@ def buildSystemPrompt(opts: dict[str, Any]) -> str:
         "{project_instruction_files}": opts.get("projectInstructions") or none,
         "{tools}": opts["toolSummaries"],
         "{platform}": opts.get("platform") or unknown,
-        "{env_snapshot}": opts.get("envSnapshot") or "",
         "{memory}": opts.get("memories") or none_yet,
         "{reflect_section}": _reflect_section(mem_on, challenger_on, False),
         "{reflect_section_en}": _reflect_section(mem_on, challenger_on, True),

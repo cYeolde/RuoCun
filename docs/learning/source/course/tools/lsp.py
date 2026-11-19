@@ -41,5 +41,5 @@ lspTool = Tool(
         "line": {"type": "integer", "minimum": 1, "description": "行号(1-based,同编辑器习惯)。除 workspaceSymbol 外必填"},
         "character": {"type": "integer", "minimum": 1, "description": "列号(1-based,同编辑器习惯)。除 workspaceSymbol 外必填"},
         "query": {"type": "string", "description": "符号名/部分名(仅 workspaceSymbol 用)"},
-    }, ["operation", "filePath"]), capability="read", approval="auto", shouldDefer=True, handler=_handler,
+    }, ["operation", "filePath"]), capability="read", shouldDefer=True, handler=_handler,
 )

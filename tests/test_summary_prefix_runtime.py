@@ -35,9 +35,9 @@ def setup(request, *, env=None):
     values = {"RUOCUN_CONTEXT_WINDOW": "20000", "RUOCUN_COMPACT_RETAIN_TOKENS": "20",
               "RUOCUN_COMPACT_SUMMARY_MAX_TOKENS": "256", **(env or {})}
     session = Session("SYS", "synthetic-prefix", env=values)
-    session.addUser("原始事实" * 1600)
+    session.messages.append({"role": "user", "content": "原始事实" * 1600})
     session.messages.append({"role": "assistant", "content": "已核实" * 100})
-    session.addUser("近期要求" * 30)
+    session.messages.append({"role": "user", "content": "近期要求" * 30})
     options = {"model": session.model, "provider": "deepseek", "baseUrl": "https://api.deepseek.com",
                "apiKey": "synthetic-key", "tools": [], "maxTokens": 1024}
     journal = Journal()

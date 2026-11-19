@@ -40,7 +40,7 @@ DESCRIPTION_EN = (
 
 sendMessageTool = Tool(
     name="SendUserMessage", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN,
-    capability="plan", approval="auto", handler=_handle,
+    capability="plan", handler=_handle,
     schema=objectSchema({
         "message": {"type": "string", "description": "要发给用户的消息(支持 markdown)"},
         "attachments": {"type": "array", "items": {"type": "string"},

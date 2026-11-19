@@ -15,7 +15,3 @@ def loadGrammar(grammarFile: str) -> Language | None:
         return Language(getattr(import_module("tree_sitter_" + module), function)())
     except (ImportError, AttributeError, ValueError):
         return None
-
-
-def resetRepomapRuntimeForTest() -> None:
-    loadGrammar.cache_clear()

@@ -91,11 +91,6 @@ def parseXmlBlock(text: str) -> bool | None:
     return match[1].lower() == "yes" if match else None
 
 
-def parseXmlReason(text: str) -> str | None:
-    match = re.search(r"<reason>([\s\S]*?)</reason>", _stripThinking(text))
-    return match[1].strip() if match else None
-
-
 def _trunc(text: str, limit: int = 500) -> str:
     raw = text.encode("utf-16-le", errors="surrogatepass")
     return raw[:limit * 2].decode("utf-16-le", errors="surrogatepass") + "…" if len(raw) > limit * 2 else text

@@ -48,12 +48,6 @@ _RATE_LIMIT_RE = re.compile(
     r"\b429\b|rate[_ -]?limit|quota_exceeded|限流|请求频率",
     re.IGNORECASE,
 )
-# 订阅和认证错误分类。部分订阅错误会使用 HTTP 400。
-_CREDENTIAL_RE = re.compile(
-    r"invalid.*key|authentication|unauthorized|subscription|CodingPlan|billing|"
-    r"InvalidSubscription",
-    re.IGNORECASE,
-)
 # 识别瞬断特征，是否重试还取决于此前有无有效产出。
 _RETRYABLE_RE = re.compile(
     r"socket|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE|closed unexpectedly|"
@@ -107,16 +101,6 @@ def isRateLimitError(e: BaseException) -> bool:
     if status == 429:
         return True
     return bool(_RATE_LIMIT_RE.search(str(e)))
-
-
-def isCredentialError(e: BaseException) -> bool:
-    """识别 401、403 和带订阅特征的 400 错误。"""
-    status = getattr(e, "status", None)
-    if status == 401 or status == 403:
-        return True
-    if status == 400:
-        return bool(_CREDENTIAL_RE.search(str(e)))
-    return False
 
 
 def isRetryable(e: BaseException) -> bool:

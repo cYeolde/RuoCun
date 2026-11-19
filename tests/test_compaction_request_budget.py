@@ -6,6 +6,7 @@ import pytest
 
 from ruocun.agent.context_runtime import ContextManager
 from ruocun.agent.runtime_context import buildRuntimeContext
+from ruocun.agent.turn_options import ContextHooks, ToolAuthorization
 from ruocun.client.client import buildRequestBody
 from ruocun.session.session import Session
 from ruocun.tools.types import ToolContext
@@ -19,6 +20,34 @@ def test_small_window_default_output_limit_matches_the_sent_request():
     prepared = manager.prepare_request(options)
     assert buildRequestBody(prepared, env={})["max_tokens"] == 250
     assert "maxTokens" not in options
+
+
+@pytest.mark.parametrize(("model", "base_url", "limit_field"), [
+    ("synthetic-budget", "http://127.0.0.1:1/v1", "max_tokens"),
+    ("gpt-6.2-sol", "https://api.openai.com/v1", "max_output_tokens"),
+])
+def test_preflight_reuses_final_projection_and_keeps_its_request_snapshot(monkeypatch, model, base_url, limit_field):
+    session = Session("SYS", model)
+    ctx = ToolContext("synthetic-workspace")
+    session.messages.append(buildRuntimeContext(ctx))
+    options = {"model": model, "baseUrl": base_url, "messages": session.messages}
+    manager = ContextManager(session, object(), ctx, options,
+                             {"RUOCUN_CONTEXT_WINDOW": "1000"}, lambda _text: None)
+    project_body = manager.request_body
+    bodies = []
+
+    def observe_body(current):
+        body = project_body(current)
+        bodies.append(body)
+        return body
+
+    monkeypatch.setattr(manager, "request_body", observe_body)
+    prepared = asyncio.run(manager.before_request(options))
+    assert [body[limit_field] for body in bodies] == [128000, 250]
+    assert prepared["maxTokens"] == 250
+    assert "maxTokens" not in options
+    prepared["onEmptyTruncation"] = lambda: None
+    assert manager._last_request is not None and "onEmptyTruncation" not in manager._last_request
 
 
 def test_extra_output_limit_cannot_exhaust_the_context_window():
@@ -48,7 +77,7 @@ def test_first_request_stops_without_sending_an_indivisible_oversized_input():
 
     async def scenario():
         session = Session("SYS", "synthetic-budget")
-        session.addUser("x" * 4000)
+        session.messages.append({"role": "user", "content": "x" * 4000})
         original = list(session.messages)
         options = {"model": session.model, "provider": "zhipu", "messages": session.messages}
         ctx = ToolContext("synthetic-workspace")
@@ -70,8 +99,9 @@ def test_first_request_stops_without_sending_an_indivisible_oversized_input():
         async def approve(_name, _args):
             return False
 
-        result = await run_turn(session, options, ToolRegistry(), ctx, approve=approve, request=request,
-                                request_preflight=manager.before_request)
+        result = await run_turn(session, options, ToolRegistry(), ctx,
+                                authorization=ToolAuthorization(approve=approve), request=request,
+                                context_hooks=ContextHooks(request_preflight=manager.before_request))
         assert result.status == "compaction_failed"
         assert session.messages == [*original, buildRuntimeContext(ctx)]
         assert not sent
@@ -81,7 +111,7 @@ def test_first_request_stops_without_sending_an_indivisible_oversized_input():
 def test_target_model_is_qualified_before_the_current_model_or_projection_changes():
     async def scenario():
         session = Session("OLD SYSTEM", "old-model")
-        session.addUser("latest requirement")
+        session.messages.append({"role": "user", "content": "latest requirement"})
         original = list(session.messages)
         manager = ContextManager(session, object(), ToolContext("synthetic-workspace"),
             {"model": session.model, "provider": "zhipu"}, {"RUOCUN_CONTEXT_WINDOW": "1000"}, lambda _text: None)
@@ -101,7 +131,7 @@ def test_server_context_recovery_does_not_resend_when_compaction_makes_no_progre
 
     async def scenario():
         session = Session("SYS", "synthetic-budget")
-        session.addUser("latest request")
+        session.messages.append({"role": "user", "content": "latest request"})
         sent = []
         def request(options, _context):
             sent.append(options)
@@ -112,7 +142,8 @@ def test_server_context_recovery_does_not_resend_when_compaction_makes_no_progre
         async def approve(_name, _args):
             return False
         result = await run_turn(session, {"model": session.model}, ToolRegistry(), ToolContext("synthetic"),
-                                approve=approve, request=request, compact=compact)
+                                authorization=ToolAuthorization(approve=approve), request=request,
+                                context_hooks=ContextHooks(compact=compact))
         assert len(sent) == 1
         assert result.status == "compaction_failed"
     asyncio.run(scenario())

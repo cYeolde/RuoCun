@@ -4,14 +4,14 @@
 
 **Coding Agent 工程参考实现**
 
-[![发布 v1.0.0](https://img.shields.io/badge/Release-v1.0.0-23604B)](https://github.com/hmmgotit/RuoCun/releases/tag/v1.0.0)
+[![发布 v2.0.0](https://img.shields.io/badge/Release-v2.0.0-23604B)](https://github.com/hmmgotit/RuoCun/releases/tag/v2.0.0)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](docs/install-and-recovery.md)
 [![Windows x64 安装包](https://img.shields.io/badge/Windows-x64-2563A8)](docs/install-and-recovery.md)
 [![MIT 许可证](https://img.shields.io/badge/License-MIT-596575)](LICENSE)
 
 [![中文课程 22 章](https://img.shields.io/badge/%E4%B8%AD%E6%96%87%E8%AF%BE%E7%A8%8B-22_%E7%AB%A0-23604B)](https://hmmgotit.github.io/RuoCun/learning/课程学习地图.html)
 [![Terminal-Bench 2.1 项目自测 71/89](https://img.shields.io/badge/TB_2.1_%E8%87%AA%E6%B5%8B-71%2F89-245BA7)](docs/benchmark/README.md)
-[![v1.0.0 离线测试 336 项通过](https://img.shields.io/badge/v1.0.0_%E7%A6%BB%E7%BA%BF%E6%B5%8B%E8%AF%95-336_%E9%80%9A%E8%BF%87-31734D)](https://github.com/hmmgotit/RuoCun/releases/tag/v1.0.0)
+[![v2.0.0 离线验证 1,983 项通过](https://img.shields.io/badge/v2.0.0_%E7%A6%BB%E7%BA%BF%E9%AA%8C%E8%AF%81-1983_%E9%80%9A%E8%BF%87-31734D)](https://github.com/hmmgotit/RuoCun/releases/tag/v2.0.0)
 
 **[开始读课](https://hmmgotit.github.io/RuoCun/learning/课程学习地图.html)** · [快速安装](#快速开始) · [测评记录](docs/benchmark/README.md) · [项目主页](https://hmmgotit.github.io/RuoCun/)
 
@@ -96,7 +96,7 @@
 
 89 题自测使用 DeepSeek 官方模型 **DeepSeek-V4.1-Flash-1017**，API 模型名为 `deepseek-flash`，主请求配置为 `max`。五题缓存对照的双方也使用该模型，前三题的主请求配置为 `high`，后两题为 `max`。 [模型版本](https://api-docs.deepseek.com/updates/#deepseek-v41-flash-1017-update) · [五题对照条件](docs/benchmark/README.md#五道同题的缓存命中)
 
-v1.0.0 的 **336 项离线回归**未调用真实模型。上方的折扣案例实录使用本地模拟模型响应。 [发布验收记录](https://github.com/hmmgotit/RuoCun/releases/tag/v1.0.0)
+上方的折扣案例录于 v1.0.0，使用本地模拟模型响应。89 题和五题缓存对照的历史制品与条件见[测评记录](docs/benchmark/README.md)。v2.0.0 的 **1,983 项离线验证**使用合成回包和本地对照。 [发布验收记录](https://github.com/hmmgotit/RuoCun/releases/tag/v2.0.0)
 
 Terminal-Bench 2.1 是第三方基准，通过 Harbor 在独立容器中评测 Agent，任务覆盖系统管理、安全、数据科学、科学计算、调试和机器学习等领域。89 道题的最终成绩、判分来源和可公开的用量数据均可查阅。[Harbor](https://www.harborframework.com/) · [评测报告](docs/benchmark/README.md) · [逐题 CSV](docs/benchmark/results.csv) · [精简 XLSX](docs/benchmark/terminal-bench-2.1.xlsx)
 
@@ -127,11 +127,11 @@ Terminal-Bench 2.1 是第三方基准，通过 Harbor 在独立容器中评测 A
 
 ## 快速开始
 
-当前发布包面向 **Windows x64 / CPython 3.11**。从 [v1.0.0 Release](https://github.com/hmmgotit/RuoCun/releases/tag/v1.0.0) 下载 wheel，在文件所在目录打开 PowerShell，安装到独立环境。
+当前发布包面向 **Windows x64 / CPython 3.11**。从 [v2.0.0 Release](https://github.com/hmmgotit/RuoCun/releases/tag/v2.0.0) 下载 wheel，在文件所在目录打开 PowerShell，安装到独立环境。
 
 ```powershell
 py -3.11 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install .\ruocun-1.0.0-py311-none-win_amd64.whl
+.\.venv\Scripts\python.exe -m pip install .\ruocun-2.0.0-py311-none-win_amd64.whl
 .\.venv\Scripts\python.exe -m ruocun --cwd "C:\path\to\project"
 ```
 

@@ -18,5 +18,5 @@ toolSearchTool = Tool(
         "type": "object", "properties": {"query": {"type": "string", "minLength": 1,
             "description": "搜索关键词(匹配工具名或描述,不分大小写)"}}, "required": ["query"],
         "additionalProperties": False,
-    }, "read", "auto", _handler, descriptionEn=_metadata["descriptionEn"],
+    }, "read", _handler, descriptionEn=_metadata["descriptionEn"],
 )

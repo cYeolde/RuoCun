@@ -49,10 +49,6 @@ def resolveInWorkspace(workspaceRoot: str, p: str) -> str:
     return absolute
 
 
-def resolveWritePath(workspaceRoot: str, p: str) -> str:
-    return classifyPath(workspaceRoot, p).abs
-
-
 def isImagePath(p: str) -> bool:
     return Path(p).suffix.lower() in {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 

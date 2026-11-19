@@ -10,7 +10,7 @@ from .types import Tool, ToolContext
 async def _handler(args: dict[str, Any], ctx: ToolContext) -> str:
     root = ctx.cwd or ctx.workspaceRoot
     budget = args.get("max_tokens", repoMapTokenBudget(ctx.notificationEnv))
-    result = await buildRepoMap(root, budget, signal=ctx.signal)
+    result = await buildRepoMap(root, budget, signal=ctx.signal, refresh=args.get("refresh") is True)
     english = ctx.lang == "en"
     if not result.text:
         return (f"No supported-language source files found under {root} (supported: TS/JS/Python/Go/Rust/Java)."
@@ -32,8 +32,8 @@ repoMapTool = Tool(
         "bound the output. Use LSP or Grep for precise locations."
     )),
     schema=objectSchema({
-        "refresh": {"type": "boolean", "description": "强制重新扫描(默认 false 复用缓存;未变更的文件按 mtime 跳过重解析)"},
+        "refresh": {"type": "boolean", "description": "本次跳过文件提取缓存并重新解析(默认 false)"},
         "max_tokens": {"type": "integer", "minimum": 256, "maximum": 16384,
                        "description": "token 预算覆盖(默认 RUOCUN_REPO_MAP_TOKENS 或 2048)"},
-    }, []), capability="read", approval="auto", shouldDefer=True, handler=_handler,
+    }, []), capability="read", shouldDefer=True, handler=_handler,
 )

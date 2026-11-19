@@ -107,27 +107,6 @@ def summarizeToolTrace(events: Iterable[Mapping[str, object]]) -> list[ToolStat]
     return sorted(groups.values(), key=lambda stat: (-stat["errorRate"], -stat["calls"]))
 
 
-def readAllToolTraces(sessionsRoot: str | Path) -> list[dict[str, object]]:
-    try:
-        directories = sorted(Path(sessionsRoot).iterdir())
-    except OSError:
-        return []
-    events: list[dict[str, object]] = []
-    for directory in directories:
-        try:
-            raw = (directory / "tool-trace.jsonl").read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            continue
-        for line in raw.split("\n"):
-            try:
-                event = json.loads(line)
-            except ValueError:
-                continue
-            if isinstance(event, dict):
-                events.append(event)
-    return events
-
-
 def formatToolReport(stats: Iterable[ToolStat]) -> str:
     rows = []
     for stat in stats:

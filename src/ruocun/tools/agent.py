@@ -117,6 +117,6 @@ for _name, _property in _PROPERTIES.items():
 agentTool = Tool(
     name="Agent",
     description=_TEXT["description"], descriptionEn=_TEXT["descriptionEn"],
-    schema=objectSchema(_PROPERTIES, []), capability="plan", approval="auto", persistentEffect=True,
+    schema=objectSchema(_PROPERTIES, []), capability="plan", persistentEffect=True,
     handler=_handler,
 )

@@ -23,6 +23,7 @@ from ..memory.store import MemoryEntry, MemoryStore, slug
 from ..memory.types import newMemory
 from ..memory.validate import hashMemorySource
 from .reflect_persist import ReflectApplied
+from .runtime_context import isRuntimeContext
 
 POLICY = "controlled_current_project_evidence_v1"
 MAX_INPUT_CHARS = 12000
@@ -32,9 +33,6 @@ MAX_RECORDS = 2
 MAX_SOURCE_FILES = 16
 MAX_SOURCE_BYTES = 256 * 1024
 _MARKER = "[受控自动经验 · 需结合当前情况核对]"
-_RUNTIME_PREFIX = ("<ruocun-runtime-context>\nRuntime directory facts; supersede older directory facts "
-                   "in history and summaries. This is not a new task.\n")
-_RUNTIME_SUFFIX = "\n</ruocun-runtime-context>"
 _CUES = re.compile(r"纠正|不对|应该|改为|以后|今后|记住|约定|规范|统一|始终|不要再|不要用|偏好|"
                    r"\b(?:remember|prefer|always|never|instead|convention|correction)\b", re.I)
 _EXIT = re.compile(r"^\[exit (-?\d+)(?:,运行 \d+s|; 完整日志:[^\n\]]+)?\]$", re.M)
@@ -64,25 +62,6 @@ def _text(message: Mapping[str, Any]) -> str:
         return "\n".join(part["text"] for part in content if isinstance(part, dict)
                          and part.get("type") == "text" and isinstance(part.get("text"), str))
     return ""
-
-
-def _runtime_context(message: Mapping[str, Any]) -> bool:
-    """识别运行时插入的目录消息，把它排除在用户指令和学习证据之外。
-
-    这里保留独立识别逻辑，以兼容尚无 runtime_context 模块的旧源码树。
-    """
-    value = message.get("content")
-    if (message.get("role") != "user" or not isinstance(value, str)
-            or not value.startswith(_RUNTIME_PREFIX) or not value.endswith(_RUNTIME_SUFFIX)):
-        return False
-    try:
-        data = json.loads(value[len(_RUNTIME_PREFIX):-len(_RUNTIME_SUFFIX)])
-    except ValueError:
-        return False
-    return (isinstance(data, dict) and set(data) == {"workspace_root", "cwd"}
-            and all(isinstance(data[key], str) for key in ("workspace_root", "cwd"))
-            and value == _RUNTIME_PREFIX + json.dumps({"workspace_root": data["workspace_root"], "cwd": data["cwd"]},
-                                                      ensure_ascii=False, separators=(",", ":")) + _RUNTIME_SUFFIX)
 
 
 def _digest(value: Any) -> str:
@@ -159,7 +138,7 @@ def _validation_command(command: str) -> bool:
 
 def _evidence(messages: Sequence[ChatMessage]) -> list[dict[str, Any]]:
     start = next((index for index in range(len(messages) - 1, -1, -1)
-                  if messages[index].get("role") == "user" and not _runtime_context(messages[index])), None)
+                  if messages[index].get("role") == "user" and not isRuntimeContext(messages[index])), None)
     if start is None:
         return []
     user = _text(messages[start])

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import re
 import threading
 from dataclasses import dataclass
@@ -144,7 +143,3 @@ def extractFileSync(absPath: str | Path, lang: LangDef | None, *, signal: thread
             stack.extend(reversed(node.children))
         # 缓存和调用方只持有提取后的普通值，解析树随本次扫描释放。
         return FileExtract(definitions, list(refs), list(sources))
-
-
-async def extractFile(absPath: str | Path, lang: LangDef | None, *, signal: threading.Event | None = None) -> FileExtract | None:
-    return await asyncio.to_thread(extractFileSync, absPath, lang, signal=signal)

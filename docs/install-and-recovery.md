@@ -1,12 +1,12 @@
 # 安装与恢复
 
-在 Windows x64 安装 CPython 3.11，打开 PowerShell 或 Windows Terminal。从 [v1.0.0 Release](https://github.com/hmmgotit/RuoCun/releases/tag/v1.0.0) 下载 wheel，把下面的路径换成实际下载位置。
+在 Windows x64 安装 CPython 3.11，打开 PowerShell 或 Windows Terminal。从 [v2.0.0 Release](https://github.com/hmmgotit/RuoCun/releases/tag/v2.0.0) 下载 wheel，把下面的路径换成实际下载位置。
 
 ```powershell
 $venvPath = Join-Path $env:LOCALAPPDATA 'RuoCun/venv-1.0.0'
 py -3.11 -m venv $venvPath
 $ruocunPython = Join-Path $venvPath 'Scripts/python.exe'
-$wheel = '.\ruocun-1.0.0-py311-none-win_amd64.whl'
+$wheel = '.\ruocun-2.0.0-py311-none-win_amd64.whl'
 & $ruocunPython -I -X utf8 -m pip install $wheel
 & $ruocunPython -I -X utf8 -m pip check
 & $ruocunPython -I -X utf8 -m ruocun --version

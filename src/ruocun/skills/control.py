@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Awaitable, Callable, Iterable, Mapping
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any, TypedDict
 
@@ -111,31 +111,3 @@ class SkillControls:
         candidate = self.disabled.copy()
         toggleBundled(candidate, names, on)
         self._publish(candidate)
-
-
-async def runSkillPicker(controls: SkillControls, ask: Callable[[str], Awaitable[str | None]]) -> str:
-    show_bundled = changed = False
-    while True:
-        all_rows = controls.listSkills()
-        rows = all_rows if show_bundled else [row for row in all_rows if not row["source"].startswith("内置")]
-        prompt = "技能 · " + ("全部" if show_bundled else "仅第三方") + "（切换后重启生效）\n"
-        prompt += "\n".join(f"{index}. {'开' if row['on'] else '关'} {row['name']} [{row['source']}] {row['detail']}"
-                            for index, row in enumerate(rows, 1))
-        prompt += "\n数字/回车切换；t 显/隐内置；a/A 全部开/关；b/B 内置开/关；i/I 安装开/关；Esc关闭。"
-        answer = await ask(prompt)
-        if answer is None:
-            return "技能设置已保存，重启生效。" if changed else ""
-        answer = answer.strip()
-        if answer == "t":
-            show_bundled = not show_bundled
-        elif answer in {"a", "A", "b", "B", "i", "I"}:
-            controls.batchSkills({"a": "all", "b": "bundled", "i": "installed"}[answer.lower()], answer.islower())
-            changed = True
-            if answer.lower() == "b":
-                show_bundled = True
-        else:
-            index = 0 if answer == "" else int(answer) - 1 if answer.isascii() and answer.isdecimal() else -1
-            if 0 <= index < len(rows):
-                row = rows[index]
-                controls.setSkillEnabled(row["name"], not row["on"])
-                changed = True

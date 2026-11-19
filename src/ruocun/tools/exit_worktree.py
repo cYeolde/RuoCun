@@ -43,7 +43,7 @@ async def _handler(args: dict[str, Any], ctx: ToolContext) -> str:
 
 exitWorktreeTool = Tool(
     name="ExitWorktree", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN,
-    capability="write", approval="suggest", shouldDefer=True, persistentEffect=True, handler=_handler,
+    capability="write", shouldDefer=True, persistentEffect=True, handler=_handler,
     schema=objectSchema({"action": {"type": "string", "enum": ["keep", "remove"],
                                     "description": "keep=保留目录和分支;remove=删除目录和分支"},
                          "discard_changes": {"type": "boolean",

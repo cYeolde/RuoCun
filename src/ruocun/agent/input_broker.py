@@ -47,18 +47,14 @@ from ..tui.app.app import App, HistoryPanel, clean_text
 from ..tui.app.modals import Modal, SecretValidationModal, TrustModal
 from ..tui.app.types import TranscriptItem
 from ..tui.background import bgFromEnv, fromRGB, resolveBackground
+from ..tui.brand import DISPLAY_NAME
 from ..tui.capabilities import Capabilities, detectCapabilities
 from ..tui.image_paste import getClipboardImages, imageFromPath, pastedImagePath
 from ..tui.input_text import PasteStore, next_grapheme, previous_grapheme
 from ..tui.mascot import WelcomeMotion, createWelcomeMotion
 from ..tui.notifier import cleanNotificationText
 from ..tui.onboarding.select import SelectItem
-from ..tui.tab_attention import (
-    TabAttention,
-    TabAttentionKind,
-    createTabAttention,
-    formatTabTitle,
-)
+from ..tui.tab_attention import TabAttention, TabAttentionKind, createTabAttention
 from ..tui.terminal_reports import ParserGate, Reports, TerminalQueries
 from ..tui.theme import semHex
 from ..tui.welcome import Welcome
@@ -193,7 +189,6 @@ class InputBroker:
         self._static_rows_key: tuple[object, ...] | None = None
         self._static_rows = 0
         self._tab: TabAttention | None = None
-        self._tab_name: str | None = None
         self._clipboard_port: Callable[[], ClipboardPayload] | None = None
         self._image_tasks: set[asyncio.Task[None]] = set()
         self._image_lock = asyncio.Lock()
@@ -514,11 +509,6 @@ class InputBroker:
             self.app.renderer = _SharedViewportRenderer(self.app.renderer.style, self._output,
                                                        cpr_not_supported_callback=self.app.cpr_not_supported_callback)
         self.app.invalidate()
-
-    def set_tab_name(self, name: str | None) -> None:
-        self._tab_name = name
-        if self._tab is not None:
-            self._tab.setTitle(formatTabTitle("", name))
 
     def mark_attention(self, kind: TabAttentionKind = "attention") -> None:
         if self._tab is not None and not self._closed and not self._closing:
@@ -1105,9 +1095,6 @@ class InputBroker:
             from ..i18n.i18n import getLang
             return ("技能设置已保存，重启生效。" if getLang() == "zh" else "Skill settings saved; restart to apply.") if modal.changed else ""
 
-    async def ask_approval(self, prompt: str, *, cancelled: Callable[[], bool] | None = None) -> str:
-        return await self.ask_selection(prompt, cancelled=cancelled) or ""
-
     async def ask_selection(self, prompt: str, *, cancelled: Callable[[], bool] | None = None) -> str | None:
         async with self._approval_lock:
             return await self._open_modal(prompt, cancelled=cancelled)
@@ -1124,7 +1111,7 @@ class InputBroker:
     async def _run(self, ready: asyncio.Future[None]) -> None:
         def started() -> None:
             self._tab = createTabAttention(
-                formatTabTitle("", self._tab_name), write=self._attention_write,
+                DISPLAY_NAME, write=self._attention_write,
                 isTTY=not isinstance(self._output, PlainTextOutput), env=self._background_env)
             self._background_task = asyncio.create_task(self._initialize_background(ready))
             if self._closing:

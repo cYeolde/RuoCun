@@ -7,11 +7,23 @@ from dataclasses import replace
 
 import pytest
 
+from ruocun.agent.context_runtime import ContextManager
 from ruocun.agent.loop import run_turn
+from ruocun.agent.turn_options import (
+    ContextHooks,
+    ModelRecoveryHooks,
+    ToolAuthorization,
+    ToolFeedbackOptions,
+    TurnEvents,
+    TurnPolicy,
+)
 from ruocun.client.resilient import ResilientResult
 from ruocun.session.session import Session
+from ruocun.tools.exec_shell import execShellTool
+from ruocun.tools.read_file import readFileTool
 from ruocun.tools.registry import ToolRegistry
 from ruocun.tools.types import Tool, ToolContext
+from ruocun.tools.write_file import writeFileTool
 
 
 def reply(content="", calls=None, *, error=None):
@@ -46,7 +58,7 @@ class Registry:
             self.executed.append(args)
             return "1\tcode"
 
-        self.tool = Tool("Read", "read", {"type": "object"}, capability, "auto", handler)
+        self.tool = Tool("Read", "read", {"type": "object"}, capability, handler)
 
     def get(self, name):
         return self.tool if name == "Read" else None
@@ -70,17 +82,18 @@ async def approve(name, args):
     return True
 
 
-def run(session, model, registry=None, approval=approve, context=None, **kwargs):
+def run(session, model, registry=None, *, authorization: ToolAuthorization | None = None, context=None, **kwargs):
     return asyncio.run(run_turn(
         session, {"baseUrl": "http://127.0.0.1:1", "apiKey": "synthetic-key", "model": session.model},
-        registry or Registry(), context or ToolContext("synthetic-workspace"), approve=approval, request=model,
+        registry or Registry(), context or ToolContext("synthetic-workspace"),
+        authorization=authorization if authorization is not None else ToolAuthorization(approve=approve), request=model,
         **kwargs,
     ))
 
 
 def test_reply_is_appended_without_tools():
     session = Session("SYS", "m", env={})
-    session.addUser("hi")
+    session.messages.append({"role": "user", "content": "hi"})
     result = run(session, Model([reply("answer")]))
     assert result.status == "complete"
     assert session.messages[-1] == {"role": "assistant", "content": "answer"}
@@ -95,10 +108,10 @@ def test_source_health_failure_is_not_pardoned_by_a_write_and_child_nudges_local
 
     async def scenario(child):
         session = Session('SYS', 'm', env={})
-        session.addUser('synthetic task')
+        session.messages.append({"role": "user", "content": 'synthetic task'})
         registry=ToolRegistry()
-        registry.register(Tool('Write','write',{'type':'object'},'write','auto',written))
-        registry.register(Tool('Read','read',{'type':'object'},'read','auto',failed))
+        registry.register(Tool('Write','write',{'type':'object'},'write',written))
+        registry.register(Tool('Read','read',{'type':'object'},'read',failed))
         model=Model([*[reply(calls=[call('{}','Write',f'w{i}'),call('{}','Read',f'r{i}')]) for i in range(3)],reply('done')])
         kinds=[]
 
@@ -107,9 +120,9 @@ def test_source_health_failure_is_not_pardoned_by_a_write_and_child_nudges_local
             return 'synthetic challenger verdict'
 
         result=await run_turn(session,{'baseUrl':'http://127.0.0.1:1','apiKey':'synthetic','model':'m'},
-            registry,ToolContext('synthetic-workspace'),approve=approve,request=model,
-            reflect=None if child else reflect,self_challenge=child,
-            model_recovery_env={'RUOCUN_FAIL_STREAK':'3','RUOCUN_REPEAT_ERR':'99'})
+            registry,ToolContext('synthetic-workspace'),authorization=ToolAuthorization(approve=approve),request=model,
+            feedback=ToolFeedbackOptions(reflect=None if child else reflect, self_challenge=child),
+            env={'RUOCUN_FAIL_STREAK':'3','RUOCUN_REPEAT_ERR':'99'})
         assert result.status=='complete'
         tail=[m['content'] for m in session.messages[1:] if m['role']=='system']
         assert len(tail)==1
@@ -124,7 +137,7 @@ def test_scheduler_boundary_waits_for_tool_pair_and_old_request_delta_is_ignored
     # 迁移scheduler安全边界/迟到流语义到Python请求线程的必要接线，复用原Read回合。
     async def scenario():
         session = Session("SYS", "m", env={})
-        session.addUser("hi" + "x" * 900)
+        session.messages.append({"role": "user", "content": "hi" + "x" * 900})
         callbacks, rendered, requests, settled = [], [], [], []
 
         def model(opts, context):
@@ -137,13 +150,13 @@ def test_scheduler_boundary_waits_for_tool_pair_and_old_request_delta_is_ignored
                 return reply(calls=[call()])
             callbacks[1]({"kind": "content", "text": "late-old"})
             context.on_delta({"kind": "content", "text": "current-second"})
-            return replace(reply("done"), usage={"prompt_tokens": 5, "completion_tokens": 2})
+            return replace(reply(), usage={"prompt_tokens": 5, "completion_tokens": 2})
 
         async def boundary():
             if len(requests) == 2:
                 assert session.messages[-1]["role"] == "tool"
                 assert settled == [session.messages[-1]["tool_call_id"]]
-                session.addUser("queued-at-boundary")
+                session.messages.append({"role": "user", "content": "queued-at-boundary"})
 
         async def tool_boundary():
             assert len(requests) == 2 and session.messages[-1]["role"] == "tool"
@@ -157,16 +170,17 @@ def test_scheduler_boundary_waits_for_tool_pair_and_old_request_delta_is_ignored
 
         result = await run_turn(
             session, {"baseUrl": "http://127.0.0.1:1", "apiKey": "synthetic-key", "model": "m"},
-            Registry(), ToolContext("synthetic-workspace"), approve=approve, request=model,
+            Registry(), ToolContext("synthetic-workspace"), authorization=ToolAuthorization(approve=approve), request=model,
             on_boundary=boundary, on_tool_boundary=tool_boundary,
-            accepts_delta=lambda: True, on_delta=lambda delta: rendered.append(delta["text"]),
-            compact=compact,
+            events=TurnEvents(accepts_delta=lambda: True, on_delta=lambda delta: rendered.append(delta["text"])),
+            context_hooks=ContextHooks(compact=compact),
         )
         callbacks[-1]({"kind": "content", "text": "late-after-return"})
         await asyncio.sleep(0)
         assert result.status == "complete"
         assert requests[2]["messages"][-1]["content"] == "queued-at-boundary"
         assert rendered == ["current-first", "current-second"]
+        assert session.messages[-1]["content"] == "current-second"
         assert session.usage["promptTokens"] == 5
 
     asyncio.run(scenario())
@@ -183,7 +197,7 @@ def test_plan_switch_in_batch_blocks_write_before_dispatch_and_trims_next_api():
         return "written"
 
     registry.register(enterPlanModeTool)
-    registry.register(Tool("Write", "write", {"type": "object", "properties": {}}, "write", "auto", write))
+    registry.register(Tool("Write", "write", {"type": "object", "properties": {}}, "write", write))
     session = Session("SYS", "m", env={})
     ctx = ToolContext("synthetic-workspace", setMode=lambda mode: setattr(session, "mode", mode))
     model = Model([reply(calls=[call("{}", "EnterPlanMode", "plan"), call("{}", "Write", "write")]), reply("done")])
@@ -194,8 +208,11 @@ def test_plan_switch_in_batch_blocks_write_before_dispatch_and_trims_next_api():
         # 派发硬门不依赖预批恰好拒绝，源plan约束在工具批内即时生效。
         return {item.call_id: True for item in batch}
 
-    assert run(session, model, registry, context=ctx, authorize_batch=allow_batch,
-               permission_mode=lambda: "plan" if session.mode == "plan" else "default",
+    assert run(session, model, registry, context=ctx,
+               authorization=ToolAuthorization(
+                   authorize_batch=allow_batch,
+                   permission_mode=lambda: "plan" if session.mode == "plan" else "default",
+               ),
                api_tools=lambda: apiToolsForMode(registry, session.mode)).status == "complete"
     assert executed == []
     assert "Write" not in [tool["function"]["name"] for tool in model.requests[1]["tools"]]
@@ -204,7 +221,7 @@ def test_plan_switch_in_batch_blocks_write_before_dispatch_and_trims_next_api():
 
 def test_three_empty_replies_are_not_saved():
     session = Session("SYS", "m", env={})
-    session.addUser("hi")
+    session.messages.append({"role": "user", "content": "hi"})
     model = Model([reply(), reply(), reply()])
     assert run(session, model).status == "failed"
     assert len(model.requests) == 3
@@ -247,7 +264,8 @@ def test_denied_write_is_paired_without_side_effect():
 
     session = Session("SYS", "m", env={})
     registry = Registry("write")
-    assert run(session, Model([reply(calls=[call()]), reply("denied")]), registry, deny).status == "complete"
+    assert run(session, Model([reply(calls=[call()]), reply("denied")]), registry,
+               authorization=ToolAuthorization(approve=deny)).status == "complete"
     assert registry.executed == []
     assert session.messages[-2]["tool_call_id"] == "call-1"
     assert "拒绝" in session.messages[-2]["content"]
@@ -255,7 +273,7 @@ def test_denied_write_is_paired_without_side_effect():
 
 def test_context_limit_stops_with_history_preserved():
     session = Session("SYS", "m", env={})
-    session.addUser("keep")
+    session.messages.append({"role": "user", "content": "keep"})
     result = run(session, Model([reply(error="maximum context length exceeded")]))
     assert result.status == "context_limit"
     assert "新会话" in result.error
@@ -275,50 +293,78 @@ def test_source_assistant_reasoning_fields_survive_tool_followup():
     assert assistant["responseItems"] == first.message["responseItems"]
 
 
-def test_failed_exec_skips_later_effects_in_same_batch():
-    # 冻结execute.test.ts:169-186，使用首版Bash真实的exit/运行时间文本格式。
+def test_failed_exec_skips_later_effects_in_same_batch(tmp_path):
+    # 保留来源对同批停止写入、继续读取的断言，使用实际 Shell 退出状态。
+    (tmp_path / "input.txt").write_text("read still runs", encoding="utf-8")
     registry = ToolRegistry()
-    executed = []
-
-    async def handler(args, ctx):
-        executed.append(args["n"])
-        return "boom\n[exit 1,运行 0s]" if args["n"] == 1 else "ok [exit 0,运行 0s]"
-
-    schema = {"type": "object", "properties": {"n": {"type": "number"}}}
-    registry.register(Tool("Bash", "", schema, "exec", "required", handler))
-    registry.register(Tool("Read", "", schema, "read", "auto", handler))
-    registry.register(Tool("Write", "", schema, "write", "required", handler))
+    registry.register(execShellTool)
+    registry.register(readFileTool)
+    registry.register(writeFileTool)
     session = Session("SYS", "m", env={})
-    model = Model([reply(calls=[call('{"n":1}', "Bash", "a"), call('{"n":2}', "Bash", "b"),
-                                call('{"n":3}', "Read", "r"), call('{"n":4}', "Write", "w")]), reply("fixed")])
-    assert run(session, model, registry).status == "complete"
-    assert executed == [1, 3]
+    model = Model([reply(calls=[
+        call('{"command":"exit 1"}', "Bash", "a"),
+        call('{"command":"echo should not run"}', "Bash", "b"),
+        call('{"path":"input.txt"}', "Read", "r"),
+        call('{"path":"blocked.txt","content":"should not write"}', "Write", "w"),
+    ]), reply("fixed")])
+    assert run(session, model, registry, context=ToolContext(str(tmp_path))).status == "complete"
     pairs = {message["tool_call_id"]: message["content"] for message in session.messages if message["role"] == "tool"}
+    assert "[exit 1," in pairs["a"] and "read still runs" in pairs["r"]
     assert "已跳过" in pairs["b"] and "已跳过" in pairs["w"]
+    assert not (tmp_path / "blocked.txt").exists()
 
 
-def test_source_in_turn_compaction_runs_between_tool_rounds():
-    # 冻结loop.test.ts §4，首轮不压，工具配对后进入第二轮才压。
-    compacted = []
+def test_source_in_turn_compaction_runs_between_tool_rounds(monkeypatch):
+    # 冻结 loop.test.ts §4。实际请求预检应在已提交工具结果后、发送下一次请求前压缩。
     session = Session("SYS", "m", env={})
-    session.addUser("old source material " * 100)
-
-    async def compact():
-        compacted.append(True)
-        # B requires an actual projection replacement before another model request.
-        session.messages = [session.messages[0], {"role": "system", "content": "saved summary"},
-                            *session.messages[2:]]
-
+    session.messages.append({"role": "user", "content": "read the fixture"})
+    ctx = ToolContext("synthetic-workspace")
+    registry = Registry()
     model = Model([reply(calls=[call()]), reply("done")])
-    assert run(session, model,
-               compact=compact, should_compact=lambda: True).status == "complete"
-    assert compacted == [True]
+    saved = []
+
+    class Journal:
+        async def intent(self, *_args):
+            return None
+
+        async def result(self, *_args):
+            pass
+
+        async def save(self, current):
+            saved.append(copy.deepcopy(current.messages))
+
+        async def replace_context(self, current, messages, *, reset_prompt=True):
+            current.messages = messages
+            await self.save(current)
+
+    async def large_read(_args, _ctx):
+        return "synthetic tool output " * 600
+
+    journal = Journal()
+    registry.tool = replace(registry.tool, handler=large_read)
+    manager = ContextManager(session, journal, ctx, {"model": session.model},
+                             {"RUOCUN_CONTEXT_WINDOW": "1000"}, lambda _text: None)
+    compacted = []
+
+    async def compact(*, request_options):
+        assert len(model.requests) == 1
+        assert saved[-1][-1] == request_options["messages"][-1]
+        assert saved[-1][-1]["role"] == "tool"
+        await journal.replace_context(session, [*session.messages[:-1],
+                                                {**session.messages[-1], "content": "saved summary"}])
+        compacted.append(True)
+
+    monkeypatch.setattr(manager, "compact", compact)
+    result = run(session, model, registry, context=ctx, journal=journal,
+                 context_hooks=ContextHooks(request_preflight=manager.before_request))
+    assert result.status == "complete" and compacted == [True]
+    assert [message["content"] for message in model.requests[1]["messages"] if message["role"] == "tool"] == ["saved summary"]
 
 
 def test_source_max_turns_stops_after_two_tool_rounds():
     # 冻结loop.test.ts stops at maxTurns；不在到达上限后再请求模型。
     model = Model([reply(calls=[call(call_id="a")]), reply(calls=[call(call_id="b")])])
-    result = run(Session("SYS", "m", env={}), model, max_turns=2)
+    result = run(Session("SYS", "m", env={}), model, policy=TurnPolicy(max_turns=2))
     assert result.status == "turn_limit"
     assert len(model.requests) == 2
 
@@ -335,7 +381,7 @@ def test_source_empty_reasoning_retries_with_note_low_effort_and_escalated_budge
         return reply("收敛后的结论")
 
     session = Session("SYS", "deepseek-v4-pro", env={})
-    session.addUser("hi")
+    session.messages.append({"role": "user", "content": "hi"})
     assert run(session, model).status == "complete"
     assert seen[0]["extra"]["reasoning_effort"] == "max"
     assert seen[1]["extra"]["reasoning_effort"] == "low"
@@ -354,7 +400,7 @@ def test_source_forced_tools_restore_after_unsupported_choice():
         return "ok"
 
     for name in ("Read", "Skill", "TodoWrite", "Write", "Bash"):
-        registry.register(Tool(name, "", {"type": "object"}, "read", "auto", handler))
+        registry.register(Tool(name, "", {"type": "object"}, "read", handler))
     seen = []
 
     def model(opts, context):
@@ -423,7 +469,7 @@ def test_source_headless_five_enforcement_cases(headless, done, include_todo, ex
             executed.append(label)
             return "TODO_OK" if label == "TodoWrite" else "READ"
 
-        registry.register(Tool(name, "", {"type": "object"}, "read", "auto", handler))
+        registry.register(Tool(name, "", {"type": "object"}, "read", handler))
     context = ToolContext("synthetic-workspace", headless=headless,
                           todoWriteRequired=None if done is None else {"done": done})
     calls = ([call("{}", "TodoWrite", "a")] if include_todo else []) + [call("{}", "Read", "b")]
@@ -445,7 +491,7 @@ def test_source_successful_forced_tool_turn_restores_normal_request():
         return "ok"
 
     for name in ("Read", "Skill", "TodoWrite", "Write", "Bash"):
-        registry.register(Tool(name, "", {"type": "object"}, "read", "auto", handler))
+        registry.register(Tool(name, "", {"type": "object"}, "read", handler))
     seen = []
 
     def model(opts, context):
@@ -485,7 +531,7 @@ def test_source_budget_warns_once_and_only_explicit_hard_budget_blocks_next_requ
         session.budgetCNY = .01
         notices = []
         model = Model([copy.deepcopy(first), copy.deepcopy(second), reply("done")])
-        result = run(session, model, budget_hard=hard, notice=notices.append)
+        result = run(session, model, policy=TurnPolicy(budget_hard=hard), events=TurnEvents(notice=notices.append))
         assert result.status == ("budget_limit" if hard else "complete")
         assert len(model.requests) == (1 if hard else 3)
         assert len([notice for notice in notices if "成本提醒" in notice]) == 1
@@ -494,7 +540,7 @@ def test_source_budget_warns_once_and_only_explicit_hard_budget_blocks_next_requ
 
 def test_source_model_unavailable_retries_original_request_then_saves_progress():
     session = Session("SYS", "same-model", env={})
-    session.addUser("continue original task")
+    session.messages.append({"role": "user", "content": "continue original task"})
     existing = copy.deepcopy(session.messages)
     seen = []
 
@@ -518,8 +564,9 @@ def test_source_model_unavailable_retries_original_request_then_saves_progress()
         raise RuntimeError("synthetic background stop receipt unavailable")
 
     context = ToolContext("synthetic-workspace", askChoice=forbidden_choice)
-    result = run(session, model, context=context, journal=Journal(), on_model_unavailable=stop_background,
-                 model_recovery_env={"RUOCUN_HARD_RETRY_DELAY_MS": "1"})
+    result = run(session, model, context=context, journal=Journal(),
+                 recovery=ModelRecoveryHooks(on_model_unavailable=stop_background),
+                 env={"RUOCUN_HARD_RETRY_DELAY_MS": "1"})
     assert seen == ["same-model", "same-model"]
     assert result.status == "model_unavailable" and "后台停止结果未确认" in result.error
     assert session.messages[:-1] == existing
@@ -545,7 +592,7 @@ def test_source_rate_limit_interactive_abort_is_a_single_request():
 @pytest.mark.parametrize("switch_result", [True, False, None], ids=["confirmed", "rejected", "unknown"])
 def test_source_rate_limit_only_switches_selected_account_after_saving(switch_result):
     session = Session("SYS", "old-model", env={})
-    session.addUser("original user goal")
+    session.messages.append({"role": "user", "content": "original user goal"})
     saved = []
     selected = []
     options = {"baseUrl": "http://127.0.0.1:1", "apiKey": "synthetic-old", "model": session.model}
@@ -571,8 +618,8 @@ def test_source_rate_limit_only_switches_selected_account_after_saving(switch_re
     model = Model([replace(reply(error="synthetic provider rate exceeded"), error_status=429), reply("continued")])
     result = asyncio.run(run_turn(
         session, options, Registry(), ToolContext("synthetic-workspace", askChoice=choose),
-        approve=approve, request=model, journal=Journal(),
-        list_other_accounts=lambda: ["other"], switch_account_and_wait=switch,
+        authorization=ToolAuthorization(approve=approve), request=model, journal=Journal(),
+        recovery=ModelRecoveryHooks(list_other_accounts=lambda: ["other"], switch_account_and_wait=switch),
     ))
     assert selected == ["other"]
     assert model.requests[0]["baseUrl"] == "http://127.0.0.1:1"
@@ -590,7 +637,7 @@ def test_source_headless_rate_limit_budget_and_partial_response_stop_without_rep
     rate_limited = replace(reply(error="synthetic quota"), error_status=429)
     model = Model([copy.deepcopy(rate_limited) for _ in range(3)])
     env = {"RUOCUN_RATE_LIMIT_MAX_RETRIES": "2", "RUOCUN_RATE_LIMIT_WAIT_MS": "1"}
-    result = run(Session("SYS", "same-model", env={}), model, model_recovery_env=env)
+    result = run(Session("SYS", "same-model", env={}), model, env=env)
     assert result.status == "failed" and len(model.requests) == 3
     assert {request["model"] for request in model.requests} == {"same-model"}
 

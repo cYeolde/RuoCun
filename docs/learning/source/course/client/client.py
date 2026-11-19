@@ -27,7 +27,6 @@ if TYPE_CHECKING:
     from .resilient import ResilientContext
 
 _MAX_COMPLETION = re.compile(r"^(gpt-[56]|o1|o3|o4)", re.IGNORECASE)
-_EMPTY_TRUNCATION_RETRY_TOKENS = 256000
 
 
 class ApiError(RuntimeError):
@@ -116,27 +115,9 @@ def buildWireMessages(
     return out
 
 
-def resolveMaxTokens(
-    opts: StreamChatOptions,
-    *,
-    empty_truncation_retry: bool = False,
-    env: Mapping[str, str] | None = None,
-) -> int:
-    """单次输出上限优先使用显式参数。默认档为 128000，并可从环境读取。空截断重试档为 256000。各档都受模型能力裁剪。"""
-    explicit = opts.get("maxTokens")
-    if explicit is not None:
-        requested = int(explicit)
-    elif empty_truncation_retry:
-        requested = _EMPTY_TRUNCATION_RETRY_TOKENS
-    else:
-        requested = compat.max_output_tokens(os.environ if env is None else env)
-    return outputLimitFor(opts["model"], requested, opts.get("baseUrl"))
-
-
 def buildRequestBody(
     opts: StreamChatOptions,
     *,
-    max_tokens_override: int | None = None,
     env: Mapping[str, str] | None = None,
     use_responses: bool = False,
 ) -> dict[str, Any]:
@@ -144,10 +125,8 @@ def buildRequestBody(
 
     use_responses 控制是否保留 responseItems。官方 DeepSeek 带工具的 Chat 请求按协议保留历史助手推理。
     """
-    requested = (
-        max_tokens_override if max_tokens_override is not None
-        else resolveMaxTokens(opts, env=env)
-    )
+    explicit = opts.get("maxTokens")
+    requested = int(explicit) if explicit is not None else compat.max_output_tokens(os.environ if env is None else env)
     max_tokens = outputLimitFor(opts["model"], requested, opts.get("baseUrl"))
     field = "max_completion_tokens" if _MAX_COMPLETION.match(opts["model"]) else "max_tokens"
     messages = list(opts.get("messages", []))

@@ -66,10 +66,10 @@
 <section class="design-section" id="request-inputs">
 <h3>2.2 每次请求从会话取消息，附上当前工具接口</h3>
 <p>最开始，模型需要先知道目标和可用工具。读完价格文件，它又需要看到真实函数。主循环每次准备请求时，从同一份会话历史取当时的消息，再放入本轮可用的工具定义。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/task-loop/loop.py#L316" rel="noopener" target="_blank">loop.py:316 · 本次请求的历史与工具</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/task-loop/loop.py#L255" rel="noopener" target="_blank">loop.py:255 · 本次请求的历史与工具</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>2 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="316"></span><span data-line="317"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        opts[<span class="hljs-string">"</span><span class="hljs-string">messages</span><span class="hljs-string">"</span>] = copy.deepcopy(session.messages)
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="255"></span><span data-line="256"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        opts[<span class="hljs-string">"</span><span class="hljs-string">messages</span><span class="hljs-string">"</span>] = copy.deepcopy(session.messages)
         opts[<span class="hljs-string">"</span><span class="hljs-string">tools</span><span class="hljs-string">"</span>] = api_tools() <span class="hljs-keyword">if</span> api_tools is not <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> registry.toApiTools()</code></pre></div></figure>
 <p><code>messages</code> 是这一刻的消息副本，有任务、过去的行动和结果。<code>tools</code> 则给出这次可调用的接口。读文件之前，消息里只有请求已有的信息。读回原文并记入历史以后，再请求模型时就能把原文也带过去。规则和工作目录等信息怎样加入这份输入，见<a href="02-模型收到什么.html" rel="noopener" target="_blank">《模型收到什么：system 装配、项目指令与动态事实》</a>。</p>
 </section>
@@ -79,18 +79,18 @@
 <section class="design-section" id="save-call-before-action">
 <h3>3.1 先保存助手的调用，再派发工具</h3>
 <p>程序收完模型响应后，先把助手消息留在会话里。以读价格文件为例，后面会有一条带源码的工具消息，历史也得记下当时请求了哪个工具、传了哪个文件。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/task-loop/loop.py#L475" rel="noopener" target="_blank">loop.py:475 · 助手消息入历史</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/task-loop/loop.py#L411" rel="noopener" target="_blank">loop.py:411 · 助手消息入历史</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>11 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="475"></span><span data-line="476"></span><span data-line="477"></span><span data-line="478"></span><span data-line="479"></span><span data-line="480"></span><span data-line="481"></span><span data-line="482"></span><span data-line="483"></span><span data-line="484"></span><span data-line="485"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        assistant: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any] = message
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="411"></span><span data-line="412"></span><span data-line="413"></span><span data-line="414"></span><span data-line="415"></span><span data-line="416"></span><span data-line="417"></span><span data-line="418"></span><span data-line="419"></span><span data-line="420"></span><span data-line="421"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        assistant: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any] = message
         assistant[<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>] = <span class="hljs-string">"</span><span class="hljs-string">assistant</span><span class="hljs-string">"</span>
         assistant[<span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>] = content
         <span class="hljs-keyword">if</span> saved_calls:
             assistant[<span class="hljs-string">"</span><span class="hljs-string">tool_calls</span><span class="hljs-string">"</span>] = saved_calls
         session.messages.append(assistant)
         <span class="hljs-keyword">await</span> save()
-        <span class="hljs-keyword">if</span> on_assistant_saved is not <span class="hljs-keyword">None</span>:
-            on_assistant_saved(assistant)
+        <span class="hljs-keyword">if</span> events.on_assistant_saved is not <span class="hljs-keyword">None</span>:
+            events.on_assistant_saved(assistant)
         <span class="hljs-keyword">if</span> not calls:
             <span class="hljs-keyword">return</span> TurnResult(<span class="hljs-string">"</span><span class="hljs-string">complete</span><span class="hljs-string">"</span>)</code></pre></div></figure>
 <p><code>append</code> 把助手消息加进当前列表，<code>save</code> 处理这份历史的保存。没有调用的最终答复也会记录，然后才从 <code>if not calls</code> 结束本回合。有工具调用时，程序接着派发，等它们返回。</p>
@@ -98,14 +98,15 @@
 <section class="design-section" id="result-back-to-history">
 <h3>3.2 工具结果写回历史，再发下一次请求</h3>
 <p>批执行器 <code>executeToolBatch</code> 处理本次响应提出的一批调用。Read 给出的是文件文本，Edit 可能给出差异或拒绝。主循环从批结果中取回工具消息，追加到同一份历史。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/task-loop/loop.py#L487" rel="noopener" target="_blank">loop.py:487 · 派发工具与接回结果</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/task-loop/loop.py#L423" rel="noopener" target="_blank">loop.py:423 · 派发工具与接回结果</a></p>
 <figure class="ruocun-code" data-language="python">
-<figcaption class="ruocun-code-caption"><span>Python</span><span>9 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="487"></span><span data-line="488"></span><span data-line="489"></span><span data-line="490"></span><span data-line="491"></span><span data-line="492"></span><span data-line="493"></span><span data-line="494"></span><span data-line="495"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">try</span>:
+<figcaption class="ruocun-code-caption"><span>Python</span><span>10 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="423"></span><span data-line="424"></span><span data-line="425"></span><span data-line="426"></span><span data-line="427"></span><span data-line="428"></span><span data-line="429"></span><span data-line="430"></span><span data-line="431"></span><span data-line="432"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">try</span>:
             <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> tool_batch_scope <span class="hljs-keyword">if</span> tool_batch_scope is not <span class="hljs-keyword">None</span> <span class="hljs-keyword">else</span> nullcontext():
                 batch = <span class="hljs-keyword">await</span> executeToolBatch(
-                    calls, registry, ctx, approve=approve, journal=journal, authorize=authorize,
-                    authorize_batch=authorize_batch, call_scope=call_scope, permission_mode=permission_mode,
+                    calls, registry, ctx, approve=authorization.approve, journal=journal,
+                    authorize=authorization.authorize, authorize_batch=authorization.authorize_batch,
+                    call_scope=authorization.call_scope, permission_mode=authorization.permission_mode,
                 )
         <span class="hljs-keyword">except</span> UnknownToolOutcome <span class="hljs-keyword">as</span> exc:
             <span class="hljs-keyword">return</span> TurnResult(<span class="hljs-string">"</span><span class="hljs-string">outcome_unknown</span><span class="hljs-string">"</span>, <span class="hljs-built_in">str</span>(exc))
@@ -147,10 +148,10 @@
 <section class="design-section" id="pairing-in-program">
 <h3>4.2 按调用 ID 配对，按原调用顺序回填</h3>
 <p>两次调用如果都用了 <code>read_impl</code>，程序以后就很难把两份内容配回原处。派发前的检查用 <code>seen</code> 记住同一响应中已出现的 ID。它一旦发现重复，主循环随即结束并返回失败。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/task-loop/loop.py#L122" rel="noopener" target="_blank">loop.py:122 · 调用身份检查</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/task-loop/loop.py#L114" rel="noopener" target="_blank">loop.py:114 · 调用身份检查</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>8 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="122"></span><span data-line="123"></span><span data-line="124"></span><span data-line="125"></span><span data-line="126"></span><span data-line="127"></span><span data-line="128"></span><span data-line="129"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        fn = call[<span class="hljs-string">"</span><span class="hljs-string">function</span><span class="hljs-string">"</span>]
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="114"></span><span data-line="115"></span><span data-line="116"></span><span data-line="117"></span><span data-line="118"></span><span data-line="119"></span><span data-line="120"></span><span data-line="121"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        fn = call[<span class="hljs-string">"</span><span class="hljs-string">function</span><span class="hljs-string">"</span>]
         call_id, name, args = call.get(<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>), fn.get(<span class="hljs-string">"</span><span class="hljs-string">name</span><span class="hljs-string">"</span>), fn.get(<span class="hljs-string">"</span><span class="hljs-string">arguments</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">"</span>)
         <span class="hljs-keyword">if</span> (not <span class="hljs-built_in">isinstance</span>(call_id, <span class="hljs-built_in">str</span>) or not call_id or not <span class="hljs-built_in">isinstance</span>(name, <span class="hljs-built_in">str</span>)
                 or not name or not <span class="hljs-built_in">isinstance</span>(args, <span class="hljs-built_in">str</span>)):
@@ -159,16 +160,16 @@
             <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"</span><span class="hljs-string">同一模型回答出现重复工具调用id</span><span class="hljs-string">"</span>)
         seen.add(call_id)</code></pre></div></figure>
 <p>批执行器构造工具消息时，把自己的 <code>call_id</code> 写进 <code>tool_call_id</code> 字段。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/task-loop/tool_batch.py#L67" rel="noopener" target="_blank">tool_batch.py:67 · 工具反馈写回调用 ID</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/task-loop/tool_batch.py#L80" rel="noopener" target="_blank">tool_batch.py:80 · 工具反馈写回调用 ID</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>2 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="67"></span><span data-line="68"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">_message</span>(call_id: <span class="hljs-built_in">str</span>, text: <span class="hljs-built_in">str</span>, image: ImageData | <span class="hljs-keyword">None</span> = <span class="hljs-keyword">None</span>) -&gt; ChatMessage:
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="80"></span><span data-line="81"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> <span class="hljs-title">_message</span>(call_id: <span class="hljs-built_in">str</span>, text: <span class="hljs-built_in">str</span>, image: ImageData | <span class="hljs-keyword">None</span> = <span class="hljs-keyword">None</span>) -&gt; ChatMessage:
     message: ChatMessage = {<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">tool</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">tool_call_id</span><span class="hljs-string">"</span>: call_id, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: text}</code></pre></div></figure>
 <p>返回整批反馈时，循环按原来的 <code>calls</code> 从 <code>results</code> 取值。代入图 2，即使 <code>read_test</code> 先存进 <code>results</code>，也会先取出 <code>read_impl</code> 的内容。这样后续仍按原请求顺序阅读，结果身份也没有改变。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/task-loop/tool_batch.py#L370" rel="noopener" target="_blank">tool_batch.py:370 · 批结果返回顺序</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/task-loop/tool_batch.py#L406" rel="noopener" target="_blank">tool_batch.py:406 · 批结果返回顺序</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>1 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="370"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">return</span> BatchOutcome([results[call_id] <span class="hljs-keyword">for</span> call_id, _, _ in calls], incomplete)</code></pre></div></figure>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="406"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">return</span> BatchOutcome([results[call_id] <span class="hljs-keyword">for</span> call_id, _, _ in calls], incomplete, shell_failures)</code></pre></div></figure>
 <p>假设测试先读完，程序就用这份历史再问一次模型。助手消息列了两个 <code>Read</code>，当前却只有 <code>read_test</code> 的结果，<code>read_impl</code> 还没有回答。若按完成先后给结果分配 ID，测试内容甚至会被当成 <code>prices.mjs</code> 的实现。</p>
 <p>RuoCun 让执行器等本批收尾，按各结果携带的 ID 配回原调用，再由主循环一次接进历史。<strong>「正常续跑要按调用 ID 收齐本批反馈，再发下一次模型请求。」</strong>即使两次读取可以并行，下一次请求仍要等较慢的一项。这个等待换来一组能一一对应的请求和结果。以后裁剪或恢复历史时，也要保留这组关系。</p>
 </section>
@@ -177,11 +178,11 @@
 <header class="v2-group-heading"><span>05</span><h2>中断、拒绝与结果未确认</h2></header>
 <section class="design-section" id="rejection-is-information">
 <h3>5.1 明确拒绝带原因回传，结果未确认则停下</h3>
-<p>先想一个更早的失败。模型忘传 <code>path</code> 时，执行器在<a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/task-loop/tool_batch.py#L175" rel="noopener" target="_blank">参数校验</a>处就能返回带原调用 ID 的错误，下一次模型可以补上文件路径。图 1 的 <code>path</code> 已经给对，问题出现在 Edit 处理器检查旧文时。处理器发现两个匹配项，在写入前抛出 <code>ToolRejected</code>，执行器捕获它并保留具体原因。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/task-loop/tool_batch.py#L250" rel="noopener" target="_blank">tool_batch.py:250 · 拒绝转换成错误文本</a></p>
+<p>先想一个更早的失败。模型忘传 <code>path</code> 时，执行器在<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/task-loop/tool_batch.py#L189" rel="noopener" target="_blank">参数校验</a>处就能返回带原调用 ID 的错误，下一次模型可以补上文件路径。图 1 的 <code>path</code> 已经给对，问题出现在 Edit 处理器检查旧文时。处理器发现两个匹配项，在写入前抛出 <code>ToolRejected</code>，执行器捕获它并保留具体原因。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/task-loop/tool_batch.py#L282" rel="noopener" target="_blank">tool_batch.py:282 · 拒绝转换成错误文本</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>2 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="250"></span><span data-line="251"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">                <span class="hljs-keyword">except</span> ToolRejected <span class="hljs-keyword">as</span> exc:
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="282"></span><span data-line="283"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">                <span class="hljs-keyword">except</span> ToolRejected <span class="hljs-keyword">as</span> exc:
                     result = <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">Error: </span><span class="hljs-string">{</span>exc<span class="hljs-string">}</span><span class="hljs-string">"</span></code></pre></div></figure>
 <p>准确的原因让模型有依据修正。下面是图 1 里的工具消息，沿用示意 ID，<code>content</code> 取对应工具反馈。</p>
 <figure class="ruocun-code" data-language="json">
@@ -202,13 +203,15 @@
 <div class="design-trace"><strong>Edit 反馈（差异节选）</strong><pre><code class="language-diff">-   2   return count * price;
 +   2   return count * price * 0.9;</code></pre></div>
 <p>把故障挪到写入之后。假设 <code>Bash</code> 给价格检查日志追加一行，随后程序保存工具结果时报错。把它当作普通错误交给模型重试，日志里就可能出现两条相同记录。这个时候，缺的是能确认原操作结果的证据。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/task-loop/tool_batch.py#L270" rel="noopener" target="_blank">tool_batch.py:270 · 工具结果的保存与确认</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/task-loop/tool_batch.py#L304" rel="noopener" target="_blank">tool_batch.py:304 · 工具结果的保存与确认</a></p>
 <figure class="ruocun-code" data-language="python">
-<figcaption class="ruocun-code-caption"><span>Python</span><span>12 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="270"></span><span data-line="271"></span><span data-line="272"></span><span data-line="273"></span><span data-line="274"></span><span data-line="275"></span><span data-line="276"></span><span data-line="277"></span><span data-line="278"></span><span data-line="279"></span><span data-line="280"></span><span data-line="281"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            <span class="hljs-keyword">if</span> journal is not <span class="hljs-keyword">None</span>:
+<figcaption class="ruocun-code-caption"><span>Python</span><span>14 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="304"></span><span data-line="305"></span><span data-line="306"></span><span data-line="307"></span><span data-line="308"></span><span data-line="309"></span><span data-line="310"></span><span data-line="311"></span><span data-line="312"></span><span data-line="313"></span><span data-line="314"></span><span data-line="315"></span><span data-line="316"></span><span data-line="317"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            <span class="hljs-keyword">if</span> journal is not <span class="hljs-keyword">None</span>:
                 <span class="hljs-keyword">try</span>:
                     <span class="hljs-keyword">if</span> image is <span class="hljs-keyword">None</span>:
-                        <span class="hljs-keyword">await</span> journal.result(call_id, result)
+                        saved = (ShellToolOutput(result, failed=shell_failures[call_id])
+                                 <span class="hljs-keyword">if</span> call_id in shell_failures <span class="hljs-keyword">else</span> result)
+                        <span class="hljs-keyword">await</span> journal.result(call_id, saved)
                     <span class="hljs-keyword">else</span>:
                         <span class="hljs-keyword">await</span> journal.result(call_id, result, image)
                 <span class="hljs-keyword">except</span> Exception <span class="hljs-keyword">as</span> exc:
@@ -222,20 +225,20 @@
 <section class="design-section" id="incomplete-response">
 <h3>5.2 响应未收完整，主循环先拦住工具派发</h3>
 <p>如果模型响应只送来了 <code>{"path":"prices.mjs","new_string":</code> 就断开，后半段还没有收到。这时 Edit 处理器没有机会检查旧文。主循环判断本次响应的状态，先处理未完整的返回。</p>
-<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/task-loop/loop.py#L412" rel="noopener" target="_blank">loop.py:412 · 未完整响应的停止路径</a></p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/task-loop/loop.py#L348" rel="noopener" target="_blank">loop.py:348 · 未完整响应的停止路径</a></p>
 <figure class="ruocun-code" data-language="python">
 <figcaption class="ruocun-code-caption"><span>Python</span><span>9 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
-<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="412"></span><span data-line="413"></span><span data-line="414"></span><span data-line="415"></span><span data-line="416"></span><span data-line="417"></span><span data-line="418"></span><span data-line="419"></span><span data-line="420"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">if</span> response is <span class="hljs-keyword">None</span> or response.status != <span class="hljs-string">"</span><span class="hljs-string">complete</span><span class="hljs-string">"</span>:
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="348"></span><span data-line="349"></span><span data-line="350"></span><span data-line="351"></span><span data-line="352"></span><span data-line="353"></span><span data-line="354"></span><span data-line="355"></span><span data-line="356"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">if</span> response is <span class="hljs-keyword">None</span> or response.status != <span class="hljs-string">"</span><span class="hljs-string">complete</span><span class="hljs-string">"</span>:
             failure = (response.error or <span class="hljs-string">"</span><span class="hljs-string">模型回答未完成，工具未执行。</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> response is not <span class="hljs-keyword">None</span>
                        <span class="hljs-keyword">else</span> <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">模型请求失败：</span><span class="hljs-string">{</span><span class="hljs-built_in">type</span>(request_error).__name__<span class="hljs-string">}</span><span class="hljs-string">"</span>)
-            <span class="hljs-keyword">if</span> (exposed or content or message.get(<span class="hljs-string">"</span><span class="hljs-string">tool_calls</span><span class="hljs-string">"</span>) or
+            <span class="hljs-keyword">if</span> (stream.exposed or content or message.get(<span class="hljs-string">"</span><span class="hljs-string">tool_calls</span><span class="hljs-string">"</span>) or
                     response is not <span class="hljs-keyword">None</span> and (response.status == <span class="hljs-string">"</span><span class="hljs-string">partial</span><span class="hljs-string">"</span> or response.deltas)):
                 <span class="hljs-keyword">if</span> content:
                     session.messages.append({<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">assistant</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: content})
                 <span class="hljs-keyword">await</span> save()
                 <span class="hljs-keyword">return</span> TurnResult(<span class="hljs-string">"</span><span class="hljs-string">failed</span><span class="hljs-string">"</span>, failure)</code></pre></div></figure>
 <p>客户端用 <code>partial</code> 表示只收到部分响应。主循环保留已有正文，然后让当前回合以 <code>failed</code> 结束。取消也在派发前单独处理。客户端把响应标为 <code>complete</code> 时，程序才继续检查调用身份、参数和执行条件。怎样根据分段传来的内容作出这个判断，到<a href="03-模型响应怎样变成调用.html#complete-gate" rel="noopener" target="_blank">第三篇看响应接收的边界</a>。</p>
-<p>如果执行器在等待并发批次时被取消，它会设置取消信号，先让<a href="https://github.com/hmmgotit/RuoCun/blob/v1.0.0/docs/learning/source/task-loop/tool_batch.py#L309" rel="noopener" target="_blank">已经开始的工具和结果保存有机会收尾</a>。尚未开始的调用可以停下，已经发生的写入还需按实际结果核对。</p>
+<p>如果执行器在等待并发批次时被取消，它会设置取消信号，先让<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/docs/learning/source/task-loop/tool_batch.py#L345" rel="noopener" target="_blank">已经开始的工具和结果保存有机会收尾</a>。尚未开始的调用可以停下，已经发生的写入还需按实际结果核对。</p>
 </section>
 </section>
 <section class="v2-topic-group" id="finish-and-evidence">

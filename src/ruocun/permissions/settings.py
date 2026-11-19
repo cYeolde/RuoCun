@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from typing import Any, Literal, NotRequired, TypedDict, cast
 
+from ..config.settings_store import updateUserSettings
+
 PermissionMode = Literal["default", "auto", "bypassPermissions", "plan"]
 RuleKind = Literal["allow", "ask", "deny"]
 MODES = {"default", "auto", "bypassPermissions", "plan"}
@@ -37,11 +39,6 @@ class PermissionsConfig(TypedDict):
 class CliPermissions(TypedDict):
     config: PermissionsConfig
     rest: list[str]
-
-
-class SourcedPermissions(TypedDict):
-    config: PermissionsConfig
-    sources: dict[str, str]
 
 
 def emptyPermissions() -> PermissionsConfig:
@@ -172,35 +169,21 @@ async def appendRule(file: str | Path, rule: str, kind: RuleKind = "allow") -> N
     appendRuleSync(file, rule, kind)
 
 
-def removeRuleSync(file: str | Path, rule: str, kind: RuleKind = "allow") -> bool:
-    path = Path(file)
-    if not path.exists():
-        return False
-    obj = _readForWrite(path)
+def _removeRule(obj: dict[str, Any], rule: str, kind: RuleKind) -> bool:
     permissions = obj.get("permissions", {})
     values = permissions.get(kind, []) if isinstance(permissions, dict) else []
     if not isinstance(values, list) or rule not in values:
         return False
     values.remove(rule)
-    _write(path, obj)
     return True
 
 
-async def removeRule(file: str | Path, rule: str, kind: RuleKind = "allow") -> bool:
-    return removeRuleSync(file, rule, kind)
-
-
-async def loadPermissions(files: list[str | Path]) -> SourcedPermissions:
-    tiers: list[PermissionsConfig] = []
-    sources: dict[str, str] = {}
-    for file in files:
-        try:
-            raw = Path(file).read_text(encoding="utf-8")
-        except (OSError, UnicodeError):
-            continue
-        cfg = parseSettings(raw)
-        tiers.append(cfg)
-        for key in ("allow", "ask", "deny"):
-            for rule in cfg[key]:
-                sources[f"{key}:{rule}"] = str(file)
-    return {"config": mergePermissions(tiers), "sources": sources}
+async def removeRule(file: str | Path, rule: str, kind: RuleKind = "allow", *, user_settings: bool = False) -> bool:
+    path = Path(file)
+    if user_settings:
+        return updateUserSettings(path, lambda document: _removeRule(document, rule, kind))
+    obj = _readForWrite(path)
+    if not _removeRule(obj, rule, kind):
+        return False
+    _write(path, obj)
+    return True

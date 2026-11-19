@@ -35,5 +35,5 @@ todoWriteTool = Tool(
         "content": {"type": "string", "description": "祈使式描述,如 'Run tests'"},
         "status": {"type": "string", "enum": ["pending", "in_progress", "completed"]},
         "activeForm": {"type": "string", "description": "进行式描述(参考),如 'Running tests';省略时用 content"},
-    }, ["content", "status"]) }}, ["todos"]), capability="plan", approval="auto", handler=_todo,
+    }, ["content", "status"]) }}, ["todos"]), capability="plan", handler=_todo,
 )

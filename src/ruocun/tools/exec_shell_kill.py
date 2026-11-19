@@ -27,5 +27,5 @@ async def _handler(args: dict[str, Any], ctx: ToolContext) -> str:
 execShellKillTool = Tool(
     name="KillShell", description=_TEXT["description"], descriptionEn=_TEXT["descriptionEn"],
     schema=objectSchema({"id": {"type": "string", "description": _TEXT["parameters"]["id"]}}, ["id"]),
-    capability="exec", approval="auto", handler=_handler,
+    capability="exec", handler=_handler,
 )

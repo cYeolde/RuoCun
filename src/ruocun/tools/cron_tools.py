@@ -57,11 +57,11 @@ def createCronTools(service: ScheduleService | None = None) -> tuple[Tool, Tool,
         return "".join(output).strip() or "(暂无定时任务)"
 
     return (Tool(name="CronCreate", description=cronCreateTool_DESCRIPTION, descriptionEn=cronCreateTool_DESCRIPTIONEN,
-                 schema=_CREATE, capability="exec", approval="required", shouldDefer=True, handler=create),
+                 schema=_CREATE, capability="exec", shouldDefer=True, handler=create),
             Tool(name="CronDelete", description=cronDeleteTool_DESCRIPTION, descriptionEn=cronDeleteTool_DESCRIPTIONEN,
-                 schema=_DELETE, capability="exec", approval="required", shouldDefer=True, handler=delete),
+                 schema=_DELETE, capability="exec", shouldDefer=True, handler=delete),
             Tool(name="CronList", description=cronListTool_DESCRIPTION, descriptionEn=cronListTool_DESCRIPTIONEN,
-                 schema=objectSchema({}, []), capability="read", approval="auto", shouldDefer=True, handler=listed))
+                 schema=objectSchema({}, []), capability="read", shouldDefer=True, handler=listed))
 
 
 cronCreateTool, cronDeleteTool, cronListTool = createCronTools()

@@ -49,7 +49,7 @@ listDirTool = Tool(
         "List up to 500 immediate directory entries in name order. A trailing / marks a directory. "
         "Omit path to inspect the workspace root. Use Glob to find paths by pattern."
     ),
-    capability="read", approval="auto",
+    capability="read",
     schema=objectSchema({
         "path": {"type": "string", "description": "相对工作区根目录的目录路径,默认根目录"},
     }, []),

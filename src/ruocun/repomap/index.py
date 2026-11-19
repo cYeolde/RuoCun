@@ -46,7 +46,7 @@ def repoMapTokenBudget(environ: Mapping[str, str] | None = None) -> int:
     return math.floor(value) if math.isfinite(value) and value >= 0 else DEFAULT_TOKEN_BUDGET
 
 
-def _build(root: str, budget: int, signal: threading.Event | None) -> RepoMapResult:
+def _build(root: str, budget: int, signal: threading.Event | None, *, refresh: bool) -> RepoMapResult:
     files: list[tuple[str, str]] = []
     for absolute, relative in walkFiles(root):
         if signal is not None and signal.is_set():
@@ -67,7 +67,7 @@ def _build(root: str, budget: int, signal: threading.Event | None) -> RepoMapRes
         except OSError:
             continue
         with _CACHE_LOCK:
-            cached = _CACHE.get(absolute)
+            cached = None if refresh else _CACHE.get(absolute)
         # 文件大小和修改时间都一致时，复用上次提取结果，避免重复解析。
         if cached is not None and cached[:2] == (stat.st_mtime_ns, stat.st_size):
             extracted = cached[2]
@@ -89,9 +89,10 @@ def _build(root: str, budget: int, signal: threading.Event | None) -> RepoMapRes
 
 
 async def buildRepoMap(root: str | Path, tokenBudget: int | None = None, *,
-                       environ: Mapping[str, str] | None = None, signal: threading.Event | None = None) -> RepoMapResult:
+                       environ: Mapping[str, str] | None = None, signal: threading.Event | None = None,
+                       refresh: bool = False) -> RepoMapResult:
     budget = repoMapTokenBudget(environ) if tokenBudget is None else tokenBudget
-    return await asyncio.to_thread(_build, str(Path(root).resolve()), budget, signal)
+    return await asyncio.to_thread(_build, str(Path(root).resolve()), budget, signal, refresh=refresh)
 
 
 def wrapRepoMapNotice(mapText: str, isEn: bool, fileCount: int) -> str:
@@ -107,8 +108,3 @@ def wrapRepoMapNotice(mapText: str, isEn: bool, fileCount: int) -> str:
             f'已扫描 {fileCount} 个文件。项目其他位置依赖较多的定义排在前面。│ 后是签名，⋮... 表示略去的部分。'
             '找到目标后用 Read 查看实现。需要更新索引时，调用 RepoMap 并设置 refresh=true。'
             f'\n{mapText}\n</代码库地图>')
-
-
-def resetRepoMapCacheForTest() -> None:
-    with _CACHE_LOCK:
-        _CACHE.clear()

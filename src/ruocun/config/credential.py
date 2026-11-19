@@ -200,34 +200,6 @@ def persistKey(
     return addProfile(cfg, name, {**meta, "key": key}), "file"
 
 
-RECONFIGURE_HINT = "请重新配置账户（提供内联 key 或有效的若存系统凭据引用）"
-
-
-def diagnoseCredential(
-    cfg: ProfilesConfig,
-    kc: KeychainPort,
-) -> str:
-    """报告当前账户的凭据状态，输出不含密钥。"""
-    name = cfg.get("activeProfile")
-    profiles = cfg.get("profiles")
-    if not isinstance(name, str) or not isinstance(profiles, dict):
-        return f"无有效激活账户；{RECONFIGURE_HINT}"
-    p = profiles.get(name)
-    if not isinstance(p, dict):
-        return f"激活账户 {name} 无有效 profile；{RECONFIGURE_HINT}"
-    key = p.get("key")
-    if isinstance(key, str) and key:
-        return "激活账户使用内联 key（stored=file），无需系统凭据"
-    account = _native_account(cfg, name, p.get("keyRef"))
-    if account is None:
-        return f"未配置可用凭据；{RECONFIGURE_HINT}"
-    lookup = kc.get(NEW_KEYCHAIN_SERVICE, account)
-    if lookup.status == "found" and lookup.secret:
-        return f"系统凭据可用（stored=system，service={NEW_KEYCHAIN_SERVICE}）"
-    failure = describeFailure(lookup)
-    return f"{failure}；请重新配置账户或稍后重试"
-
-
 def createKeychain(
     environ: Mapping[str, str], *, backend: CredentialBackend | None = None,
     timeout_seconds: float = 8.0,

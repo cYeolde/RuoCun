@@ -35,6 +35,6 @@ async def _handler(args: dict[str, Any], ctx: ToolContext) -> str:
 
 
 taskStopTool = Tool(
-    name="TaskStop", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN, capability="exec", approval="auto",
+    name="TaskStop", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN, capability="exec",
     handler=_handler, schema=objectSchema({"id": {"type": "string", "minLength": 1, "description": "任务 id"}}, ["id"]),
 )

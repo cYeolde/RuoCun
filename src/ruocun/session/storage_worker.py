@@ -231,15 +231,6 @@ class StorageWorker:
         saved = copy.deepcopy(run)
         return self._enqueue_write(lambda port, owner: port.commit_shell_run(owner, saved))
 
-    def enqueue_recovery_decision(
-        self, decision_id: str, target: str, decision: str, explanation: str,
-    ) -> OperationHandle[None]:
-        return self._enqueue_write(
-            lambda port, owner: port.record_recovery_decision(
-                owner, decision_id, target, decision, explanation
-            )
-        )
-
     def enqueue_prepare_recovery(self, material_errors: dict[str, str] | None = None) -> OperationHandle[None]:
         return self._enqueue_write(lambda port, owner: port.prepare_recovery(owner, copy.deepcopy(material_errors)))
 

@@ -16,13 +16,6 @@ def _clean_title(title: str) -> str:
     return re.sub(r"[\x00-\x1f\x7f-\x9f]", "", re.sub(r"\s+", " ", title)).strip()
 
 
-def formatTabTitle(_cwd: str, name: str | None = None) -> str:
-    task = _clean_title(name or "")
-    if len(task) > 24:
-        task = task[:24] + "…"
-    return f"{task} · {DISPLAY_NAME}" if task and task != DISPLAY_NAME else DISPLAY_NAME
-
-
 class TabAttention:
     def __init__(self, title: str, write: Callable[[str], None], enabled: bool) -> None:
         self._write, self._enabled = write, enabled
@@ -55,12 +48,6 @@ class TabAttention:
     def clear(self) -> None:
         if not self._disposed and self._marked is not None:
             self._marked = None
-            self._render()
-
-    def setTitle(self, title: str) -> None:
-        value = _clean_title(title) or DISPLAY_NAME
-        if not self._disposed and value != self._base:
-            self._base = value
             self._render()
 
     def dispose(self) -> None:

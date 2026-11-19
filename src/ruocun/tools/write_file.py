@@ -62,5 +62,5 @@ writeFileTool = Tool(
     schema=objectSchema({
         "path": {"type": "string", "description": "相对工作区根目录的文件路径"},
         "content": {"type": "string", "description": "文件的完整内容"},
-    }, ["path", "content"]), capability="write", approval="required", handler=_write,
+    }, ["path", "content"]), capability="write", handler=_write,
 )

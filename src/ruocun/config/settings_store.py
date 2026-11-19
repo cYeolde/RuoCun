@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -16,28 +17,38 @@ from .native_json import nativeJsonWriter, readNativeObjectForWrite
 
 MISSING = object()
 
-def setUserSetting(user_root: Path, setting: str, value: str | bool | int | float) -> None:
-    root = user_root.absolute()
-    target = root / "settings.json"
+
+def updateUserSettings(target: Path, change: Callable[[dict[str, Any]], bool]) -> bool:
+    """读取并更新用户设置。修改回调返回 False 时不发布文件。"""
+    target = target.absolute()
     with fileLock(str(target)):
         try:
             document = readNativeObjectForWrite(target)
-            current = document
-            keys = setting.split(".")
-            for key in keys[:-1]:
-                child = current.get(key)
-                if child is None:
-                    child = {}
-                    current[key] = child
-                if not isinstance(child, dict):
-                    raise ValueError("设置路径经过非对象值")
-                current = child
-            current[keys[-1]] = value
+            if not change(document):
+                return False
             content = json.dumps(document, ensure_ascii=False, allow_nan=False, indent=2) + "\n"
         except (OSError, ValueError, TypeError, AtomicFileError) as error:
             raise ToolRejected(f"配置未写入，原文件已保留（{type(error).__name__}）。") from error
         with nativeJsonWriter(target) as publish:
             publish(content)
+        return True
+
+
+def setUserSetting(user_root: Path, setting: str, value: str | bool | int | float) -> None:
+    def set_value(current: dict[str, Any]) -> bool:
+        keys = setting.split(".")
+        for key in keys[:-1]:
+            child = current.get(key)
+            if child is None:
+                child = {}
+                current[key] = child
+            if not isinstance(child, dict):
+                raise ValueError("设置路径经过非对象值")
+            current = child
+        current[keys[-1]] = value
+        return True
+
+    updateUserSettings(user_root / "settings.json", set_value)
 
 
 def readSetting(file: Path, setting: str) -> Any:

@@ -18,7 +18,6 @@ from ..permissions.perm_audit import formatPermReport, summarizePermTrace
 from ..session.cache_audit import formatCacheReport
 from ..skills.skill_audit import (
     formatSkillReport,
-    readAllSkillTraces,
     summarizeSkillTrace,
 )
 from ..tools.tool_audit import formatToolReport, summarizeToolTrace
@@ -31,11 +30,11 @@ def _read(directory: Path, name: str) -> list[Any]:
         file = directory / name
         if file.resolve().parent != directory.resolve():
             return []
-        raw = file.read_text(encoding="utf-8", errors="replace")
+        raw = file.read_bytes().decode("utf-8", errors="replace")
     except OSError:
         return []
     events = []
-    for line in raw.splitlines():
+    for line in raw.split("\n"):
         try:
             event = json.loads(line)
         except ValueError:
@@ -70,5 +69,5 @@ def auditCommand(args: Sequence[str], *, sessionsRoot: Path, currentId: str,
     if want("cache"):
         sections.append(formatCacheReport(cast(Any, _read(directory, "cache.jsonl"))))
     if want("skills"):
-        sections.append(formatSkillReport(summarizeSkillTrace(readAllSkillTraces(sessionsRoot))))
+        sections.append(formatSkillReport(summarizeSkillTrace(_read(directory, "skill-trace.jsonl"))))
     return redact(f"审计 · 会话 {identity} · 目录 {directory}\n" + "\n\n".join(sections))

@@ -142,7 +142,7 @@ from ..tui.app.app import runAccountPicker, runModelPicker
 from ..tui.app.types import AccountActions
 from ..tui.foreground_registry import convertAll
 from ..tui.image_paste import prepareImageInput
-from ..tui.render import TurnEvents
+from ..tui.render import TurnDisplay
 from ..version import __version__
 from .agent_defs import AgentDefinition, loadAgentDefinitions
 from .agent_handoff import createAgentHandoff
@@ -183,6 +183,14 @@ from .run_agent import (
 from .runtime_context import isRuntimeContext
 from .session_scheduler import Content, SessionScheduler
 from .tasks import TaskManager
+from .turn_options import (
+    ContextHooks,
+    ModelRecoveryHooks,
+    ToolAuthorization,
+    ToolFeedbackOptions,
+    TurnEvents,
+    TurnPolicy,
+)
 from .unified_reflect import reflect as unifiedReflect
 from .worktree import (
     GitBoundaryError,
@@ -578,7 +586,6 @@ async def _run_session(args: argparse.Namespace, startup: AsyncExitStack, broker
     skill_usage: UsageMap = {} if args.no_skills else await loadUsage(skill_state_root)
     skill_day = datetime.now(UTC).date().isoformat()
     usage_writable = not args.no_skills
-    skill_round = 0
     project_text = "" if args.no_project_instructions else loadProjectInstructions(cwd, userRoot=user_root)
     memory_today = memory_store.today()
     try:
@@ -692,7 +699,6 @@ async def _run_session(args: argparse.Namespace, startup: AsyncExitStack, broker
         prompt = system_prompt(session.model)
         messages = [{"role": "system", "content": prompt}, *history[1:]]
         await conversation.replace_context(session, messages, reset_prompt=False)
-        session.setSystemPrompt(prompt)
     # 清单只采用已提交、成功配对的 TodoWrite，避免展示尚未生效的待办状态。
     tool_results = {m.get("tool_call_id"): m.get("content", "") for m in session.messages
                     if m.get("role") == "tool"}
@@ -716,7 +722,7 @@ async def _run_session(args: argparse.Namespace, startup: AsyncExitStack, broker
     observer_stop = asyncio.Event()
     scheduler: SessionScheduler | None = None
     deck: DeckBridge | None = None
-    deck_events: TurnEvents | None = None
+    deck_events: TurnDisplay | None = None
     deck_stop = asyncio.Event()
     prepared_continuation: tuple[RunRef, PreparedAgentRun] | None = None
     mcp_manager: Any = None
@@ -831,10 +837,6 @@ async def _run_session(args: argparse.Namespace, startup: AsyncExitStack, broker
             approval_waiters.discard(task)
             if clear_attention is not None:
                 clear_attention()
-
-    async def confirm(name: str, parameters: dict[str, Any]) -> bool:
-        # 实际运行必须提供 authorize，回退到需要旧授权接口时明确拒绝。
-        return False
 
     async def choice(question: str, options: list[str], multi: bool = False) -> str:
         if broker is not None:
@@ -1253,7 +1255,7 @@ async def _run_session(args: argparse.Namespace, startup: AsyncExitStack, broker
         return await conversation.queue_user(session, content)
 
     async def consume_user(input_id: str) -> bool:
-        nonlocal skill_round, prompt_rejected, exit_code, current_input_id
+        nonlocal prompt_rejected, exit_code, current_input_id
         item = next(entry for entry in conversation.queued_inputs() if entry.input_id == input_id)
         original = originalInput(item.payload)
         projection = None
@@ -1310,7 +1312,6 @@ async def _run_session(args: argparse.Namespace, startup: AsyncExitStack, broker
         if outcome.block:
             output(f"[提交被 Hook 阻止] {outcome.reason}")
         if accepted and interactive:
-            skill_round += 1
             if checkpointer is not None and checkpointer.enabled and ctx.activeWorktree is None:
                 message = next(message for message in reversed(session.messages) if message.get("role") == "user")
                 projected = message.get("content")
@@ -1768,7 +1769,6 @@ async def _run_session(args: argparse.Namespace, startup: AsyncExitStack, broker
                         if prepared_model is not None:
                             await conversation.change_model(session, prepared_model.model, prepared_model.messages,
                                 previous_model=prepared_model.previous_model, rewrite=prepared_model.rewrite)
-                            session.setSystemPrompt(str(prepared_model.messages[0]["content"]))
                         else:
                             session.setModel(account["model"])
                         ctx.sessionModel = session.model
@@ -1937,7 +1937,7 @@ async def _run_session(args: argparse.Namespace, startup: AsyncExitStack, broker
             def skill_loaded(name: str) -> None:
                 if usage_writable:
                     used_skills.append(name)
-                skill_audit.loaded(skill_round, conversation.redact(name))
+                skill_audit.loaded(current_input_id, conversation.redact(name))
 
             ctx.recordSkillUse = None if args.no_skills else skill_loaded
 
@@ -2006,28 +2006,42 @@ async def _run_session(args: argparse.Namespace, startup: AsyncExitStack, broker
             try:
                 with wait_scope(background) as control, observationScope(sessionId=selected, identity="main", depth=0), spanScope("turn"):
                     result = await run_turn(
-                        session, options, registry, ctx, approve=confirm, authorize=permissions.authorize,
-                        authorize_batch=authorize_batch, call_scope=permissions.callScope,
-                        permission_mode=permissions.getMode, api_tools=api_tools,
-                        request=request, journal=conversation, on_delta=delta, on_boundary=model_boundary,
-                        wait_control=control, on_tool_result=tool_result,
-                        on_assistant_saved=assistant_saved if broker is not None or deck is not None else None,
-                        on_tool_message=tool_saved if broker is not None or deck is not None or controlled_learning else None,
+                        session, options, registry, ctx,
+                        authorization=ToolAuthorization(
+                            authorize_batch=authorize_batch,
+                            call_scope=permissions.callScope, permission_mode=permissions.getMode,
+                        ),
+                        request=request, journal=conversation, api_tools=api_tools,
+                        on_boundary=model_boundary, wait_control=control,
                         on_tool_boundary=None if args.no_skills else publish_skills,
-                        accepts_delta=lambda: scheduler is not None and scheduler.is_current(generation),
-                        compact=context_manager.recover_overflow, request_preflight=context_manager.before_request,
-                        max_turns=context_manager.max_turns, budget_hard=context_manager.budget_hard,
-                        notice=output, reasoning_effort=compat.reasoning_effort(env),
-                        empty_max_retries=context_manager.empty_max_retries,
-                        empty_retry_max_tokens=context_manager.empty_retry_max_tokens,
-                        model_recovery_env=env, list_other_accounts=other_accounts,
-                        switch_account_and_wait=switch_recovery_account,
-                        on_model_unavailable=stop_unavailable_background,
-                        reflect=challenge if args.reflect_challenger and not args.prompt else None,
-                        long_task=long_task,
-                        progress_advice=not args.no_progress_advice and not interactive,
-                        interactive=interactive,
-                        has_running_background=lambda: bool(background.running() or task_manager.running()),
+                        events=TurnEvents(
+                            on_delta=delta, on_tool_result=tool_result, notice=output,
+                            on_assistant_saved=assistant_saved if broker is not None or deck is not None else None,
+                            on_tool_message=(
+                                tool_saved if broker is not None or deck is not None or controlled_learning else None
+                            ),
+                            accepts_delta=lambda: scheduler is not None and scheduler.is_current(generation),
+                        ),
+                        context_hooks=ContextHooks(
+                            compact=context_manager.recover_overflow, request_preflight=context_manager.before_request,
+                        ),
+                        policy=TurnPolicy(
+                            max_turns=context_manager.max_turns, budget_hard=context_manager.budget_hard,
+                            reasoning_effort=compat.reasoning_effort(env),
+                            empty_max_retries=context_manager.empty_max_retries,
+                            empty_retry_max_tokens=context_manager.empty_retry_max_tokens,
+                        ),
+                        env=env,
+                        recovery=ModelRecoveryHooks(
+                            list_other_accounts=other_accounts, switch_account_and_wait=switch_recovery_account,
+                            on_model_unavailable=stop_unavailable_background,
+                        ),
+                        feedback=ToolFeedbackOptions(
+                            reflect=challenge if args.reflect_challenger and not args.prompt else None,
+                            long_task=long_task, progress_advice=not args.no_progress_advice and not interactive,
+                            interactive=interactive,
+                            has_running_background=lambda: bool(background.running() or task_manager.running()),
+                        ),
                     )
                 if result.status == "complete" and scheduler.is_current(generation):
                     if controlled_learning:
@@ -2220,12 +2234,8 @@ async def _run_session(args: argparse.Namespace, startup: AsyncExitStack, broker
             output(f"已回退到第 {args_text[0]} 条用户消息之前。")
             return 0
 
-        async def command(text: str) -> tuple[bool, int]:
+        async def command(name: str, arguments: str) -> tuple[bool, int]:
             nonlocal active, cancelled, theme_background, long_task, preserve_pause
-            parsed_command = parseSlashCommand(text)
-            if parsed_command is None:
-                return False, 0
-            name, arguments = parsed_command
             args_text = arguments.split()
             text = f"/{name}" + (f" {arguments}" if arguments else "")
             if name == "help":
@@ -2673,16 +2683,17 @@ async def _run_session(args: argparse.Namespace, startup: AsyncExitStack, broker
             first = ""
             if conversation.blocked:
                 return 74
-            exit_command = parseSlashCommand(text) if isinstance(text, str) else None
-            if text is None or exit_command is not None and exit_command[0] in {"exit", "quit"}:
-                keep_background_exit = bool(exit_command and exit_command[0] == "quit" and "--keep-background" in exit_command[1])
+            parsed_command = parseSlashCommand(text) if isinstance(text, str) else None
+            if text is None or parsed_command is not None and parsed_command[0] in {"exit", "quit"}:
+                keep_background_exit = bool(parsed_command and parsed_command[0] == "quit"
+                                            and "--keep-background" in parsed_command[1])
                 break
             if not text or isinstance(text, str) and not text.strip():
                 if args.prompt:
                     break
                 continue
-            if isinstance(text, str) and parseSlashCommand(text) is not None:
-                handled, code = await command(text)
+            if parsed_command is not None:
+                handled, code = await command(*parsed_command)
                 if handled:
                     update_terminal_status()
                     if args._next_session is not None:

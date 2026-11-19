@@ -1,4 +1,4 @@
-"""在一批工具调用结束后，把 Read 得到的图片加入模型上下文。
+"""从已确认的工具结果构造模型消息，并在批末投递 Read 图片。
 
 已投递标记归属上下文检查点，工具账本中的可信结果仍按原样保留。
 """
@@ -8,6 +8,7 @@ from __future__ import annotations
 import copy
 
 from ..client.types import ChatMessage, ContentPart
+from .contract import ToolResult
 
 
 def isValidToolResult(result: object, call_id: str) -> bool:
@@ -19,12 +20,23 @@ def isValidToolResult(result: object, call_id: str) -> bool:
     if (result.get("role") != "tool" or result.get("tool_call_id") != call_id
             or not isinstance(result.get("content"), str) or "imageDelivered" in result):
         return False
+    if "shellFailed" in result and type(result["shellFailed"]) is not bool:
+        return False
     if "imageData" in result:
         image = result["imageData"]
         if (not isinstance(image, dict) or set(image) != {"base64", "mediaType"}
                 or not isinstance(image["base64"], str) or not isinstance(image["mediaType"], str)):
             return False
     return True
+
+
+def projectToolResult(result: ToolResult, call_id: str) -> ChatMessage:
+    """还原结果文本及图片，留出仅供批次判断的状态。"""
+    if isinstance(result, str):
+        return {"role": "tool", "tool_call_id": call_id, "content": str(result)}
+    message = copy.deepcopy(result)
+    message.pop("shellFailed", None)
+    return message
 
 
 def flushReadImages(messages: list[ChatMessage]) -> list[ChatMessage]:

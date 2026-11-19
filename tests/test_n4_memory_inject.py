@@ -4,11 +4,11 @@ from dataclasses import replace
 
 from ruocun.memory.inject import (
     ValidatedMemory,
+    _selectIndexEntries,
     buildIndexSection,
     buildMemorySection,
     selectForInjection,
     selectFullText,
-    selectIndexNames,
 )
 from ruocun.memory.types import newMemory
 
@@ -81,12 +81,12 @@ def test_full_text_filters_stale_protected_type():
 
 def test_index_excludes_full_names_and_stale_and_orders_remaining():
     items = [item("u", type="user"), item("x", importance=9), item("y", importance=3), item("z", "stale")]
-    assert selectIndexNames(items, TODAY, selectFullText(items, TODAY, 1), 200) == ["x", "y"]
+    assert names(_selectIndexEntries(items, TODAY, selectFullText(items, TODAY, 1), 200)) == ["x", "y"]
 
 
 def test_index_caps_remaining_names():
     items = [item(f"n-{i}") for i in range(50)]
-    assert len(selectIndexNames(items, TODAY, [], 10)) == 10
+    assert len(_selectIndexEntries(items, TODAY, [], 10)) == 10
 
 
 def test_index_rendering_lists_names_and_memory_read_hint():

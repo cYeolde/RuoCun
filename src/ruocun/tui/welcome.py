@@ -59,7 +59,7 @@ def _truncate(text: str, columns: int) -> str:
 
 
 def Welcome(info: Mapping[str, str], caps: Capabilities, bg: str = "dark", *,
-            maxim: object = None, skipFooter: bool = False,
+            skipFooter: bool = False,
             mascot: WelcomeMascotLayout | None = None, terminalRows: int | None = None) -> str:
     box = getWelcomeLayout(caps.columns, mascot if bg == "dark" else None, terminalRows=terminalRows)
     width = box["cardWidth"]

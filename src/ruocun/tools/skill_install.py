@@ -34,5 +34,5 @@ def makeSkillInstallTool(user_root: Path, *, run_git: GitRunner | None = None) -
             "scope": {"type": "string", "enum": ["user", "project"],
                       "description": "user=~/.ruocun/skills(跨项目,默认);project=当前项目 .ruocun/skills"},
         }, ["source"]),
-        capability="exec", approval="required", shouldDefer=True, handler=handler,
+        capability="exec", shouldDefer=True, handler=handler,
     )

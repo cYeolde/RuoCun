@@ -620,7 +620,13 @@ class PermissionRuntime:
                 return f"✗ 规则不在任何已加载的 settings 文件中(可能是 session/CLI 规则,无法通过此命令删除):{rule}"
             if owner.source is not None or owner.kind == "managed":
                 return f"✗ {owner.path} 为只读兼容/托管来源，未修改；请在原来源管理规则。"
-            removed = await removeRule(owner.path, rule, kind)
+            # 用户与项目设置重合时，后者可能拥有显示来源，写入仍遵守用户设置契约。
+            user_settings = any(tier.kind == "user" and tier.path is not None
+                                and _canonical(tier.path) == _canonical(owner.path) for tier in self._tiers)
+            try:
+                removed = await removeRule(owner.path, rule, kind, user_settings=user_settings)
+            except ToolRejected:
+                return "✗ 用户权限设置未确认，原文件已保留。"
             if not removed:
                 return f"✗ 未在 {owner.path} 中找到规则:{rule}"
             if rule in self._interactiveRules[kind]:

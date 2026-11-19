@@ -34,7 +34,7 @@ async def _handler(args: dict[str, Any], ctx: ToolContext) -> str:
 
 
 taskUpdateTool = Tool(
-    name="TaskUpdate", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN, capability="plan", approval="auto",
+    name="TaskUpdate", description=DESCRIPTION, descriptionEn=DESCRIPTION_EN, capability="plan",
     handler=_handler, schema=objectSchema({
         "id": {"type": "string", "minLength": 1, "description": "任务 id"},
         "description": {"type": "string", "description": "新描述(可选)"},

@@ -7,7 +7,7 @@ import os
 import time
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
-from typing import Any, Literal, NotRequired, TypedDict, cast
+from typing import Any, Literal, NotRequired, TypedDict
 
 from ..config.compat import resolve_env
 from .secrets import redactSecrets
@@ -233,26 +233,6 @@ def formatMemoryReport(summary: MemorySummary) -> str:
                     f"取代旧条目 {consolidated['superseded']}")
         rows.extend(f"    · {reason}" for reason in consolidated["reasons"][:3])
     return "\n".join(rows)
-
-
-def readAllMemoryTraces(sessionsRoot: str | Path) -> list[MemoryTraceEvent]:
-    events: list[MemoryTraceEvent] = []
-    try:
-        directories = list(Path(sessionsRoot).iterdir())
-    except OSError:
-        return events
-    for directory in directories:
-        try:
-            for line in (directory / "memory-trace.jsonl").read_text("utf-8").splitlines():
-                try:
-                    event = json.loads(line)
-                    if isinstance(event, dict):
-                        events.append(cast(MemoryTraceEvent, event))
-                except (ValueError, TypeError):
-                    pass
-        except OSError:
-            pass
-    return events
 
 
 class ReflectSummary(TypedDict):

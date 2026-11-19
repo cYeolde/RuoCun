@@ -7,7 +7,7 @@ from __future__ import annotations
 import re
 from typing import Literal, NotRequired, TypedDict, cast
 
-from .parser import _ParseAborted, jsTrim, parseCommandRaw
+from .parser import _ParseAborted, jsTrim
 from .types import Node
 
 
@@ -74,14 +74,6 @@ def _containsPlaceholder(value: str) -> bool:
     return _CMDSUB in value or _VAR in value
 
 
-def nodeTypeId(nodeType: str | None) -> int:
-    if not nodeType:
-        return -2
-    if nodeType == "ERROR":
-        return -1
-    return _DANGEROUS.index(nodeType) + 1 if nodeType in _DANGEROUS else 0
-
-
 def _complex(node: Node) -> Complex:
     reason = "Parse error" if node.type == "ERROR" else f"Contains {node.type}" if node.type in _DANGEROUS else f"Unhandled node type: {node.type}"
     return {"kind": "too-complex", "reason": reason, "nodeType": node.type}
@@ -127,13 +119,6 @@ def _maskBraces(cmd: str) -> str:
             output.append(char)
             index += 1
     return "".join(output)
-
-
-async def parseForSecurity(cmd: str) -> ParseForSecurityResult:
-    if cmd == "":
-        return {"kind": "simple", "commands": []}
-    root = await parseCommandRaw(cmd)
-    return {"kind": "parse-unavailable"} if root is None else parseForSecurityFromAst(cmd, root)
 
 
 def parseForSecurityFromAst(cmd: str, root: Node | _ParseAborted) -> ParseForSecurityResult:

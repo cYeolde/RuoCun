@@ -63,6 +63,7 @@ Alt+V显式读取Windows剪贴板附图，或输入工作区@图片路径；图�
 /recovery查询未决；resolve <scope> <toolCallId> <说明>或decide <taskId> <completed|failed|canceled> <证据>保存人工决定。
 恢复决定不会重放旧操作；continue可继续有完整检查点的后台子代理。
 /<技能slug>按正文启动一轮；模型用Skill按需加载正文。
+仅手动技能仍可用斜杠调用，模型的 Skill 工具不会加载。
 /simplify、/remember、/review、/init、/batch、/skillify 展开内置提示词。
 /goal [目标] 或 /task [目标] 切换长任务模式或提交目标；/coordinator 开启同一模式。
 /btw <随手备注> 保存上下文备注；/hooks 查看已加载的 Hook 配置。
@@ -82,9 +83,10 @@ ruocun Skill add <本地路径|Git地址> [--user|--project] 安装完整Skills�
 操作员入口 Skill 保留大写，默认用户级，--project选择当前项目；没有参数会显示用法。
 ruocun Schedule add "<cron>" "<提示词>" | list | remove <序号> 管理支持平台的系统定时。
 Windows明确不支持系统crontab；/loop只是当前会话内周期任务，退出即停止。
-/context 查看粗估分类及上次API用量；/context-window [128k|1m] 查询/手动覆盖窗口。
+/context 查看粗估分类及上次主请求的 API 用量；/context-window [128k|1m] 查询/手动覆盖窗口。
 /status 查看模型/窗口/用量；/effort [low|medium|high|max] 查询/调整推理力度。
-/compact 压缩对话；85%主动及上下文错误有界压缩，失败保留原上下文停止本轮。
+/compact 手动压缩对话。自动压缩按默认 80% 压力线及输出上限和余量确定阈值。
+遇到上下文超限时尝试有界压缩，失败保留原上下文并停止本轮。
 工具：Read、Write、Edit、ListDir、Glob、Grep、Bash（Windows默认cmd）、TodoWrite、Skill、ToolSearch、MemoryRead、MemoryWrite、AskUserQuestion、SendUserMessage。
 AskUserQuestion支持自由回答、多选与先讨论；SendUserMessage在终端显示正文及附件。
 NotifyUser按需给终端内best-effort提示，不发送系统桌面通知；TaskWait等待已确认的后台Shell事件。

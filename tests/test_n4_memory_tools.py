@@ -98,13 +98,13 @@ def test_write_delete_missing_title_or_target(memory, title, expected):
     assert expected in asyncio.run(write.handler(args, ctx))
 
 
-def test_write_declaration_preserves_plan_auto_and_marks_actual_persistent_effect(memory):
+def test_write_declaration_preserves_plan_capability_and_marks_actual_persistent_effect(memory):
     _, read, write, _, _ = memory
-    assert (write.name, write.capability, write.approval, write.shouldDefer, write.persistentEffect) == (
-        "MemoryWrite", "plan", "auto", False, True,
+    assert (write.name, write.capability, write.shouldDefer, write.persistentEffect) == (
+        "MemoryWrite", "plan", False, True,
     )
-    assert (read.name, read.capability, read.approval, read.schema["required"]) == (
-        "MemoryRead", "read", "auto", ["query"],
+    assert (read.name, read.capability, read.schema["required"]) == (
+        "MemoryRead", "read", ["query"],
     )
     assert write.schema["required"] == []
 

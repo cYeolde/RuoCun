@@ -22,17 +22,18 @@ _FOLLOW = (
 
 async def _skill(args: dict[str, Any], ctx: ToolContext) -> str:
     want = args["name"].strip().lower()
-    skill = next((item for item in ctx.skills
+    model_skills = [item for item in ctx.skills if item.get("modelInvokable") is not False]
+    skill = next((item for item in model_skills
                   if ((f"{item['namespace']}:" if item.get("namespace") else "")
                       + item.get("slug", "")).lower() == want), None)
     if skill is None:
-        skill = next((item for item in ctx.skills if item["name"] == args["name"]), None)
+        skill = next((item for item in model_skills if item["name"] == args["name"]), None)
     if skill is None:
-        skill = next((item for item in ctx.skills if item["name"].lower() == want), None)
+        skill = next((item for item in model_skills if item["name"].lower() == want), None)
     if skill is None:
-        skill = next((item for item in ctx.skills if item.get("slug", "").lower() == want), None)
+        skill = next((item for item in model_skills if item.get("slug", "").lower() == want), None)
     if skill is None:
-        available = ", ".join(item["name"] for item in ctx.skills) or "(无)"
+        available = ", ".join(item["name"] for item in model_skills) or "(无)"
         return f"未找到 skill「{args['name']}」。可用:{available}。"
     if ctx.recordSkillUse:
         ctx.recordSkillUse(skill["name"])
@@ -56,7 +57,6 @@ skillTool = Tool(
         "user decision, use the available question tool."
     ),
     capability="read",
-    approval="auto",
     schema=objectSchema({
         "name": {"type": "string", "minLength": 1, "description": "要加载的 skill 名"},
         "args": {"type": "string", "description": "传给技能的可选参数(如 '-m \"Fix bug\"' 或 '123')"},
