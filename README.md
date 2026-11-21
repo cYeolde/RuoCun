@@ -24,7 +24,7 @@
 
 若存是一套可运行的终端编码智能体，为已经接触过 Agent 或 Harness、想读懂一套完整工程的开发者而做。
 
-配套的 21 章课程面向写过代码、调过 API、大致了解 function calling 的读者。每章从一个实际工程问题出发，讲清 Agent 和 harness 的设计取舍，并用面经自测帮读者把判断讲明白。
+这套 21 章中文学习笔记面向写过代码、调过 API、大致了解 function calling 的读者。每章结合源码和项目案例，讲清 Agent harness 的关键设计与取舍，说明为什么这样选、条件变了该怎么判断。学完能用具体例子回答相关面试题。
 
 ## 课程示例
 
@@ -135,7 +135,7 @@ py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe -m ruocun --cwd "C:\path\to\project"
 ```
 
-第一次启动时，终端引导会设置模型服务、API 密钥和工作目录信任。可以从很小的改动开始，例如让若存读一份模块、修正一处逻辑，再运行对应测试。任务跑完后，从[第 1 章](https://hmmgotit.github.io/RuoCun/learning/revised/task-loop.html)追一遍这条链路。
+第一次启动时，终端引导会设置模型服务、API 密钥和工作目录信任。想知道一条用户请求怎样经过模型、工具和结果回流，可以直接读[第 1 章的一次查价案例](https://hmmgotit.github.io/RuoCun/learning/revised/task-loop.html)。
 
 [安装、更新与恢复](docs/install-and-recovery.md) · [从源码构建](docs/development.md)
 
