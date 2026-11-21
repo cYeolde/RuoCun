@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>什么时候加载 Skill，加载以后谁来做事 · RuoCun 设计学习</title>
+<link href="../assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="../assets/ruocun-code.css" rel="stylesheet"/>
+<link href="../assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="../assets/ruocun-article.css" rel="stylesheet"/>
+<link href="../assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="../assets/ruocun-textbook.js"></script>
+<link href="../assets/reading-diagrams.css" rel="stylesheet"/><link href="../assets/course-reader.css" rel="stylesheet"/><link href="course-illustrations.css" rel="stylesheet"/><link href="article-reading.css" rel="stylesheet"/></head>
+<body class="textbook-read" id="course-reader">
+<a class="textbook-skip" href="#skills">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#skills">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航"><a href="../课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a href="experience-learning.html" rel="prev noopener" target="_blank" title="一次改错，怎样才值得存成下一次能用的经验">上一章</a><a href="mcp.html" rel="next noopener" target="_blank" title="接入 MCP 后，模型怎样真正查到外部资料">下一章</a></nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title"><span class="chapter-number">第 18 章</span><span class="nav-chapter-name">什么时候加载 Skill，加载以后谁来做事</span></div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc" open="">
+<summary>文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#skill-body">先拿验收步骤，再去读产物</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#skill-catalog">同名的两份流程，最后用哪一份？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#skill-case">文件读到了，为什么同批还没找到流程？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#skill-discovery">新目录先进入会话，再登记到清单</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-assessment">下一次打开目录，会看见什么？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways">这一章带走什么</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#interview-practice">面经自测</a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper" data-format="article" id="skills"><header class="design-hero"><h1>什么时候加载 Skill，加载以后谁来做事</h1>
+<p class="target">你请 agent 验收 <code>export.csv</code>，让它报真实表头、时间样例和判定码。模型第一步做的却是 <code>Skill({"name": "csv-export-audit"})</code>。导出文件还没打开，它刚取到了什么？再看下一次调用，就能分清一套流程怎样从目录里被选中，又是谁照着步骤去做事。</p>
+</header>
+<section class="v2-topic-group" id="skill-body"><header class="v2-group-heading"><h2>先拿验收步骤，再去读产物</h2></header>
+<div class="design-section" id="csv-export-live">
+<p>这是 2026 年 11 月 18 日的只读实录。三次请求都用 <code>deepseek-flash</code>。第一次请求给了用户的任务，也给了程序装配好的流程目录。单看目录那一行，模型已经知道哪套流程大概适用，还不知道具体要验哪几列。</p>
+<figure class="ruocun-code" data-language="text">
+<figcaption class="ruocun-code-caption"><span>输出</span><span>7 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span><span data-line="2"></span><span data-line="3"></span><span data-line="4"></span><span data-line="5"></span><span data-line="6"></span><span data-line="7"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-text">system 中的目录
+可用技能
+- csv-export-audit:验收 CSV 导出文件表头和 UTC 时间字段时使用。
+任务符合时先调用 Skill 查看步骤。
+
+user
+按当前项目适用的流程验收 export.csv，给出实际表头、时间样例和流程规定的判定码。只读。</code></pre></div></figure>
+<p>模型点了目录中的 <code>csv-export-audit</code>。程序找到这个名称，把步骤当作工具回包交回主循环。下面这两段是下一次请求中保留的调用和结果。看它们的编号，回来的正文正是这次 <code>Skill</code> 调用拿到的。</p>
+<figure class="ruocun-code" data-language="text">
+<figcaption class="ruocun-code-caption"><span>输出</span><span>8 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span><span data-line="2"></span><span data-line="3"></span><span data-line="4"></span><span data-line="5"></span><span data-line="6"></span><span data-line="7"></span><span data-line="8"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-text">assistant tool_calls · call_00_KncmXAwoadOYktdFrzDZ7413
+Skill {"name": "csv-export-audit"}
+
+tool_call_id · call_00_KncmXAwoadOYktdFrzDZ7413
+# Skill: csv-export-audit
+读取 export.csv。表头应为 order_id,exported_at。
+逐行核对 exported_at 是否以 Z 结尾。
+两项均满足时报告判定码 EXPORT_TZ_UTC_OK，并引用文件中的实际表头与时间样例。</code></pre></div></figure>
+<p>现在模型知道表头应该是什么了。报告实际表头，还得打开那份导出。它发起 <code>Read</code>，第三次请求才带回产物内容。</p>
+<figure class="ruocun-code" data-language="text">
+<figcaption class="ruocun-code-caption"><span>输出</span><span>6 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span><span data-line="2"></span><span data-line="3"></span><span data-line="4"></span><span data-line="5"></span><span data-line="6"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-text">assistant tool_calls · call_00_ZUCYMdy4voYYFaODldBA8970
+Read {"path": "export.csv"}
+
+tool_call_id · call_00_ZUCYMdy4voYYFaODldBA8970 · 回包节选
+1	order_id,exported_at
+2	demo-001,2026-11-18T06:30:00Z</code></pre></div></figure>
+<p>最终回答给出了 <code>order_id,exported_at</code>、<code>2026-11-18T06:30:00Z</code> 和判定码 <code>EXPORT_TZ_UTC_OK</code>。其中前两项来自 <code>Read</code>，最后一项来自流程约定。这份文件只有一行数据，这次验的范围也很具体，就是表头以及这一行的时间以大写 <code>Z</code> 结尾。若想知道有无流程会不会改变判断，可以给两组都看同一批导出，其中混入表头正确、时间却少了 <code>Z</code> 的样本。按同一判定条件比较错判和漏判，再数工具调用。模型会打开流程，只是其中一个能观察到的动作。</p>
+</div><div class="design-section" id="skill-load-body">
+<p><code>Skill</code> 这次只填了必填的 <code>name</code>。如果要给流程补一句只核对某份导出，也可以传可选字符串 <code>args</code>。程序先比对带命名空间的调用名（例如 <code>reports:audit</code>），再尝试名称和简名。命中会记录一次使用。回包除了流程步骤，还可以附上它所在的目录。步骤写“读 <code>fields.json</code>”时，模型可以用这个位置找到随 Skill 放置的规则文件。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/skill.py#L40" rel="noopener" target="_blank">Skill 把正文和位置交给模型 · 第 40–44 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>5 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="40"></span><span data-line="41"></span><span data-line="42"></span><span data-line="43"></span><span data-line="44"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    text = <span class="hljs-keyword">await</span> ctx.adaptSkill(skill[<span class="hljs-string">"</span><span class="hljs-string">body</span><span class="hljs-string">"</span>]) <span class="hljs-keyword">if</span> ctx.adaptSkill <span class="hljs-keyword">else</span> skill[<span class="hljs-string">"</span><span class="hljs-string">body</span><span class="hljs-string">"</span>]
+    location = (<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">(目录:</span><span class="hljs-string">{</span>skill[<span class="hljs-string">'</span><span class="hljs-string">dir</span><span class="hljs-string">'</span>]<span class="hljs-string">}</span><span class="hljs-string">,正文中引用的相对资源以此为根)</span><span class="hljs-string">\n</span><span class="hljs-string">"</span>
+                <span class="hljs-keyword">if</span> skill.get(<span class="hljs-string">"</span><span class="hljs-string">dir</span><span class="hljs-string">"</span>) <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">"</span>)
+    argsNote = <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">\n</span><span class="hljs-string">(用户参数:</span><span class="hljs-string">{</span>args[<span class="hljs-string">'</span><span class="hljs-string">args</span><span class="hljs-string">'</span>]<span class="hljs-string">}</span><span class="hljs-string">)</span><span class="hljs-string">\n</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> args.get(<span class="hljs-string">"</span><span class="hljs-string">args</span><span class="hljs-string">"</span>) <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">"</span>
+    <span class="hljs-keyword">return</span> <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string"># Skill: </span><span class="hljs-string">{</span>skill[<span class="hljs-string">'</span><span class="hljs-string">name</span><span class="hljs-string">'</span>]<span class="hljs-string">}</span><span class="hljs-string">\n</span><span class="hljs-string">{</span>location<span class="hljs-string">}</span><span class="hljs-string">\n</span><span class="hljs-string">{</span>argsNote<span class="hljs-string">}</span><span class="hljs-string">{</span>text<span class="hljs-string">}</span><span class="hljs-string">{</span>_FOLLOW<span class="hljs-string">}</span><span class="hljs-string">{</span>_CAPABILITY_NOTE<span class="hljs-string">}</span><span class="hljs-string">"</span></code></pre></div></figure>
+<p>看末尾的 <code>return</code>。<code>location</code> 和 <code>argsNote</code> 都是加到回包里的文字。这一步没有把后续 <code>Read</code> 需要的路径改成另一个起点，也没有替模型执行步骤。回到导出案，规则写着“读取 <code>export.csv</code>”，把真实表头带回来的仍是下一次工具执行。<strong>「流程交代做法，工具交回证据，动手时还要按具体操作检查权限。」</strong> 文件可能要从另一个目录读取，工具本身也可能未向这轮模型开放。<a href="permission-gates.html" rel="noopener" target="_blank">回看执行前的权限检查</a></p>
+<p>同一份验收流程交给 Claude Code，也是在调用后才载入正文。假如流程为这次验收中的 <code>Read</code> 预先列了许可，让 <code>allowed-tools</code> 生效的环境可以少一次确认。到用户下一次发消息时，这份许可已经清除，刚才的流程正文仍留在会话里。若存加载的是流程文字和资源位置。流程给出“接着读导出文件”的做法，实际读取仍按下一次具体的 <code>Read</code> 调用检查权限。 <a href="https://code.claude.com/docs/en/skills#pre-approve-tools-for-a-skill" rel="noopener" target="_blank">Claude Code 的 Skill 工具许可</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/skills/skills.py#L53" rel="noopener" target="_blank">若存读取的头部字段</a></p>
+</div>
+</section>
+<section class="v2-topic-group" id="skill-catalog"><header class="v2-group-heading"><h2>同名的两份流程，最后用哪一份？</h2></header>
+<div class="design-section" id="skill-startup-selection">
+<p>假设用户目录也有一份 <code>csv-export-audit</code>，原生项目目录则把表头改成这家仓库自己的格式。第一次请求里的名称仍只有一条。程序先从磁盘读出 <code>SKILL.md</code>，取顶部两行 <code>---</code> 之间的头部配置和下方的步骤。目录只把名称、简短用途和触发说明发给模型。这里的“按需”说的是<strong>正文进入模型上下文的时机</strong>。启动时程序已经读过生效的文件。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/skills/skills.py#L142" rel="noopener" target="_blank">加载器为同名流程保留一个条目 · 第 142–145 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>4 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="142"></span><span data-line="143"></span><span data-line="144"></span><span data-line="145"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    byName: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Skill] = {}
+    <span class="hljs-keyword">for</span> skill in byRealpath.values():
+        byName[skill[<span class="hljs-string">"</span><span class="hljs-string">name</span><span class="hljs-string">"</span>]] = skill
+    <span class="hljs-keyword">return</span> <span class="hljs-built_in">list</span>(byName.values())</code></pre></div></figure>
+<p>这两份文件都启用、实际路径也不同。加载顺序是兼容用户、原生用户、兼容项目、原生项目，兼容来源须先配置。文件先按实际路径去重，随后用名称当键。例子里项目那份后到，覆盖 <code>byName</code> 里的用户版本。磁盘加载出的同名条目也会遮住内置 core 项。启动还会过滤停用项，<code>--no-skills</code> 会跳过加载和动态发现。 <a href="https://github.com/hmmgotit/RuoCun/blob/217dbc1b4a6137171dd733bce220abba6cd43f7e/src/ruocun/skills/runtime.py#L73" rel="noopener" target="_blank">启动加载顺序与开关</a></p>
+</div><div class="design-section" id="skill-invocation-flags">
+<p>再让项目版本服务于人工复核，把 <code>disable-model-invocation</code> 设为 <code>true</code>。它仍可以列在 <code>/skills</code> 面板里。给模型的目录会跳过它，<code>Skill</code> 处理器也先过滤这类条目再匹配名字。所以即使模型猜出 <code>csv-export-audit</code>，那次调用也只能拿到查找失败。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/skills/skills.py#L27" rel="noopener" target="_blank">模型目录的过滤</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/skill.py#L23" rel="noopener" target="_blank">按名取正文前的过滤</a></p>
+<p>用户可以从终端输入 <code>/csv-export-audit</code>。这一入口查的是 <code>user-invocable</code>，只要项目版本仍在活跃清单里、也没有关闭用户调用，程序就会把命令展开为正文。入队记录保留原命令和当时的展开结果，恢复会话时仍有原先提交的那份正文。要保留哪个入口，就设对应的开关。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/skills/skills.py#L15" rel="noopener" target="_blank">手动调用的过滤</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/runtime.py#L1240" rel="noopener" target="_blank">展开并入队</a></p>
+</div>
+</section>
+<section class="v2-topic-group" id="skill-case"><header class="v2-group-heading"><h2>文件读到了，为什么同批还没找到流程？</h2></header>
+<section class="design-section" id="skill-name-first">
+<span aria-hidden="true" id="skill-name-first-heading"></span>
+<p>换到定价仓库。这里有一套专门检查价格预览的测试流程。启动目录里只有通用的 <code>debug</code>，专用的 <code>pricing-tests</code> 放在 <code>packages/pricing/.ruocun/skills/pricing-tests/SKILL.md</code>，启动时还没发现。假设用户提到了这个名字，模型便在同一次响应里要求两件事。</p>
+<ul><li><code>Read({"path":"packages/pricing/preview.py"})</code>，打开预览代码。</li><li><code>Skill({"name":"pricing-tests"})</code>，取配套测试步骤。</li></ul>
+<p>按源码推演，就算 <code>Read</code> 先返回成功，同批的 <code>Skill</code> 仍会报“未找到”。图里的两轮对应前后两次模型请求，可以发生在同一个用户回合里。</p>
+<figure class="course-illustration" data-art="skill-catalog" data-figure-slot="0" data-generated-by="SVG"><a aria-label="放大查看：Read 找到技能后，模型什么时候能用它？" href="figures/skill-catalog-engineering.svg" rel="noopener" target="_blank"><img alt="同一批里的 Read 读到定价预览文件并发现技能，Skill 仍返回未找到。整批结束后名称发布到会话的技能目录，下一次请求模型才看到 pricing-tests，可以再调用 Skill 读到步骤。" decoding="async" loading="lazy" src="figures/skill-catalog-engineering.svg"/></a><figcaption>顺着上排看名称何时发布，再看第一次请求和下一次请求的 Skill 调用有什么变化。</figcaption></figure>
+</section><div class="design-section" id="skill-next-request">
+<span aria-hidden="true" id="skill-next-request-heading"></span>
+<p>读取文件时，程序只把成功访问的路径记下来。要等这一批调用的结果都与原请求配好并保存后，才拿这些路径发现 Skill。刚才那次 <code>Skill</code> 仍查原有清单。目录消息保存成功后，下一次模型请求会多带一条目录记录，其中有 <code>pricing-tests</code> 的名字和用途。这才有依据重新请求它的正文。即使已经装上通用的 <code>Skill</code> 工具，工具里的可选条目仍要等这次公布。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L453" rel="noopener" target="_blank">工具批结束时发布</a></p>
+</div>
+</section>
+<section class="v2-topic-group" id="skill-discovery"><header class="v2-group-heading"><h2>新目录先进入会话，再登记到清单</h2></header>
+<div class="design-section" id="skill-discovery-path">
+<p>只有聊天里的 <code>packages/pricing/preview.py</code>，发现器还没有路径可用。这里的 <code>Read</code> 先拿到实际文件的访问许可。文本成功取回后，把已解析的路径交给发现回调。程序从文件所在目录向工作区根走，把物理位置仍在工作区内的 <code>.ruocun/skills</code> 目录列出来，跳过已经确认扫描过的目录以及已停用、已经生效或来自已知文件的条目。根目录的流程由启动加载负责。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/read_file.py#L22" rel="noopener" target="_blank">Read 在哪里上报路径</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/skills/discover.py#L67" rel="noopener" target="_blank">查找附近的流程目录</a></p>
+<p>同一份实际访问路径，还可让一份已经读过头部的流程生效。比如根目录的 <code>pricing-check</code> 写了 <code>paths: packages/pricing/**</code>，只有相关路径匹配后才应加入活跃清单。启动时最多检查 4000 个文件。假设这次启动还没扫到匹配项，动态发现开启时，这份流程先留在待匹配清单。访问 <code>packages/pricing/preview.py</code> 后，它才被命中。这里有两条路，<code>pricing-check</code> 是已知流程激活，<code>pricing-tests</code> 是在新目录找到的流程。两项都先留在候选里。 <a href="https://github.com/hmmgotit/RuoCun/blob/217dbc1b4a6137171dd733bce220abba6cd43f7e/src/ruocun/skills/runtime.py#L28" rel="noopener" target="_blank">启动路径扫描</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/skills/discover.py#L93" rel="noopener" target="_blank">候选发现与条件激活</a></p>
+</div><div class="design-section" id="skill-publish-order">
+<p>候选已经有了，下一次请求还得确实带上目录。假如先把 <code>pricing-tests</code> 设为可调用、标记目录已扫描，再保存新目录消息，保存失败就会留下两份不一致的记录。程序知道这项流程，模型没看见它，后来再访问也会因为“已扫描”跳过。多等一次保存确认，程序才知道应该在什么时候记下这次发现。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/runtime.py#L1985" rel="noopener" target="_blank">先保存可见目录，再确认候选 · 第 1985–1989 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>5 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1985"></span><span data-line="1986"></span><span data-line="1987"></span><span data-line="1988"></span><span data-line="1989"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">                <span class="hljs-keyword">if</span> catalog_texts:
+                    catalog = [{<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">system</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">content</span><span class="hljs-string">"</span>: text} <span class="hljs-keyword">for</span> text in catalog_texts]
+                    <span class="hljs-keyword">await</span> conversation.replace_context(session, [*session.messages, *catalog], reset_prompt=<span class="hljs-keyword">False</span>)
+                <span class="hljs-comment"># 保存期间即使收到暂停，也须发布已确认工作目录对应的同一候选。</span>
+                skill_discovery.confirm(candidate, skills)</code></pre></div></figure>
+<p><code>replace_context</code> 把包含新增名称和用途的 <code>system</code> 消息接在原历史后，保存后才换入会话。等它返回，<code>confirm</code> 再登记已扫目录，把命中的条件项移出待匹配清单，并把新条目加入活跃清单。如果明确没保存成功，就走不到确认。保存问题解决后，下一趟符合条件的访问还可准备候选。开始保存前会核对取消和回合代号。保存成功后，即使途中收到了暂停，也要完成这批候选的确认，让已公布的条目跟实际清单对上。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/conversation.py#L272" rel="noopener" target="_blank">目录消息何时替换到活会话</a></p>
+<p>第一次读这个文件时，旁边还没有 Skill 目录。如果把这次访问记成“目录已扫”，后来新建的目录就会被跳过。现有用例先在目录不存在时给发现器这条路径，确认空候选，再建目录。第二次交给发现器的路径完全相同，用例断言新目录进了候选清单。仅新增手动项时，模型没有目录文字需要保存，程序就可以在这一边界直接确认。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/tests/test_n3_skill_discovery.py#L98" rel="noopener" target="_blank">目录后来出现的测试</a></p>
+</div>
+</section>
+<section class="v2-topic-group" id="article-assessment"><header class="v2-group-heading"><h2>下一次打开目录，会看见什么？</h2></header>
+<div class="design-section learning-check" id="article-assessment-1">
+<p>同一个子目录新放了两份流程。<code>pricing-tests</code> 对模型开放，<code>pricing-review</code> 仅供手动调用。一次 <code>Read</code> 之后，程序都找到了，但保存目录消息失败，日志已确认本次未提交。此时用户能直接用 <code>/pricing-review</code> 吗？等允许重新尝试后，下一步该看哪两份记录来确认这些流程确实生效？</p>
+<details><summary>核对判断</summary>
+<p>先查活跃清单。这里只有这一批候选，保存失败后未走到 <code>confirm</code>，连仅供手动调用的那份也还进不了活跃清单。处理完保存失败后，再成功访问该目录。下一次模型请求的新增目录里应有 <code>pricing-tests</code>，用户侧的活跃清单应同时新增两项。<code>pricing-review</code> 仍没有出现在给模型的目录和名字查找结果里。</p>
+</details>
+</div>
+</section>
+<section class="v2-topic-group" id="article-takeaways"><header class="v2-group-heading"><h2>这一章带走什么</h2></header>
+<div class="design-section"><p>先让模型从简短目录里选流程，要用时再给完整步骤。一份流程可以教它读 <code>export.csv</code>，真实表头还得靠下一次读文件的回包。</p>
+<p>读文件时发现了新流程，先把要给模型看的新目录存好，再开放这批条目。确认目录没存成时，保留原清单，下次符合发现条件还可以再试。</p>
+<p>如果验收流程还要求到资料库查会员预览，光拿到步骤只够让模型知道要查。<a href="mcp.html#mcp-case" rel="noopener" target="_blank">服务已经连上，为什么模型第一轮还是找不到查询工具？</a></p></div>
+</section>
+<section class="v2-topic-group" id="interview-practice"><span aria-hidden="true" id="article-interview"></span><header class="v2-group-heading"><span>07</span><h2>面经自测</h2></header><section class="design-section interview-exercise" id="interview-opening"><h3 class="interview-prompt">项目里的 Skill 是怎么加载的？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/discuss/932315325276618752" rel="noopener" target="_blank">快手 · 一面 · 面经原帖</a> · 题意转述</p><details class="answer-box"><summary>展开参考回答</summary><div><p>启动时先让模型知道<strong>有哪些流程、适合做什么</strong>。真遇到相应任务，再按名称取完整步骤。</p><p>若存检查导出的 CSV 时，先调用 Skill 拿到检查方法，再用 Read 打开产物。读完流程，还得看到实际表头和时间值才能回答。</p><p class="interview-origin"><a href="#skill-load-body">回看讲解 · 理解正文、资源位置和任务参数</a></p></div></details></section><span aria-hidden="true" id="intern-skill"></span><span aria-hidden="true" id="harness-skill"></span><section class="design-section interview-exercise" id="interview-review-1"><h3>Skill 和普通工具有什么区别？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/e5e9311a623940eead6ec98c65e7f9e8?sourceSSR=dynamic" rel="noopener" target="_blank">小红书 · 一面 · 面经原帖</a> · 题意转述　可回看 <a href="tool-contract.html" rel="noopener" target="_blank">第 3 章</a> <a href="permission-gates.html" rel="noopener" target="_blank">第 5 章</a> </p><details class="answer-box"><summary>展开参考回答</summary><div><p>Skill 提供<strong>做事的步骤</strong>，工具负责<strong>执行具体动作</strong>。在 CSV 例子里，Skill 说要看时间末尾，Read 才把那一行真实数据拿回来。</p><p class="interview-origin"><a href="#csv-export-live">回看讲解 · 从 CSV 实录辨认流程与结果</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-2"><h3>你怎么判断一个 Skill 写得好，实际效果怎样看？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/discuss/944286343738257408?sourceSSR=post" rel="noopener" target="_blank">快手 · 二面 · 面经原帖</a> · 题意转述　可回看 <a href="tool-contract.html" rel="noopener" target="_blank">第 3 章</a> <a href="task-planning.html" rel="noopener" target="_blank">第 9 章</a> </p><details class="answer-box"><summary>展开参考回答</summary><div><p>我会用<strong>同一批任务、同一套判定条件</strong>比较有无 Skill 的结果。分别看流程有没有选对、产物有没有判对，再看调用次数。单次跑通只能说明这一个案例。</p><p class="interview-origin"><a href="#csv-export-live">回看讲解 · 从 CSV 实录辨认流程与结果</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-3"><h3>用户目录和项目目录里有同名 Skill，若存怎样决定采用哪份？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>看<strong>实际加载来源和同名覆盖顺序</strong>。</p><p>同一个检查流程在用户目录给通用步骤，在原生项目目录又有专用版本，加载器按顺序处理后，模型拿到的是生效的那份。</p><p class="interview-origin"><a href="#skill-startup-selection">回看讲解 · 核对同名加载顺序</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-4"><h3>为什么我在面板上看得到这个 Skill，模型却不能自己调用？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>要分清<strong>给人手动用和允许模型调用</strong>两种入口。</p><p>若存把设了 disable-model-invocation 的流程标成仅手动，模型即使猜到名字，也不能通过 Skill 工具取它的正文。</p><p class="interview-origin"><a href="#skill-invocation-flags">回看讲解 · 区分手动入口与模型调用</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-5"><h3>聊天里提到一个子目录，为什么该目录的专用 Skill 还没出现？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>发现流程跟着<strong>真正成功访问过的路径</strong>走。</p><p>若存读到 packages/pricing 里的文件，才有这个位置可用来就近查找流程。只在消息里提到路径还不够。</p><p class="interview-origin"><a href="#skill-discovery-path">回看讲解 · 查看成功访问怎样触发发现</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-6"><h3>发现了新的 Skill，为什么先保存目录消息，再更新可用清单？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>为了让<strong>模型看见的目录和程序实际开放的条目一致</strong>。</p><p>若存若先宣布定价流程可用，目录消息后来却保存失败，下一轮就无法从会话里知道这个流程何时出现。</p><p class="interview-origin"><a href="#skill-publish-order">回看讲解 · 找出目录和清单生效的先后</a></p></div></details></section></section>
+<nav aria-label="章末导航" class="course-pagination"><a href="../课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a href="experience-learning.html" rel="prev noopener" target="_blank" title="一次改错，怎样才值得存成下一次能用的经验">上一章</a><a href="mcp.html" rel="next noopener" target="_blank" title="接入 MCP 后，模型怎样真正查到外部资料">下一章</a></nav></article></main>
+</body>
+</html>

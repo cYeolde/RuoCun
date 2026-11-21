@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 313" role="img" aria-labelledby="title description" xml:lang="zh-CN">
+<title>同一个相对文件名，切换工作树后为什么失效？</title>
+<desc>从原目录 /shop/packages/pricing 找 prices.mjs 可以命中。执行起点切到 discount 工作树根目录，照抄短文件名会找不到。保留新起点并补上 packages/pricing/prices.mjs 才命中新工作树里的文件。</desc>
+<defs><style>text { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif; } text.mono { font-family: "Cascadia Code", Consolas, monospace; }</style>
+<marker id="gray" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="m1 1 6 3-6 3" fill="none" stroke="#7d8895" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></marker>
+<marker id="blue" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="m1 1 6 3-6 3" fill="none" stroke="#0969da" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></marker>
+<marker id="amber" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="m1 1 6 3-6 3" fill="none" stroke="#8a4b08" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></marker>
+</defs>
+<rect width="1100" height="313" fill="#fff"/>
+<path d="M379 91H411" fill="none" stroke="#7d8895" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" marker-end="url(#gray)"/>
+<path d="M771 91H812" fill="none" stroke="#7d8895" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" marker-end="url(#gray)"/>
+<path d="M379 173H411" fill="none" stroke="#7d8895" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" marker-end="url(#gray)"/>
+<path d="M771 173H812" fill="none" stroke="#7d8895" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" marker-end="url(#gray)"/>
+<path d="M379 255H411" fill="none" stroke="#7d8895" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" marker-end="url(#gray)"/>
+<path d="M771 255H812" fill="none" stroke="#7d8895" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" marker-end="url(#gray)"/>
+<text x="244" y="34" text-anchor="middle" font-size="19" fill="#57606a">执行起点</text>
+<text x="592" y="34" text-anchor="middle" font-size="19" fill="#57606a">相对路径</text>
+<text x="930" y="34" text-anchor="middle" font-size="19" fill="#57606a">读取结果</text>
+<rect x="108" y="62" width="271" height="58" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="243.5" y="97.8" text-anchor="middle" font-size="20" fill="#1f2328" class="mono">/shop/packages/pricing</text>
+<rect x="416" y="62" width="354" height="58" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="593.0" y="98.48" text-anchor="middle" font-size="22" fill="#1f2328" class="mono">prices.mjs</text>
+<rect x="818" y="62" width="221" height="58" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="928.5" y="97.8" text-anchor="middle" font-size="20" fill="#1f2328" font-weight="600">读到原目录文件</text>
+<rect x="108" y="144" width="271" height="58" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="243.5" y="179.8" text-anchor="middle" font-size="20" fill="#1f2328" font-weight="600">discount 工作树根目录</text>
+<rect x="416" y="144" width="354" height="58" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="593.0" y="180.48" text-anchor="middle" font-size="22" fill="#1f2328" class="mono">prices.mjs</text>
+<rect x="818" y="144" width="221" height="58" rx="6" fill="#fff7e6" stroke="#dfb374"/>
+<text x="928.5" y="180.48" text-anchor="middle" font-size="22" fill="#8a4b08" font-weight="600">找不到文件</text>
+<rect x="108" y="226" width="271" height="58" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="243.5" y="261.8" text-anchor="middle" font-size="20" fill="#1f2328" font-weight="600">discount 工作树根目录</text>
+<rect x="416" y="226" width="354" height="58" rx="6" fill="#edf6ff" stroke="#91bce6"/>
+<text x="593.0" y="261.8" text-anchor="middle" font-size="20" fill="#0969da" class="mono">packages/pricing/prices.mjs</text>
+<rect x="818" y="226" width="221" height="58" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="928.5" y="261.8" text-anchor="middle" font-size="20" fill="#1f2328" font-weight="600">读到新工作树文件</text>
+</svg>

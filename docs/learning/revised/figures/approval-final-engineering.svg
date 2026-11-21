@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 292" role="img" aria-labelledby="title description" xml:lang="zh-CN">
+<title>批准的是 pricing.txt，改目标后还可以继续吗？</title>
+<desc>两行里用户都同意 A，即 pricing.txt。实际目标仍是 A 时，可以继续后续检查。目标变为 B，即 draft/pricing.txt 时，A 的同意无法用在 B 上，程序应按最终参数重新裁决。</desc>
+<defs><style>text { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif; } text.mono { font-family: "Cascadia Code", Consolas, monospace; }</style>
+<marker id="gray" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="m1 1 6 3-6 3" fill="none" stroke="#7d8895" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></marker>
+<marker id="blue" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="m1 1 6 3-6 3" fill="none" stroke="#0969da" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></marker>
+<marker id="amber" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="m1 1 6 3-6 3" fill="none" stroke="#8a4b08" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></marker>
+</defs>
+<rect width="1100" height="292" fill="#fff"/>
+<path d="M361 97H403" fill="none" stroke="#7d8895" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" marker-end="url(#gray)"/>
+<path d="M736 97H784" fill="none" stroke="#7d8895" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" marker-end="url(#gray)"/>
+<path d="M361 206H403" fill="none" stroke="#7d8895" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" marker-end="url(#gray)"/>
+<path d="M736 206H784" fill="none" stroke="#8a4b08" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" marker-end="url(#amber)"/>
+<text x="242" y="34" text-anchor="middle" font-size="19" fill="#57606a">批准时确认的目标</text>
+<text x="575" y="34" text-anchor="middle" font-size="19" fill="#57606a">实际准备写的目标</text>
+<text x="922" y="34" text-anchor="middle" font-size="19" fill="#57606a">程序接下来</text>
+<rect x="121" y="64" width="239" height="66" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="240.5" y="104.48" text-anchor="middle" font-size="22" fill="#1f2328" class="mono">A · pricing.txt</text>
+<rect x="121" y="173" width="239" height="66" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="240.5" y="213.48" text-anchor="middle" font-size="22" fill="#1f2328" class="mono">A · pricing.txt</text>
+<rect x="410" y="64" width="321" height="66" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="570.5" y="104.48" text-anchor="middle" font-size="22" fill="#1f2328" class="mono">A · pricing.txt</text>
+<rect x="410" y="173" width="321" height="66" rx="6" fill="#fff7e6" stroke="#dfb374"/>
+<text x="570.5" y="212.8" text-anchor="middle" font-size="20" fill="#8a4b08" class="mono">B · draft/pricing.txt</text>
+<rect x="791" y="64" width="251" height="66" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="916.5" y="104.14" text-anchor="middle" font-size="21" fill="#1f2328" font-weight="600">按 A 继续检查</text>
+<rect x="791" y="173" width="251" height="66" rx="6" fill="#fff7e6" stroke="#dfb374"/>
+<text x="916.5" y="213.14" text-anchor="middle" font-size="21" fill="#8a4b08" font-weight="600">按实际目标 B 裁决</text>
+</svg>

@@ -9,7 +9,7 @@
 [![Windows x64 安装包](https://img.shields.io/badge/Windows-x64-2563A8)](docs/install-and-recovery.md)
 [![MIT 许可证](https://img.shields.io/badge/License-MIT-596575)](LICENSE)
 
-[![中文课程 22 章](https://img.shields.io/badge/%E4%B8%AD%E6%96%87%E8%AF%BE%E7%A8%8B-22_%E7%AB%A0-23604B)](https://hmmgotit.github.io/RuoCun/learning/课程学习地图.html)
+[![中文课程 21 章](https://img.shields.io/badge/%E4%B8%AD%E6%96%87%E8%AF%BE%E7%A8%8B-21_%E7%AB%A0-23604B)](https://hmmgotit.github.io/RuoCun/learning/课程学习地图.html)
 [![Terminal-Bench 2.1 项目自测 71/89](https://img.shields.io/badge/TB_2.1_%E8%87%AA%E6%B5%8B-71%2F89-245BA7)](docs/benchmark/README.md)
 [![v2.0.0 离线验证 1,983 项通过](https://img.shields.io/badge/v2.0.0_%E7%A6%BB%E7%BA%BF%E9%AA%8C%E8%AF%81-1983_%E9%80%9A%E8%BF%87-31734D)](https://github.com/hmmgotit/RuoCun/releases/tag/v2.0.0)
 
@@ -24,52 +24,52 @@
 
 若存是一套可运行的终端编码智能体，为已经接触过 Agent 或 Harness、想读懂一套完整工程的开发者而做。
 
-配套的 22 章中文源码课程沿着一次编码任务展开。从模型如何接收任务、工具如何执行，到上下文如何管理、会话中断后如何恢复，每章都从具体工程问题出发，回到源码讲清设计取舍。你可以先跑通一个任务，再动手改动其中一环，用任务结果检验自己的判断。
+配套的 21 章课程面向写过代码、调过 API、大致了解 function calling 的读者。每章从一个实际工程问题出发，讲清 Agent 和 harness 的设计取舍，并用面经自测帮读者把判断讲明白。
 
 ## 课程示例
 
 点开预览图，就能看到对应的课件原页，再顺着正文里的行号读源码。
 
-### 第 16 章 · 前缀缓存怎样配合请求
+### 第 15 章 · 两次请求开头一样，模型服务能复用多少计算
 
 两次请求的 system 一样，为什么缓存命中用量还会变？左侧目录列出了整篇的阅读路线。正文把原目录、切到工作树和工具重排三种请求放在同一张 A／B／C 对照表里，逐项比较工具顺序和请求前缀。
 
-<a href="https://hmmgotit.github.io/RuoCun/learning/16-前缀缓存怎样配合请求.html"><img alt="第 16 章整页预览，包含左侧目录、文章标题和 A／B／C 三次请求对照表" src="docs/assets/lesson-layout-16.png"></a>
+<a href="https://hmmgotit.github.io/RuoCun/learning/revised/prefix-cache.html"><img alt="第 15 章首屏，包含左侧目录、文章标题和三次请求对照" src="docs/assets/lesson-layout-16.png"></a>
 
-从具体问题出发，依次读请求布局、摘要与最终投影，再用命中用量验证判断。最后还有练习和模拟面试题。 [直达 A／B／C 请求表](https://hmmgotit.github.io/RuoCun/learning/16-前缀缓存怎样配合请求.html#prefix-request-diff)
+把三次请求并排，先找到共同开头从哪一处断开，再用服务回包核对实际命中量。章末还可以用面经自测。 [直达 A／B／C 请求表](https://hmmgotit.github.io/RuoCun/learning/revised/prefix-cache.html#prefix-as-sequence)
 
 <details>
-<summary>第 06 章 · 文件编辑怎样保留同事的修改</summary>
+<summary>第 4 章 · 改价怎样找对位置、保留已有修改并验对结果？</summary>
 
 同事给会员函数加了一行日志。即使普通价函数的原文还能唯一匹配，这次 `Edit` 为什么要先停下来？
 
-<a href="https://hmmgotit.github.io/RuoCun/learning/01-文件编辑可靠性-精致教材预览.html"><img alt="第 06 章整页预览，包含课程目录、文件编辑案例与同事修改后的时间线" src="docs/assets/lesson-layout-06.png"></a>
+<a href="https://hmmgotit.github.io/RuoCun/learning/revised/file-editing.html"><img alt="第 4 章首屏，包含左侧目录和订单预览仍显示 200 元的案例" src="docs/assets/lesson-layout-06.png"></a>
 
 </details>
 
 <details>
-<summary>第 17 章 · 经验怎样用到当前任务</summary>
+<summary>第 16 章 · 上一次的经验，这次还能照着用吗</summary>
 
 照着上次的经验跑测试，退出码是 0。怎样确认测试走的就是会员页面正在用的代码？
 
-<a href="https://hmmgotit.github.io/RuoCun/learning/17-经验怎样用到当前任务.html"><img alt="第 17 章整页预览，包含课程目录、上次修复记录、本次实际入口和测试对照" src="docs/assets/lesson-layout-17.png"></a>
+<a href="https://hmmgotit.github.io/RuoCun/learning/revised/memory-use.html"><img alt="第 16 章首屏，包含左侧目录与旧测试和当前页面的入口对照" src="docs/assets/lesson-layout-17.png"></a>
 
 </details>
 
 <details>
 <summary>展开文件编辑、摘要回查与经验验证的课件图解</summary>
 
-**第 06 章** · 下一次编辑时，磁盘上的文件跟刚才读取的一样吗？
+**第 4 章** · 下一次编辑时，磁盘上的文件跟刚才读取的一样吗？
 
-<a href="https://hmmgotit.github.io/RuoCun/learning/01-文件编辑可靠性-精致教材预览.html#stale-observation"><img width="680" alt="读取基线图，展示模型收到的文本、工具持有的基线与磁盘当前文件" src="docs/assets/course-06.png"></a>
+<a href="https://hmmgotit.github.io/RuoCun/learning/revised/file-editing.html#stale-observation"><img width="680" alt="读取基线图，对比原文件记录与后来发生变化的磁盘记录" src="docs/learning/revised/figures/file-baseline-engineering.svg"></a>
 
-**第 15 章** · 做了两次压缩以后，如何沿着旧摘要找回会员订单的测试回执？
+**第 14 章** · 做了两次压缩以后，如何沿着旧摘要找回会员订单的测试回执？
 
-<a href="https://hmmgotit.github.io/RuoCun/learning/15-摘要丢了细节怎样回查.html#summary-lineage-paths"><img width="680" alt="摘要 2 通过直接原文和旧摘要两条路线找到原始消息" src="docs/assets/course-15.png"></a>
+<a href="https://hmmgotit.github.io/RuoCun/learning/revised/archive-retrieval.html#summary-lineage-paths"><img width="680" alt="摘要 2 通过直接原文和旧摘要两条路线找到原始消息" src="docs/learning/revised/figures/archive-lineage-engineering.svg"></a>
 
-**第 17 章** · 上次的回归用例在当前任务里还测得到正确入口吗？
+**第 16 章** · 上次的回归用例在当前任务里还测得到正确入口吗？
 
-<a href="https://hmmgotit.github.io/RuoCun/learning/17-经验怎样用到当前任务.html#memory-case"><img width="680" alt="历史记录、当前页面入口与本次测试实际入口的对照" src="docs/assets/course-17.png"></a>
+<a href="https://hmmgotit.github.io/RuoCun/learning/revised/memory-use.html#memory-case"><img width="680" alt="旧测试仍走旧函数，当前页面已经走另一条入口" src="docs/learning/revised/figures/memory-current-entry-engineering.svg"></a>
 
 </details>
 
@@ -88,7 +88,7 @@
 
 每个框架每题各跑一次。若存通过 5 题，DeepSeek Harness 通过 4 题。已确认用量按低峰价折算，分别约为 ¥1.66 和 ¥1.82。命中率按命中的输入 Token 占比计算，费用还取决于未命中的输入和输出量。[实验口径与用量表](docs/benchmark/README.md#五道同题的缓存命中)
 
-前缀缓存会复用已经处理过的输入。若存把每轮可能变化的目录快照放在请求尾部，让前面的内容更容易复用。[第 16 章 · 前缀缓存怎样配合请求](https://hmmgotit.github.io/RuoCun/learning/16-前缀缓存怎样配合请求.html)
+前缀缓存会复用已经处理过的输入。若存把每轮可能变化的目录快照放在请求尾部，让前面的内容更容易复用。[第 15 章 · 两次请求开头一样，模型服务能复用多少计算](https://hmmgotit.github.io/RuoCun/learning/revised/prefix-cache.html)
 
 ## Terminal-Bench 2.1
 
@@ -135,7 +135,7 @@ py -3.11 -m venv .venv
 .\.venv\Scripts\python.exe -m ruocun --cwd "C:\path\to\project"
 ```
 
-第一次启动时，终端引导会设置模型服务、API 密钥和工作目录信任。可以从很小的改动开始，例如让若存读一份模块、修正一处逻辑，再运行对应测试。任务跑完后，从[第 1 章](https://hmmgotit.github.io/RuoCun/learning/01-一次任务怎样跑完.html)追一遍这条链路。
+第一次启动时，终端引导会设置模型服务、API 密钥和工作目录信任。可以从很小的改动开始，例如让若存读一份模块、修正一处逻辑，再运行对应测试。任务跑完后，从[第 1 章](https://hmmgotit.github.io/RuoCun/learning/revised/task-loop.html)追一遍这条链路。
 
 [安装、更新与恢复](docs/install-and-recovery.md) · [从源码构建](docs/development.md)
 

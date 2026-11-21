@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>用户中途补了一句，怎么接上正在做的事？ · Agent 设计学习</title>
+<link href="../assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="../assets/ruocun-code.css" rel="stylesheet"/>
+<link href="../assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="../assets/ruocun-article.css" rel="stylesheet"/>
+<link href="../assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="../assets/ruocun-textbook.js"></script>
+<link href="middle-figures.css" rel="stylesheet"/><link href="../assets/course-reader.css" rel="stylesheet"/><link href="course-illustrations.css" rel="stylesheet"/><link href="article-reading.css" rel="stylesheet"/></head>
+<body class="textbook-read" id="course-reader">
+<a class="textbook-skip" href="#interactive-control">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#interactive-control">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航"><a href="../课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a href="shell-lifecycle.html" rel="prev noopener" target="_blank" title="后台测试怎样等到结果？">上一章</a><a href="subagents.html" rel="next noopener" target="_blank" title="什么时候把工作交给子代理：任务交接、独立会话与结果">下一章</a></nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title"><span class="chapter-number">第 11 章</span><span class="nav-chapter-name">用户中途补了一句，怎么接上正在做的事？</span></div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc">
+<summary>文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#interactive-input-1">终端收到，模型什么时候看到？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#interactive-generation-2">主会话醒了，原测试还在吗？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#interactive-generation-1">暂停之后到达的旧回调</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#interactive-human-1">点选项会回答哪一次请求？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways">这一章带走什么</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#interview-practice">面经自测</a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper" data-format="article" id="interactive-control"><header class="design-hero">
+<h1>用户中途补了一句，怎么接上正在做的事？</h1>
+<p class="target">价格回归测试 <code>run-price-7</code> 还在运行，主会话已把 <code>TaskWait</code> 的回包和等待条件保存下来。你在终端补了一句“再查一下订单预览页”。输入框清空了，测试的终态仍没回来。程序能让模型先查预览页吗？如果它醒了，那趟测试还在吗？</p>
+</header>
+<section class="v2-topic-group" id="interactive-input-1">
+<span aria-hidden="true" id="interactive-input"></span><header class="v2-group-heading"><h2>终端收到，模型什么时候看到？</h2></header>
+<section class="design-section" id="accept-the-note">
+<span aria-hidden="true" id="accept-the-note-title"></span>
+<p>输入框刚清空，终端要是在此时退出，重开后还能找到“再查一下订单预览页”吗？按源码推演，若存会先给这句话一个顺序号 <code>12</code>，把 <code>12</code>、输入原文和 <code>queued</code> 状态存进检查点，提交成功才让界面确认接纳。这份检查点里的模型消息仍是原来那一版。用户的要求已经收好，交给模型还要等一个时点。</p>
+<figure class="course-illustration" data-art="queued-input" data-figure-slot="0" data-generated-by="SVG"><a aria-label="放大查看：“再查一下订单预览页”什么时候进入模型请求？" href="figures/queued-input-engineering.svg" rel="noopener" target="_blank"><img alt="补充输入先作为编号 12 的 queued 记录提交，原模型历史和已发请求仍没有这句话。工具回包配齐后，输入与其消费状态一同提交，这句话作为新 user 消息进入后续模型请求。" decoding="async" loading="lazy" src="figures/queued-input-engineering.svg"/></a><figcaption>沿蓝线追同一句补充。它在哪一格只是已保存，又在哪一格才发给模型？</figcaption></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/conversation.py#L220" rel="noopener" target="_blank">src/ruocun/session/conversation.py · 第 220–230 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>11 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="220"></span><span data-line="221"></span><span data-line="222"></span><span data-line="223"></span><span data-line="224"></span><span data-line="225"></span><span data-line="226"></span><span data-line="227"></span><span data-line="228"></span><span data-line="229"></span><span data-line="230"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> queue_user(<span class="hljs-built_in">self</span>, session: Session, content: <span class="hljs-built_in">str</span> | <span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any]], *,
+                         model_content: <span class="hljs-built_in">str</span> | <span class="hljs-built_in">list</span>[<span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any]] | <span class="hljs-keyword">None</span> = <span class="hljs-keyword">None</span>) -&gt; AcceptedInput:
+        <span class="hljs-string">"""把排队输入的身份和当前检查点一起提交，确认后才返回接纳回执。"""</span>
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">with</span> <span class="hljs-built_in">self</span>._checkpoint_lock:
+            safe_content = <span class="hljs-built_in">self</span>._safe(content)
+            <span class="hljs-keyword">if</span> safe_content != content or <span class="hljs-built_in">self</span>._safe(model_content) != model_content:
+                <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"</span><span class="hljs-string">此输入含当前账户凭据，无法完整保存；未接纳排队，请保留原输入并移除凭据后重试。</span><span class="hljs-string">"</span>)
+            seq = <span class="hljs-built_in">max</span>((entry.seq <span class="hljs-keyword">for</span> entry in <span class="hljs-built_in">self</span>._accepted_inputs), default=<span class="hljs-number">0</span>) + <span class="hljs-number">1</span>
+            item = AcceptedInput(<span class="hljs-built_in">str</span>(uuid.uuid4()), seq, packQueuedInput(safe_content, model_content), (), <span class="hljs-string">"</span><span class="hljs-string">queued</span><span class="hljs-string">"</span>)
+            <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._commit(session, session.messages, (*<span class="hljs-built_in">self</span>._accepted_inputs, item))
+            <span class="hljs-keyword">return</span> item</code></pre></div></figure>
+<p>看 <code>_commit</code> 的两个参数。<code>session.messages</code> 原样传过去，新增的是输入账本里的 <code>item</code>。如果提交没有得到确认，函数到不了 <code>return item</code>，调度器也会暂停并回报保存出了问题。写成功后即使程序意外退出，也还有一条待处理输入可以核对。把输入直接推到内存里的请求草稿，界面也能说“收到了”，只是进程退出时这条要求可能一起丢掉。</p>
+</section>
+<section class="design-section" id="consume-at-boundary">
+<h3 id="consume-at-boundary-title">模型还在等一组工具结果</h3>
+<p>把输入时间拨早一点。模型在准备等待前刚发起两项读取，一条查价格配置，一条查测试说明。价格配置的结果到了，测试说明的结果还在路上。此时把补充塞进历史，下一次请求就可能拿到一组没有配齐的工具消息。到下一次准备问模型时，若存先核对这两份回包，再由调度器按 <code>seq</code> 取排在最前的输入。会话一次提交新增的 <code>user</code> 消息和消费状态，随后才能拿这份历史发请求。用户紧接着说“只看会员页”，两句话也按这个顺序进入后续历史。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/session_scheduler.py#L227" rel="noopener" target="_blank">调度器在边界按序消费</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/conversation.py#L232" rel="noopener" target="_blank">一并提交消息和消费状态</a></p><p>连着补两句，会不会抢先开第二个回合？调度器用例让原回合保持忙碌，连收两句补充。消费前历史里只有首条输入，到了消费边界，两句才按提交顺序加入，整个过程只启动过一次回合。 按序消费且不开第二个回合的用例（项目回归测试）</p>
+<p>同样在两项工具执行时按普通回车发送补充，Claude Code 会等这批工具结束再把它交给当前回合。两边都把新目标留到工具结果齐全后处理，避免半批结果和补充混在一起。若存还可以问接纳之后的事。比如进程刚确认接纳就退出，恢复时能从 <code>queued</code> 记录看出这句仍待消费。 <a href="https://code.claude.com/docs/en/interactive-mode#queue-messages-while-claude-works" rel="noopener" target="_blank">Claude Code 的消息排队规则</a></p>
+</section>
+</section>
+<section class="v2-topic-group" id="interactive-generation-2">
+<header class="v2-group-heading"><h2>主会话醒了，原测试还在吗？</h2></header>
+<section class="design-section" id="change-focus-or-stop">
+<span aria-hidden="true" id="change-focus-or-stop-title"></span>
+<p>回包齐了也可能还在等。开篇的 <code>TaskWait</code> 已经交回自己的结果，剩下的是等待后台测试的终态。这时模型可以先接补充，无须陪 <code>run-price-7</code> 等到结束。调度器发现排队输入，可以解除这次等待，重新安排前台。模型读到“再查预览页”后可以先去找页面使用的价格入口。此时 <code>run-price-7</code> 仍可在后台继续产生日志。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/session_scheduler.py#L209" rel="noopener" target="_blank">排队输入怎样解除前台等待</a></p>
+<p>现在只替换用户说的话。“停掉原测试，只查预览页。”前台依然通过同一条输入路径接收这句话，接下来要对 <code>run-price-7</code> 提出停止，并查同一趟运行怎样结束。释放等待只腾出了前台。取消测试要由原执行器收尾，终态仍从那里取。面试里的排障也是一样。用户让你优先看内存，先前已经采到的 CPU 结果可以留着。持续采样是否还该继续，要看新的目标和原采样进程的状态。 <a href="shell-lifecycle.html#shell-cancel-1" rel="noopener" target="_blank">按原运行提出停止并确认结果</a></p>
+</section>
+<section class="design-section" id="waiting-for-what">
+<h3 id="waiting-for-what-title">工具暂停等人时</h3>
+<p>假设程序追到预览页后想改一份说明，前台出现一个编辑确认框。这里等的是那次编辑的批准，只有能关联到该调用的同意才能让它往后走。拒绝、取消或确认未完成，都要以对应工具回包报告给原调用。一条排队的“继续查”只是补充目标。终端在确认框里输入的文字由该交互处理，普通聊天输入则走自己的队列。 <a href="permission-gates.html#approval-timing" rel="noopener" target="_blank">回看一次审批怎样收尾</a></p>
+</section>
+<section class="design-section learning-check" id="article-assessment"><div class="design-section"><p><code>run-price-7</code> 仍没有终态。用户补了“先看会员页”，界面确认接纳。随后主会话开始读页面代码，但列表上原测试仍写着“运行中”。这次前台继续是何时发生的？如果还要确认原测试已经停掉，你会查哪一份记录？</p><details><summary>核对判断</summary><p>排队输入让调度器解除等待，模型在下一次合适的请求读到补充后可以先读页面。用 <code>run-price-7</code> 找原执行器的停止及终态回执。会话醒了、页面读了，只能确认前台有进展。</p></details></div></section></section>
+<section class="v2-topic-group" id="interactive-generation-1">
+<span aria-hidden="true" id="interactive-generation"></span><header class="v2-group-heading"><h2>暂停之后到达的旧回调</h2></header>
+<section class="design-section" id="pause-before-reply">
+<span aria-hidden="true" id="pause-before-reply-title"></span>
+<p>刚才用户只补了一句话。换一种情况，用户这时按的是暂停。调度器给每趟正在运行的回合一个代号，方便识别过时的回调。假设当前的代号是 <code>12</code>。这趟回合刚准备回报 <code>waiting</code>，回调还没来得及处理。调度器把当前代号推进到 <code>13</code>，释放等待并发出停止信号。过了一会儿，第 <code>12</code> 代仍交回来一个确实有效的等待句柄。若直接使用回调结果，界面就会从“已暂停”倒退成“等待中”。</p>
+<figure class="course-illustration" data-art="late-generation" data-figure-slot="1" data-generated-by="SVG" id="generation-timeline"><a aria-label="放大查看：暂停后，旧回调还能把界面改回等待中吗？" href="figures/late-generation-engineering.svg" rel="noopener" target="_blank"><img alt="原运行代号 12 的等待回调在暂停后才到达。暂停已把当前代号推进到 13。两个代号不同，调度器不接纳旧状态并保留暂停。" decoding="async" loading="lazy" src="figures/late-generation-engineering.svg"/></a><figcaption>并排核对晚到回调的代号和当前代号。它们在哪一处决定这次更新能不能接收？</figcaption></figure>
+</section>
+<section class="design-section" id="check-before-publish">
+<span aria-hidden="true" id="check-before-publish-title"></span>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/session_scheduler.py#L263" rel="noopener" target="_blank">src/ruocun/agent/session_scheduler.py · 第 263–277 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>15 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="263"></span><span data-line="264"></span><span data-line="265"></span><span data-line="266"></span><span data-line="267"></span><span data-line="268"></span><span data-line="269"></span><span data-line="270"></span><span data-line="271"></span><span data-line="272"></span><span data-line="273"></span><span data-line="274"></span><span data-line="275"></span><span data-line="276"></span><span data-line="277"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">                result = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._run(signal, boundary, generation)
+                <span class="hljs-keyword">if</span> generation != <span class="hljs-built_in">self</span>._generation or <span class="hljs-built_in">self</span>._state in {<span class="hljs-string">"</span><span class="hljs-string">paused</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">closed</span><span class="hljs-string">"</span>}:
+                    <span class="hljs-keyword">return</span>
+                <span class="hljs-keyword">if</span> result.status in {<span class="hljs-string">"</span><span class="hljs-string">cancelled</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">interrupted</span><span class="hljs-string">"</span>} or signal.is_set():
+                    <span class="hljs-built_in">self</span>._state = <span class="hljs-string">"</span><span class="hljs-string">idle</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>._queued() <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">paused</span><span class="hljs-string">"</span>
+                    <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._set_state(<span class="hljs-built_in">self</span>._state)
+                    <span class="hljs-keyword">return</span>
+                <span class="hljs-keyword">if</span> result.status == <span class="hljs-string">"</span><span class="hljs-string">waiting</span><span class="hljs-string">"</span>:
+                    handle = <span class="hljs-built_in">getattr</span>(result, <span class="hljs-string">"</span><span class="hljs-string">wait</span><span class="hljs-string">"</span>, <span class="hljs-keyword">None</span>)
+                    <span class="hljs-keyword">if</span> handle is <span class="hljs-keyword">None</span> or <span class="hljs-built_in">self</span>._background is <span class="hljs-keyword">None</span>:
+                        <span class="hljs-keyword">raise</span> RuntimeError(<span class="hljs-string">"</span><span class="hljs-string">等待缺少当前会话运行时。</span><span class="hljs-string">"</span>)
+                    <span class="hljs-built_in">self</span>._wait = handle
+                    <span class="hljs-built_in">self</span>._state = <span class="hljs-string">"</span><span class="hljs-string">waiting</span><span class="hljs-string">"</span>
+                    <span class="hljs-built_in">self</span>._background.activate(handle)
+                    <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._set_state(<span class="hljs-string">"</span><span class="hljs-string">waiting</span><span class="hljs-string">"</span>)</code></pre></div></figure>
+<p><code>_run</code> 出发时带着 <code>12</code>，回来先与 <code>self._generation</code> 里的 <code>13</code> 相比。条件成立就返回，下面的 <code>activate(handle)</code> 走不到。句柄有效说明旧工作曾走到这一步。有没有资格改当前会话，还要看它的代号。这层检查管的是回合的调度状态。流式文字也会核对当前代号再接受。后台测试已有的输出和终态继续按原运行身份保留。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/session_scheduler.py#L352" rel="noopener" target="_blank">暂停如何使旧代失效</a></p>
+</section>
+
+</section>
+<section class="v2-topic-group" id="interactive-human-1">
+<span aria-hidden="true" id="interactive-human-2"></span><header class="v2-group-heading"><h2>点选项会回答哪一次请求？</h2></header>
+<section class="design-section" id="answer-a-question">
+<span aria-hidden="true" id="answer-a-question-title"></span>
+<p>模型找到两个入口，要你选“核对网页预览”还是“核对导出文件”，于是发起一次 <code>AskUserQuestion</code>。在提问框里选“网页预览”，选项是这次工具的返回值，主循环拿它配回原调用编号。界面交回空串时，工具可以报告用户未回答。若回合已取消，工具会报告用户中断。</p>
+<p>如果你在普通聊天框发送同样的“网页预览”，程序把它登记为新的用户输入。重开会话时可以回查两种记录：前者归在那次提问的工具结果里，后者消费后才会成为新的 <code>user</code> 消息。凭文字一样就拿一条聊天消息补上工具回包，会把原提问的实际状态写错。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/ask_user.py#L26" rel="noopener" target="_blank">用户选择怎样从提问工具返回</a></p>
+</section>
+<section class="design-section" id="plan-versus-permission">
+<h3 id="plan-versus-permission-title">批准方案以后还有哪道判断？</h3>
+<p>模型在计划模式提出“先核对预览页，再修页面实际调用的计价逻辑”。在交互会话里，你通过 <code>ExitPlanMode</code> 的选择同意实施，若存把模式切回 <code>normal</code>。如果随后模型交来一个 Edit，程序还要看当时的模式与它真正要写的位置。用户可以批准实施方案，同时保留对某一次实际写入的决定。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/plan_mode.py#L17" rel="noopener" target="_blank">同意方案时改变的状态</a> · <a href="permission-gates.html#permission-call-2" rel="noopener" target="_blank">实际编辑的授权怎样决定</a></p>
+</section>
+</section>
+<section class="v2-topic-group" id="article-takeaways">
+<header class="v2-group-heading"><h2>这一章带走什么</h2></header>
+<div class="design-section"><p>界面确认收到补充时，程序已经把这句话存成待处理。手头的工具回包还没齐，就等它们齐了再把这句话交给模型。这样重开会话时，队列里仍能找回待处理的补充。</p>
+<p><strong>「停止等结果和要求原执行器停止，要查两份证据。」</strong> 用户只说“先查预览页”，前台可以醒来，原测试仍能在后台跑。要确认测试停了，就按原运行编号查它的终态。</p>
+<p>页面入口和回归用例要各查一遍。<a href="subagents.html#two-investigations" rel="noopener" target="_blank">什么时候值得把其中一条线交给子代理</a>？</p></div>
+</section>
+<section class="v2-topic-group" id="interview-practice">
+<span aria-hidden="true" id="article-interview"></span><header class="v2-group-heading"><h2>面经自测</h2></header>
+<section class="design-section interview-exercise" id="interview-opening"><h3 class="interview-prompt">Agent 正在排查服务器卡顿，用户又补了一句“重点看内存”。怎么让新要求接上正在做的事？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/discuss/946748680575422464?sourceSSR=dynamic&amp;weFlow=true" rel="noopener" target="_blank">字节跳动 · 二面 · 面经原帖</a> · 题意转述</p><details class="answer-box"><summary>展开参考回答</summary><div><p>我先把<strong>新要求按顺序保存</strong>，在已发出的工具请求和结果配齐后，让下一次模型请求看到它。接着判断新要求是补充方向，还是明确叫停原操作。</p><p>排障时改为重点看内存，可以留下前面取得的检查结果。价格测试时用户说“再查预览页”也是一样：保留原测试，加上预览页检查；要停进程则另按原运行编号取消。</p><p class="interview-origin"><a href="#interactive-input-1">回看讲解 · 追一条补充要求，从界面接纳到模型看到</a></p></div></details></section><div class="design-section"><section class="design-section interview-exercise" id="interview-review-1"><h3>有些工具必须得到人工批准。任务如何表示等待、批准、超时或者取消？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/e5abd2dc95934bf58177525b5736f290?sourceSSR=dynamic" rel="noopener" target="_blank">科大讯飞 · 一面 · 面经原帖</a></p><details class="answer-box"><summary>展开参考回答</summary><div><p>把<strong>要决定的那次调用和具体参数</strong>保留下来。批准或拒绝都回到这一项。等待期间超时、取消或原回合失效，就按实际原因收尾。</p><p class="interview-origin"><a href="#interactive-generation-2">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-2"><h3>界面说“已收到”，是不是说明模型已读到了这句补充？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>收到回执说明<strong>输入已保存</strong>，模型要等它进入下一次请求才看得到。</p><p>用户补“保留日志”时，程序先保存输入编号，再在合适的回合边界把这句加入历史。</p><p class="interview-origin"><a href="#interactive-input-1">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-3"><h3>旧回合已经暂停，又回来一段输出，怎么防止它盖掉新回合？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>检查<strong>这段输出属于哪一轮运行</strong>。</p><p>程序为活动回合分配代际编号。用户已经转入新的回合，旧编号的回调就不能更新现在的进度。</p><p class="interview-origin"><a href="#interactive-generation-1">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-4"><h3>程序让前台开始等后台结果，为什么用户还能继续输入？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>它把<strong>等什么的约定交给调度器</strong>，前台可以先让出来。</p><p>后台测试按原编号继续，用户又补一句或等待条件满足，调度器便可安排下一步工作。</p><p class="interview-origin"><a href="#interactive-generation-2">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-5"><h3>在提问框里回答，和在聊天框补一句，在历史中怎么区分？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>看<strong>这是在回答哪一个请求</strong>。</p><p>程序询问要保留原始日志还是摘要，选项答案跟着原提问的工具编号返回。另发“只看内存”是新用户输入。</p><p class="interview-origin"><a href="#interactive-human-1">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-6"><h3>退出计划模式后，后面的所有编辑都自动获准了吗？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>接着查<strong>具体编辑的目标和权限</strong>。</p><p>程序退出计划模式只改变会话阶段。接下来如果要改另一个受限目录，仍按那一次 Edit 的最终参数判断。</p><p class="interview-origin"><a href="#interactive-human-1">回看讲解</a></p></div></details></section></div>
+</section>
+<nav aria-label="章末导航" class="course-pagination"><a href="../课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a href="shell-lifecycle.html" rel="prev noopener" target="_blank" title="后台测试怎样等到结果？">上一章</a><a href="subagents.html" rel="next noopener" target="_blank" title="什么时候把工作交给子代理：任务交接、独立会话与结果">下一章</a></nav></article></main>
+</body>
+</html>

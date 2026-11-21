@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>上下文放不下时，哪些内容还能缩短 · RuoCun 设计学习</title>
+<link href="../assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="../assets/ruocun-code.css" rel="stylesheet"/>
+<link href="../assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="../assets/ruocun-article.css" rel="stylesheet"/>
+<script defer="" src="../assets/ruocun-textbook.js"></script>
+<link href="../assets/reading-diagrams.css" rel="stylesheet"/><link href="../assets/course-reader.css" rel="stylesheet"/><link href="course-illustrations.css" rel="stylesheet"/><link href="../assets/course-opening21.css" rel="stylesheet"/><link href="article-reading.css" rel="stylesheet"/></head>
+<body class="textbook-read" id="course-reader">
+<a class="textbook-skip" href="#context-compaction">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#context-compaction">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航"><a href="../课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a href="subagents.html" rel="prev noopener" target="_blank" title="什么时候把工作交给子代理：任务交接、独立会话与结果">上一章</a><a href="archive-retrieval.html" rel="next noopener" target="_blank" title="摘要漏掉要求时，怎样找回当时的原话">下一章</a></nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title"><span class="chapter-number">第 13 章</span><span class="nav-chapter-name">上下文放不下时，哪些内容还能缩短</span></div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc" open="">
+<summary>文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#cut-through-read">一份长日志带来的两道题</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#request-budget">下一次请求还剩多少空间？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#candidate-strategy">先裁长回包，再给旧对话写摘要</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#summary-and-publication">摘要什么时候真正生效？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-assessment">切点两侧各要留下什么？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways">这一章带走什么</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#interview-practice">面经自测</a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper" data-format="article" id="context-compaction"><header class="design-hero"><h1>上下文放不下时，哪些内容还能缩短</h1>
+<p class="target">规则文件只有几十行，会员测试日志却回了近一万个字符。两份 <code>Read</code> 结果都进了历史，再问模型一句“核对一个过期会员”，若存要连这些旧消息一起发出去。</p>
+<p>先缩短日志，模型仍认得那是刚才那次读取的结果。可假如窗口还塞不下，准备把旧历史写成摘要，切点就不能随便选。把发起两次读取的消息压进摘要，只留后一条回包，这份历史虽然短了，下一次请求却连一组完整的调用都交不出来。</p>
+</header>
+<section class="v2-topic-group" id="cut-through-read">
+<header class="v2-group-heading"><h2>一份长日志带来的两道题</h2></header>
+<section class="design-section" id="read-group-start"><h3 id="read-group-start-heading">先看发出的两次读取</h3>
+<div class="design-trace"><strong>源码推演 · 当前历史节选</strong>
+<pre>更早的对话：用户定价要求、已执行的检查
+assistant：Read(rule.md) → r-rule，Read(check.log) → r-log
+tool(r-rule)：会员规则
+tool(r-log)：测试日志，约 9,800 个字符
+user：再核对一个过期会员</pre></div>
+<p>这两次读取由同一条 <code>assistant</code> 消息发起。每条回包带 <code>tool_call_id</code>，程序凭它把日志还给 <code>r-log</code>。如果只需腾出一点空间，改这一条的正文就行。如果要让更早的对话退出请求，才需要选切点。</p>
+</section>
+<section class="design-section" id="legal-cut"><h3 id="legal-cut-heading">切点恰好落在两个回包之间</h3>
+<p>在 <code>tool(r-rule)</code> 后切一刀，摘要拿走发起两次读取的记录，原样保留的部分只剩 <code>tool(r-log)</code> 和追问。模型即使从摘要读到了“查过日志”，服务端仍找不到 <code>r-log</code> 对应的结构化调用。想保留这份日志，就把切点退到 <code>assistant</code> 那一条之前。这样规则和日志一起留下，追问也还在末尾。整组都用完时，组后同样是合法边界，可以把这几条一起交给摘要。</p>
+</section>
+</section>
+<section class="v2-topic-group" id="request-budget">
+<header class="v2-group-heading"><h2>下一次请求还剩多少空间？</h2></header>
+<section class="design-section" id="wire-budget">
+<p>聊天框只多了“再核对一个过期会员”，可程序要把那份日志、系统规则和当前可用的工具定义都发过去。若存用实际客户端的 Chat 或 Responses 请求构造逻辑准备请求体，再估算消息、调用参数、工具定义和独立的指令字段。文字按 UTF-16 长度粗估，图片块按固定开销计入。这个数字用于决定何时动手，服务端回包才给出实际输入用量。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/context_runtime.py#L167" rel="noopener" target="_blank">实际请求的构造与检查</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/compaction_policy.py#L86" rel="noopener" target="_blank">输入估算</a></p>
+</section>
+<section class="design-section" id="output-headroom"><h3>先给回答留位</h3>
+<p>用一个 20,000 token 的窗口来算，输出上限为 5,000，剩余 15,000 的 8% 是 1,200。若存还用窗口的 80% 设一道压力线，最后取两条限制中较紧的一条。</p>
+<div class="design-trace"><strong>源码推演 · 默认阈值</strong>
+<pre>开始压缩的输入阈值 = min(20,000 × 80%, 20,000 − 5,000 − 1,200)
+                   = min(16,000, 13,800)
+                   = 13,800 token</pre></div>
+<p>估到 14,000 就够触发压缩。输出上限未显式配置时，程序可按窗口缩小默认上限，并把该值用于实际发送。发前检查也有次数上限。若估算漏过了服务端真正的上限，服务端的超限回包仍会走<a href="request-recovery.html" rel="noopener" target="_blank">超限恢复</a>。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/compaction_policy.py#L40" rel="noopener" target="_blank">输出、余量和近期预算</a></p>
+</section>
+</section>
+<section class="v2-topic-group" id="candidate-strategy">
+<header class="v2-group-heading"><h2>先裁长回包，再给旧对话写摘要</h2></header>
+<section class="design-section" id="shrink-tool-text"><h3>把日志正文变短</h3>
+<p>先看刚才那份会员测试日志。想知道跑了哪个用例、结果怎么样，开头的测试名称和末尾的汇总就够用。以后要查过期会员究竟断言了什么，那一行可能夹在中间，得找回原文。<code>r-log</code> 的正文有 9,800 字符，超过 8,192。程序保留开头 4,096 字符和末尾 1,024 字符，中间标出省略，随回包留下原文归档 ID。调用消息、<code>r-log</code> 的配对编号和其它消息仍在原位置。图片块继续保留，受保护的回包和 <code>TaskWait</code> 回包会跳过裁剪。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/compact.py#L123" rel="noopener" target="_blank">回包正文怎样裁短</a></p>
+<p>现在只缩短了一条回包。把它放回同一份请求再估一次。如果 14,000 降到约 12,500，就已经低于刚才的 13,800，旧对话可以原样保留。要是这一刀省得还不够，才要挑一段旧对话来写摘要。</p>
+</section>
+<section class="design-section" id="balanced-boundary"><h3>按编号找能切的地方</h3>
+<p>只改一个条件。更早的对话还有几轮，裁完这份相同的 <code>r-log</code>，请求估算仍超过 13,800。程序从近期往前算保留区，初选的切点刚好在两条回包之间。这里需要看一眼记录到这一刻还欠哪些结果。</p>
+<figure class="course-illustration" data-art="approved-compaction-sample" data-figure-slot="1" data-generated-by="SVG"><a aria-label="放大查看：规则先返回时，历史能从两条回包之间切开吗？" href="figures/approved-compaction-sample-engineering.svg" rel="noopener" target="_blank"><img alt="同一条助手消息发起 r-rule 和 r-log 两次读取。规则已返回时仍欠 r-log。两条回包均到齐后，才能在这一组之后切开。" loading="lazy" src="figures/approved-compaction-sample-engineering.svg"/></a><figcaption>从左往右看「还在等」一行。规则返回后少了哪个编号，还有哪个编号不能丢？</figcaption></figure>
+<div class="design-trace"><strong>沿同一组读取数未配对的编号</strong>
+<pre>读到 assistant 的两个调用   pending = {r-rule, r-log}
+读到 tool(r-rule)           pending = {r-log}
+读到 tool(r-log)            pending = {}</pre></div><figure class="ruocun-code" data-language="python"><figcaption class="ruocun-code-caption"><span>compact.py · 一条回复只划掉一个编号</span><span>源码节选</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption><div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="103"></span><span data-line="104"></span><span data-line="105"></span><span data-line="106"></span><span data-line="107"></span><span data-line="108"></span><span data-line="109"></span><span data-line="110"></span><span data-line="111"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">elif</span> message.get(<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>) == <span class="hljs-string">"</span><span class="hljs-string">tool</span><span class="hljs-string">"</span>:
+            call_id = message.get(<span class="hljs-string">"</span><span class="hljs-string">tool_call_id</span><span class="hljs-string">"</span>)
+            <span class="hljs-keyword">if</span> call_id not in pending:
+                <span class="hljs-keyword">raise</span> CompactionError(<span class="hljs-string">"</span><span class="hljs-string">工具结果缺少匹配调用，原上下文保留。</span><span class="hljs-string">"</span>)
+            pending.remove(call_id)
+        balanced.append(not pending)
+    <span class="hljs-keyword">if</span> pending:
+        <span class="hljs-keyword">raise</span> CompactionError(<span class="hljs-string">"</span><span class="hljs-string">工具结果尚未配对，原上下文保留。</span><span class="hljs-string">"</span>)
+    <span class="hljs-keyword">return</span> balanced</code></pre></div></figure>
+<p>读到第一个回包，<code>pending.remove(call_id)</code> 只划掉 <code>r-rule</code>。<code>r-log</code> 还在集合里，代码把这一位置记为不可切，然后把切点往前退到整组之前。CoreCoder 的 <code>_safe_split</code> 在这个正常例子里也会向前退两步，直到留下的首条消息是发起读取的 <code>assistant</code>。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/compact.py#L91" rel="noopener" target="_blank">若存的配对检查</a> · <a href="https://github.com/he-yufeng/CoreCoder/blob/95db61a7da83e769ad5f138b18b360b32eb955e7/article/04-context.md" rel="noopener" target="_blank">CoreCoder 上下文篇</a></p>
+<p>现在让日志回包误记成 <code>r-rule</code>。CoreCoder 的切点函数依然看到两条角色为 <code>tool</code> 的回复，照样后退。若存扫到第二份回包时，<code>r-rule</code> 已经被划掉，于是这次压缩报错，原历史保留。窗口仍紧，可这时留下原始记录更值得，总比用一段摘要盖掉哪一次读取缺了结果好。如果第二份回包根本没到，扫完历史时 <code>pending</code> 还留着 <code>r-log</code>。最后的 <code>if pending</code> 同样会停止压缩，原历史还在。</p>
+</section>
+<section class="design-section" id="tail-and-anchors">
+<p>切点还要照顾接下来真会用到的材料。默认给近期消息留出的估算额度是扣除输出后的 16%。上例中还没得到处理的“再核对一个过期会员”也有保护，哪怕目录事实追加在它后面。已记入历史的后台交付、恢复和等待信息也有保护。候选保留主系统提示和已有的启动 Hook 控制消息，在末尾重挂有效的当前任务清单。这样新摘要即使漏写了某条待办，程序仍能把已经登记的状态交给下一次请求。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/context_runtime.py#L216" rel="noopener" target="_blank">应留在模型历史中的输入</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/context_runtime.py#L246" rel="noopener" target="_blank">当前任务清单的来源</a></p>
+</section>
+</section>
+<section class="v2-topic-group" id="summary-and-publication">
+<header class="v2-group-heading"><h2>摘要什么时候真正生效？</h2></header>
+<section class="design-section" id="summary-uses-original"><h3>摘要请求读原始前缀</h3>
+<p>切点现在在两次 <code>Read</code> 之前。摘要模型收到切点前的连续原历史，末尾再加一条写摘要的指令。若较旧的日志在这一轮刚被裁短，且落在切点之前，摘要请求仍读到裁剪前的正文。留在切点之后的 <code>r-log</code> 则只出现在随后组装的新历史里，这里可用裁短版。若那份旧日志在前一次压缩就已经裁剪并提交，当前历史能给出的原前缀只有缩短版，当时的全文要另查归档。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/compact.py#L221" rel="noopener" target="_blank">摘要输入与新历史的组装</a></p>
+<p>两份请求各算自己的预算。原始前缀加摘要指令和摘要输出预留，若已塞不进摘要模型的窗口，本轮停在旧历史上。返回半截、空内容或工具调用也会拒绝，摘要和整份新请求还要各自证明确实缩短。模型给出了可读的文字，只够开始准备提交。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/context_runtime.py#L294" rel="noopener" target="_blank">摘要请求和回包检查</a></p>
+</section>
+<section class="design-section" id="confirm-candidate"><h3>检查点和原文入口一起确认</h3>
+<p>假设候选摘要写了“会员日志已保留，检查通过”，末尾附 <code>summary-demo-2</code>。如果刚生成就放进活会话，存盘一旦出错，当前请求可能拿着新摘要，重开却恢复到旧历史，连摘要上的原文入口也可能查不到。</p>
+<figure class="course-illustration" data-art="compaction-checkpoint" data-figure-slot="2" data-generated-by="SVG" id="summary-checkpoint-contrast"><a aria-label="放大查看：保存结果未知时，当前历史会立即切换吗？" href="figures/compaction-checkpoint-engineering.svg" rel="noopener" target="_blank"><img alt="候选摘要生成时仍确认旧历史。保存结果未知时继续保留旧历史，暂停本轮并核对原提交。归档与检查点均确认后，后续请求才可使用新历史。" decoding="async" loading="lazy" src="figures/compaction-checkpoint-engineering.svg"/></a><figcaption>保存结果没确认时，当前仍是哪份历史？哪两项都确认后，下一次请求才会用新历史？</figcaption></figure>
+<p>若存先核对模型和旧投影有没有变化。随后把候选、原文来源和会话检查点一起提交，收到确认才给 <code>session.messages</code> 换值。新用户输入如果已经改变了旧投影，这份候选要作废。保存结果不明时，内存使用之前确认过的那份历史，本轮停止，等确认之后再处理，避免拿未知的提交状态接着发请求。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/conversation.py#L320" rel="noopener" target="_blank">提交后替换模型历史</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/durable_store.py#L1169" rel="noopener" target="_blank">检查点与原文归档</a></p>
+<p>已有的回归测试把这两个现场分开。第一次故意让检查点写入失败，断言重新读出的归档和检查点都还是提交前的内容。第二次让提交成功，只丢确认回执。按原操作号和请求指纹仍能查到检查点第 2 版。重新打开存储后，用同一操作号和相同输入再提交，归档里仍只有一条摘要。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/tests/test_deepseek_compaction_archive.py#L220" rel="noopener" target="_blank">查看回滚和回执丢失的断言</a></p>
+</section>
+</section>
+<section class="v2-topic-group" id="article-assessment">
+<header class="v2-group-heading"><h2>切点两侧各要留下什么？</h2></header>
+<section class="design-section" id="article-assessment-1">
+<p id="review-history-cut">假设 <code>r-rule</code> 很长，排在后面的 <code>r-log</code> 含下一步必须逐字核对的失败断言。候选切点落在两条回包之间。你会往哪里移？如果两份材料都已经用完，另一种选择能换来什么？</p>
+<details class="answer-box"><summary>核对你的决定</summary><div><p>退到发出两次调用之前。两条回包和调用一起留在近期区，并核对日志是否经过裁剪，缺失的断言要按归档 ID 查回。空间不够时先裁其它长回包，再算实际请求的预算。若整组都用完，且近期与未处理输入保护允许，组后也可切，腾出的空间更多，代价是日后逐字核对要回查原文。若存当前实现从初选位置向前退。</p></div></details>
+</section>
+</section>
+<section class="v2-topic-group" id="article-takeaways">
+<header class="v2-group-heading"><h2>这一章带走什么</h2></header>
+<section class="design-section">
+<ul>
+<li>窗口紧时先算下一次真正要发的请求。用户没加字，工具说明变长也可能触发压缩。</li>
+<li>裁日志时可以只动回包正文。给旧历史写摘要时，切点要让同一组调用和回包留在同一侧。要是只剩日志回包，下一次请求里就找不到发起它的读取。</li>
+<li>摘要写好后还有一次提交。等检查点和原文入口一起保存确认，下一次请求才用新历史。这样重开会话时仍能找到摘要所指的原文。</li>
+</ul>
+<p>新历史接上了，摘要只记得“检查通过”。要回答过期会员究竟测了什么，得回查<a href="archive-retrieval.html#same-text-different-evidence" rel="noopener" target="_blank">哪条命令得到了那句“通过”</a>。</p>
+</section>
+</section>
+<section class="v2-topic-group" id="interview-practice"><header class="v2-group-heading"><h2>面经自测</h2></header>
+<span aria-hidden="true" id="article-interview"></span><span aria-hidden="true" id="intern-interview"></span><span aria-hidden="true" id="harness-interview"></span>
+<section class="design-section interview-exercise" id="interview-opening"><h3 class="interview-prompt">上下文越来越长，压缩时怎样决定保留哪些信息、丢掉哪些内容？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/8a553bb6ea8445d0b0abe11e87614cea?sourceSSR=dynamic" rel="noopener" target="_blank">字节跳动 · 一面 · 面经原帖</a> · 题意转述</p><details class="answer-box"><summary>展开参考回答</summary><div><p>我先留住<strong>用户接下来还要我遵守的要求</strong>、没做完的事和马上要用的证据。大段旧日志先缩短，较早的完整对话才考虑写成摘要。</p><p>若存同时读规则和日志时，要把请求和两份回包放在同一边。只留下“日志通过”却丢掉它对应的请求，下一轮就少了依据。</p><p class="interview-origin"><a href="#tail-and-anchors">回看讲解 · 近期输入和任务清单</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-1"><h3>你说快到上下文上限才压缩，程序怎么判断已经快满了？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/discuss/952128712667901952" rel="noopener" target="_blank">未具名半导体公司 · AI 相关岗位 · 面经原帖</a> · 题意转述　可回看 <a href="model-input.html" rel="noopener" target="_blank">第 2 章</a> <a href="request-recovery.html" rel="noopener" target="_blank">第 7 章</a> </p><details class="answer-box"><summary>展开参考回答</summary><div><p>估算<strong>下一次真正要发的整份请求</strong>，把消息、工具说明等都算上，再给输出和估算误差留空间。用户没多说一句，新公布一批工具也可能把窗口占满。</p><p class="interview-origin"><a href="#wire-budget">回看讲解 · 下一次请求的输入估算</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-2"><h3>工具返回的内容太长，哪些可以先裁掉？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/ed5e9d17f26e489da94afbf1241b885e?sourceSSR=dynamic" rel="noopener" target="_blank">字节跳动 · 一面 · 面经原帖</a> · 题意转述</p><details class="answer-box"><summary>展开参考回答</summary><div><p>先缩<strong>重复而且能回查的日志正文</strong>，保留开头、结尾、调用编号和原文入口。图片、受保护的等待结果等仍按各自规则保留。</p><p class="interview-origin"><a href="#shrink-tool-text">回看讲解 · 把日志正文变短</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-3"><h3>同一批的规则文件已经返回，日志还在路上，为什么这里不能切开？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>还有<strong>一份结果欠着它原来的请求</strong>。</p><p>若存看到 r-rule 回来只划掉这一个编号，r-log 还在。第二份回包到了，两次读取才成为可以整体移动的一组。</p><p class="interview-origin"><a href="#balanced-boundary">回看讲解 · 按编号找能切的地方</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-4"><h3>已经有一份裁短的日志了，若存为什么还给摘要模型看原来的前缀？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>我要知道<strong>摘要究竟读过哪些原文</strong>，也尽量保住和旧请求相同的开头。</p><p>若存生成早期摘要时取切点之前连续的原记录，随后把相应来源随摘要一起保存。</p><p class="interview-origin"><a href="#summary-uses-original">回看讲解 · 摘要请求读原始前缀</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-5"><h3>生成摘要和保存到数据库之间，怎样配合才能继续原任务？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/discuss/952128712667901952" rel="noopener" target="_blank">未具名半导体公司 · AI 相关岗位 · 面经原帖</a> · 题意转述</p><details class="answer-box"><summary>展开参考回答</summary><div><p>先把摘要作为候选，<strong>将摘要、来源和会话进度一起确认保存</strong>，再让主会话改用新的历史。保存失败可以继续用原来的那份。</p><p class="interview-origin"><a href="#confirm-candidate">回看讲解 · 检查点和原文入口一起确认</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-6"><h3>窗口写着两万，估计只用了不到一万五，为什么已经要压缩？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>要给<strong>这次回答和估算误差</strong>留地方。</p><p>若存本例还要留 5,000 给输出、1,200 给余量，输入能用到约 13,800。请求估到 14,000 就越过了这条线。</p><p class="interview-origin"><a href="#output-headroom">回看讲解 · 先给回答留位</a></p></div></details></section>
+</section>
+<nav aria-label="章末导航" class="course-pagination"><a href="../课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a href="subagents.html" rel="prev noopener" target="_blank" title="什么时候把工作交给子代理：任务交接、独立会话与结果">上一章</a><a href="archive-retrieval.html" rel="next noopener" target="_blank" title="摘要漏掉要求时，怎样找回当时的原话">下一章</a></nav></article></main>
+</body>
+</html>

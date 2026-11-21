@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:lang="zh-CN" role="img" aria-labelledby="title desc" viewBox="0 0 1080 350" width="1080" height="350">
+  <title id="title">Read 找到技能后，模型什么时候能用它？</title>
+  <desc id="desc">同一批里的 Read 读到定价预览文件并发现技能，Skill 仍返回未找到。整批结束后名称发布到会话的技能目录，下一次请求模型才看到 pricing-tests，可以再调用 Skill 读到步骤。</desc>
+  <defs>
+    <marker id="gray-arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L8 4 L1 7" fill="none" stroke="#57606a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="blue-arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L8 4 L1 7" fill="none" stroke="#0969da" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="amber-arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L8 4 L1 7" fill="none" stroke="#8a4b08" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <style>
+      text { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif; fill:#1f2328; font-size:22px; }
+      .label { font-weight:600; }
+      .small { font-size:20px; fill:#57606a; }
+      .head { font-size:20px; font-weight:600; fill:#57606a; }
+      .mono, .mono-blue, .mono-small { font-family: "Cascadia Code", Consolas, "Microsoft YaHei", monospace; }
+      .mono-small { font-size:20px; }
+      .mono-blue, .blue-text { fill:#0969da; font-weight:600; }
+      .amber-text { fill:#8a4b08; font-weight:600; }
+      .plain { fill:#fff; stroke:#d0d7de; }
+      .soft { fill:#f6f8fa; stroke:#d0d7de; }
+      .blue { fill:#edf6ff; stroke:#0969da; }
+      .amber { fill:#fff7e6; stroke:#b0804f; }
+      .plain, .soft, .blue, .amber { stroke-width:1.5; }
+      .line-gray, .line-blue, .line-amber, .line-muted { fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+      .line-gray { stroke:#57606a; }
+      .line-blue { stroke:#0969da; }
+      .line-amber { stroke:#8a4b08; }
+      .line-muted { stroke:#d0d7de; }
+    </style>
+  </defs>
+  <rect width="1080" height="350" fill="#fff"/>
+  <text x="28" y="39" text-anchor="start" class="head">模型的第一次请求</text>
+  <text x="492" y="39" text-anchor="start" class="head">整批结束</text>
+  <text x="780" y="39" text-anchor="start" class="head">模型的下一次请求</text>
+  <rect x="28" y="62" width="354" height="89" rx="8" class="soft"/>
+  <text x="205.0" y="100.5" text-anchor="middle" class="label">Read · 发现技能</text>
+  <text x="205.0" y="132.5" text-anchor="middle" class="mono-small">packages/pricing/preview.py</text>
+  <rect x="28" y="191" width="354" height="89" rx="8" class="amber"/>
+  <text x="205.0" y="229.5" text-anchor="middle" class="mono-small">Skill(&quot;pricing-tests&quot;)</text>
+  <text x="205.0" y="261.5" text-anchor="middle" class="amber-text">这一批仍返回「未找到」</text>
+  <path d="M382 106 H491" class="line-gray" marker-end="url(#gray-arrow)"/>
+  <rect x="491" y="62" width="231" height="89" rx="8" class="blue"/>
+  <text x="606.5" y="100.5" text-anchor="middle" class="label">发布技能名称</text>
+  <text x="606.5" y="132.5" text-anchor="middle" class="small">写入会话目录</text>
+  <path d="M722 106 H780" class="line-blue" marker-end="url(#blue-arrow)"/>
+  <rect x="780" y="62" width="271" height="89" rx="8" class="blue"/>
+  <text x="915.5" y="100.5" text-anchor="middle" class="mono-blue">pricing-tests</text>
+  <text x="915.5" y="132.5" text-anchor="middle" class="small">模型看见新名称</text>
+  <path d="M915 151 V191" class="line-blue" marker-end="url(#blue-arrow)"/>
+  <rect x="780" y="191" width="271" height="89" rx="8" class="plain"/>
+  <text x="915.5" y="229.5" text-anchor="middle" class="label">再次调用 Skill</text>
+  <text x="915.5" y="261.5" text-anchor="middle" class="small">读到具体步骤</text>
+  <path d="M28 289 V300 H382 V289" class="line-muted"/>
+  <text x="205" y="325" text-anchor="middle" class="small">两次工具调用属于同一批</text>
+</svg>

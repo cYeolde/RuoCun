@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>任务可能已经提交，确认丢了怎么办？ · Agent 设计学习</title>
+<link href="../assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="../assets/ruocun-code.css" rel="stylesheet"/>
+<link href="../assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="../assets/ruocun-article.css" rel="stylesheet"/>
+<link href="../assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="../assets/ruocun-textbook.js"></script>
+<link href="../assets/reading-diagrams.css" rel="stylesheet"/><link href="middle-figures.css" rel="stylesheet"/><link href="../assets/course-reader.css" rel="stylesheet"/><link href="course-illustrations.css" rel="stylesheet"/><link href="article-reading.css" rel="stylesheet"/></head>
+<body class="textbook-read" id="course-reader">
+<a class="textbook-skip" href="#durable-execution">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#durable-execution">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航"><a href="../课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a href="request-recovery.html" rel="prev noopener" target="_blank" title="模型回答到一半断了，怎样继续？">上一章</a><a href="task-planning.html" rel="next noopener" target="_blank" title="长任务怎样照着计划走？">下一章</a></nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title"><span class="chapter-number">第 8 章</span><span class="nav-chapter-name">任务可能已经提交，确认丢了怎么办？</span></div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc">
+<summary>文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#durable-resume-1">沿调用编号查原运行</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#durable-journal-1">动手之前先留下一条记录</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#durable-journal-2">原回执怎样回到聊天里</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#durable-commit-1">旧快照回写会丢掉新输入</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways">这一章带走什么</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#interview-practice">面经自测</a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper" data-format="article" id="durable-execution">
+<header class="design-hero">
+<h1>任务可能已经提交，确认丢了怎么办？</h1>
+<p class="target">重开终端，聊天停在工具调用 <code>call-price-17</code>，下方没有回包。这次调用要在后台跑一趟价格回归测试。<strong>「先查原运行，再决定是否补发。」</strong> 现在换个编号提交，第一趟若已启动，就可能把同一项测试做两遍。下面的编号和断点按若存受管 Shell 的源码推演。</p>
+</header>
+<section class="v2-topic-group" id="durable-resume-1">
+<span aria-hidden="true" id="durable-resume-2"></span>
+<header class="v2-group-heading"><h2>沿调用编号查原运行</h2></header>
+<section class="design-section" id="find-the-first-run">
+<h3 id="find-the-first-run-title">接上同一趟测试</h3>
+<p>从 <code>call-price-17</code> 往下查，假定它关联到 <code>run-r17</code>。这个 <code>runId</code> 指执行器里的一趟测试。若存先找这趟运行的终态收据，核对会话、任务和启动身份。收据可信，就采用上面记下的结束结果。若测试还在跑，负责执行命令的 runner 通过核验且已认领启动，若存就接回原后台运行，继续看它的输出。两处都查不清，保留未决。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/managed_shell.py#L785" rel="noopener" target="_blank">终态收据的核验与后台重连</a></p>
+<p>换成远端任务接口，也先拿第一次的请求编号或幂等键查受理记录。刚创建的任务也可能暂时查不到。查明确实未创建，可以按接口约定补发。若接口保证一个幂等键只创建一次，也可以按约定用原键重提。</p>
+</section>
+<section class="design-section" id="distinguish-after-the-fact">
+<h3 id="distinguish-after-the-fact-title">事后核实要留依据</h3>
+<p><code>/recovery</code> 会列出未决调用和运行。假如用户从原运行的记录查到了结果，可以把依据登记回那次调用或任务。若存会标明这是用户事后核实的结论，后来接手的人还能辨认原执行器交回过哪些材料。回到普通续聊前，还要过一遍<a href="#two-calls-one-unknown">同批未决项</a>。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/recovery.py#L113" rel="noopener" target="_blank">查询与登记命令</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/durable_store.py#L1382" rel="noopener" target="_blank">人工结论的来源标记</a></p>
+</section>
+<div class="design-section" id="article-assessment">
+<p><strong>试着查一次。</strong> 原调用关联 <code>run-r17</code>。列表里同名的任务 <code>run-r21</code> 刚以退出码 0 结束。<code>run-r17</code> 没有终态收据，控制端也连不上。现在该登记什么，接下来查谁？</p>
+<details><summary>核对判断</summary><p><code>run-r17</code> 继续记为未决。退出码 0 属于 <code>run-r21</code>。按 <code>run-r17</code> 的启动身份找它自己的终态收据或其他可信执行记录，查到以后再提交人工结论。</p></details>
+</div>
+</section>
+<section class="v2-topic-group" id="durable-journal-1">
+<span aria-hidden="true" id="durable-journal"></span>
+<header class="v2-group-heading"><h2>动手之前先留下一条记录</h2></header>
+<section class="design-section" id="the-lost-receipt">
+<h3 id="the-lost-receipt-title">两次中断，聊天里少了同一行</h3>
+<p>把中断拨回启动前。若存查到还在准备阶段，启动许可和 runner 的认领记录都没有落下，就能确认原命令未执行。把中断往后挪，runner 已经启动测试，回包却没写进聊天。两次重开都少了同一条回复，后一次再发可能多跑一趟。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/managed_shell.py#L777" rel="noopener" target="_blank">恢复时确认未取得启动许可</a></p>
+<figure class="course-illustration" data-art="recovery-two-worlds-kawaii" data-figure-slot="0" data-generated-by="SVG"><a aria-label="放大查看：聊天缺回包时，原测试已经启动了吗？" href="figures/recovery-two-worlds-kawaii-engineering.svg" rel="noopener" target="_blank"><img alt="两个现场中，本地都超时且没有工具回包。启动请求在执行器开始前中断时，测试未启动。执行器已经启动测试、返回通路中断时，原运行确实存在。应沿原运行查证。" decoding="async" loading="lazy" src="figures/recovery-two-worlds-kawaii-engineering.svg"/></a><figcaption>先只读本地一列，再看两行的断点方向。在哪一行重发可能多跑一趟？</figcaption></figure>
+<p>缺了回包，能直接断定原操作没做吗？文件恢复用例把断点分别放在保存意图之后、写入之前，以及写入之后、保存结果之前。前一种重开仍是旧内容，后一种重开已是新内容，用例断言两种都标为 <code>outcome_unknown</code>。每种情形重开三次，测试核对文件和执行日志，原操作都没有被自动补做。这两份记录一比就知道，光看聊天缺了一条回复，猜不出文件有没有被改过。 文件恢复用例及断点（项目回归测试）</p>
+</section>
+<section class="design-section" id="give-work-an-identity">
+<h3 id="give-work-an-identity-title">把最终参数绑在这次调用上</h3>
+<p>等到结果回来才记，崩溃后就少了能从调用找到原动作的线索。若存给主代理的调用加上范围，记作 <code>ToolRef("main", "call-price-17")</code>，先保存最终参数的脱敏内容与摘要、授权等执行意图，再进入工具处理器。受管 Shell 在启动前把原 <code>runId</code> 也绑定到这条记录。意图多一次落盘等待，重开就能顺着记录查。拿同一编号换一份命令会被拒绝。若记录已有匹配的已提交结果，派发器直接把它配给原调用。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/conversation.py#L553" rel="noopener" target="_blank">先保存意图，再登记原运行</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/durable_store.py#L734" rel="noopener" target="_blank">识别冲突与复用结果</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/tool_batch.py#L239" rel="noopener" target="_blank">派发器返回已有结果</a></p>
+<p>要是两个实例都来接同一个本地会话，若存把检查原所有者和登记新所有者放进一个事务。原实例还活着，后来者领不到。原实例已退出，新实例领取时把所有者代次加一，旧实例再来写库就会被拒绝。留在 <code>started</code> 的调用转为 <code>outcome_unknown</code>，等接管者沿原记录查证。两台机器抢一项远端任务时，也要在共享存储里把领取和改成执行中放在同一次操作里。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/durable_store.py#L650" rel="noopener" target="_blank">本地会话的所有权检查与接管</a></p>
+</section>
+<section class="design-section" id="a-real-rejection">
+<h3 id="a-real-rejection-title">能确认拒绝，才有依据改参数</h3>
+<p>例如模型漏了必填的命令，派发前就会收到带原编号的参数错误。它可以补全参数后再交。处理器明确抛出 <code>ToolRejected</code> 也会回一条普通错误。已经拿到测试的非零退出码时，则去原日志定位失败。启动测试这类可能留下持久改变的调用若遇到意外异常，若存会经 <code>UnknownToolOutcome</code> 退出普通回合，先查动作有没有发生。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/tool_batch.py#L186" rel="noopener" target="_blank">派发前的参数检查</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/tool_batch.py#L282" rel="noopener" target="_blank">两类异常处理</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L423" rel="noopener" target="_blank">回合停在结果未知</a></p>
+</section>
+</section>
+<section class="v2-topic-group" id="durable-journal-2">
+<header class="v2-group-heading"><h2>原回执怎样回到聊天里</h2></header>
+<section class="design-section" id="two-saves">
+<h3 id="two-saves-title">执行结果和会话有各自的保存时点</h3>
+<p>工具正常返回时，派发器先等执行记录写好结果，再把回包交给主循环。主循环随后保存会话检查点，也就是重开时使用的会话状态。断在两次保存之间，执行记录里已有 <code>call-price-17</code> 的回执，聊天还缺一条。若调用可能留下持久改变，等结果落盘时出了意外，也会停在结果未知。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/tool_batch.py#L304" rel="noopener" target="_blank">先保存工具结果，再交回消息</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L431" rel="noopener" target="_blank">主循环保存会话</a></p>
+<p id="open-versus-resolve">假设重开检查已经通过。聊天里有同批读取报告的回包，缺 <code>call-price-17</code>。执行记录留着它已提交的原结果。程序怎样让两条回包各归原位？</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/recovery.py#L55" rel="noopener" target="_blank">src/ruocun/session/recovery.py · 第 55–66 行</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>重开会话时按调用编号补回包</span><span>12 行节选</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="55"></span><span data-line="56"></span><span data-line="57"></span><span data-line="58"></span><span data-line="59"></span><span data-line="60"></span><span data-line="61"></span><span data-line="62"></span><span data-line="63"></span><span data-line="64"></span><span data-line="65"></span><span data-line="66"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        existing: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any]] = {}
+        <span class="hljs-keyword">while</span> index &lt; <span class="hljs-built_in">len</span>(messages) and messages[index].get(<span class="hljs-string">'</span><span class="hljs-string">role</span><span class="hljs-string">'</span>) == <span class="hljs-string">'</span><span class="hljs-string">tool</span><span class="hljs-string">'</span>:
+            item = messages[index]
+            existing[<span class="hljs-built_in">str</span>(item.get(<span class="hljs-string">'</span><span class="hljs-string">tool_call_id</span><span class="hljs-string">'</span>))] = copy.deepcopy(item)
+            index += <span class="hljs-number">1</span>
+        <span class="hljs-keyword">for</span> call in calls:
+            call_id = call[<span class="hljs-string">'</span><span class="hljs-string">id</span><span class="hljs-string">'</span>]
+            record = by_id.get(call_id)
+            <span class="hljs-keyword">if</span> call_id in existing:
+                output.append(existing[call_id])
+            <span class="hljs-keyword">elif</span> record is not <span class="hljs-keyword">None</span> and record.state == <span class="hljs-string">'</span><span class="hljs-string">result_committed</span><span class="hljs-string">'</span> and record.result is not <span class="hljs-keyword">None</span>:
+                output.append(projectToolResult(record.result, call_id))</code></pre></div></figure>
+<p>上面的 <code>while</code> 先收好聊天里已经保存的工具回包。<code>for call in calls</code> 按模型当时那批调用的顺序核对。读报告那一项找到原有回包，就照原样放回。轮到 <code>call-price-17</code>，聊天里找不到它，执行记录里的结果已提交且可用，于是补出一条同编号的回包。这里节选的是能取到真实结果的两个分支。</p>
+<p id="two-calls-one-unknown">这段代码要等整个会话通过恢复检查才运行。假如同批读报告的回执已提交，<code>call-price-17</code> 却仍未决，普通续聊会暂停。报告回执还在执行记录里，聊天暂时也少这条回复。未决调用、运行或缺失附件等问题查清后，才能按原编号把已保存的回执补齐。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/conversation.py#L161" rel="noopener" target="_blank">打开会话时先检查，再补配对</a></p>
+<p>把断点拨回进程还在的时候。CoreCoder 在执行工具时捕获 Ctrl+C，便给缺回复的调用按编号补 <code>[interrupted]</code>，已有回包照留。这里要解决的是下一次请求还能带着成对的消息发出去。回到本章重开终端的现场，若存先查的是 <code>call-price-17</code> 对应的原运行有没有可信结果。占位回复能说明聊天在那次中断处收尾了，测试有没有跑起来仍得查执行记录。 <a href="https://github.com/he-yufeng/CoreCoder/blob/main/article/01-the-loop.md#模型被打断的那一瞬间" rel="noopener" target="_blank">CoreCoder 的中断处理</a> · <a href="https://github.com/he-yufeng/CoreCoder/blob/main/article/06-session-and-cli.md" rel="noopener" target="_blank">会话存档</a></p>
+</section>
+</section>
+<section class="v2-topic-group" id="durable-commit-1">
+<span aria-hidden="true" id="durable-commit"></span>
+<header class="v2-group-heading"><h2>旧快照回写会丢掉新输入</h2></header>
+<section class="design-section" id="stale-writer">
+<h3 id="stale-writer-title">后台拿着第 7 版，库里已经是第 8 版</h3>
+<p>换一起事故。测试只跑了一次，回执也齐。后台正在用第 7 版会话整理完成通知，用户先补了一句“请保留失败日志”，会话变成第 8 版。哪怕后台仍属于当前的会话所有者，整份旧快照一旦写回，新要求就丢了。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/durable_store.py#L1201" rel="noopener" target="_blank">src/ruocun/session/durable_store.py · 第 1201–1204 行</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>4 行节选</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1201"></span><span data-line="1202"></span><span data-line="1203"></span><span data-line="1204"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            current = <span class="hljs-built_in">int</span>(_read_meta(con, <span class="hljs-string">"</span><span class="hljs-string">revision</span><span class="hljs-string">"</span>) or <span class="hljs-number">0</span>)
+            <span class="hljs-keyword">if</span> current != expected_revision:
+                <span class="hljs-keyword">raise</span> StoreError(<span class="hljs-string">"</span><span class="hljs-string">revision 冲突，拒绝覆盖比自己更新的状态。</span><span class="hljs-string">"</span>)
+            revision = current + <span class="hljs-number">1</span></code></pre></div></figure>
+<p><code>expected_revision</code> 是 7，库里的 <code>current</code> 已是 8，提交被拒绝。后台要多从第 8 版整理一次通知，这样用户补的“请保留失败日志”就不会被旧快照盖掉。消息、新输入与后台事件的消费标记要一起保存，否则重开可能再投一次完成通知。若存等存储线程确认后才发布内存里的新进度，提交结果未明就停在这里，等核实。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/durable_store.py#L1208" rel="noopener" target="_blank">会话与消费标记同事务保存</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/conversation.py#L467" rel="noopener" target="_blank">确认后才发布</a></p>
+</section>
+<section class="design-section" id="cancel-in-flight">
+<h3 id="cancel-in-flight-title">取消时也要等已开始的工具结算</h3>
+<p>取消信号可以挡住还没派发的调用。已经开始的工具可能刚改完文件，正等存储确认。若存用 <code>shield</code> 让已开始的工作有机会写完回执，再把取消交回上层。后台进程是否已经停止，还得凭那趟运行的终态判断。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/tool_batch.py#L343" rel="noopener" target="_blank">工具批取消后的收尾</a> · <a href="shell-lifecycle.html#shell-cancel-1" rel="noopener" target="_blank">查后台命令的停止结果</a></p>
+</section>
+</section>
+<section class="v2-topic-group" id="article-takeaways">
+<header class="v2-group-heading"><h2>这一章带走什么</h2></header>
+<div class="design-section">
+<p>聊天里少了一条工具回复，先按原调用编号查那趟测试。能核实原运行仍在后台跑，就接回这一趟。若执行记录已经保存了结果，也要先查整次会话能不能接着用。比如同批还有一个调用结果不明，就先停在这里查它。恢复检查通过后，才把已存的结果按原编号补回聊天。</p>
+<p>拿到了会话写入权，还得核对手里是哪一版会话。每次提交都查版本，后台用第 7 版整理的通知才不会盖掉用户已经写进第 8 版的新要求。</p>
+<p>把同一项定价测试的断点挪到更早。若模型只传来半截工具参数，执行器还没接单，先按前两章的规则看<a href="model-protocol.html#save-and-execute" rel="noopener" target="_blank">调用是否已经成形</a>、<a href="request-recovery.html#useful-output" rel="noopener" target="_blank">响应是否已经有产出</a>，再决定能否重问模型。要是执行器已接下完整调用，换个编号重提就可能把同一项测试跑两遍。</p>
+<p>回到动手前。普通顾客应看到 180 元，会员仍是 200 元。要验证这两条，计划里该写下什么？ <a href="task-planning.html" rel="noopener" target="_blank">长任务怎样照着计划走？</a></p>
+</div>
+</section>
+<section class="v2-topic-group" id="interview-practice">
+<span aria-hidden="true" id="article-interview"></span>
+<header class="v2-group-heading"><h2>面经自测</h2></header>
+<section class="design-section interview-exercise" id="interview-opening"><h3 class="interview-prompt">创建任务的请求超时了，服务端可能已经创建成功。你怎么确认结果、更新任务状态？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/discuss/948271943319384064?sourceSSR=users" rel="noopener" target="_blank">商汤 · 二面 · 面经原帖</a> · 题意转述</p><details class="answer-box"><summary>展开参考回答</summary><div><p>我会保留<strong>第一次请求的身份</strong>，拿它查服务端的受理回执或原运行。已经创建就记回结果；确认未创建才按接口约定再试；暂时查不清，先留下原请求和待查状态。</p><p>比如提交价格回归测试后超时，按原记录找到了正在跑的测试，就接着等这一趟。改用一个新编号重新提交，可能同时跑两趟。</p><p class="interview-origin"><a href="#durable-resume-1">回看讲解 · 根据原请求、可信回执与运行记录核实是否已经创建</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-1"><h3>两台机器同时拿到一项待执行任务，怎样避免把同一件事做两遍？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/bab2ccabb366403492901c712278329e?sourceSSR=dynamic" rel="noopener" target="_blank">小红书 · 一面 · 面经原帖</a></p><details class="answer-box"><summary>展开参考回答</summary><div><p>我会把<strong>领取任务和改成执行中</strong>放在同一次可确认的操作里，只让领到的一方执行。已有结果按原编号读取。只见到开始记录，就先查上次究竟做到哪。</p><p class="interview-origin"><a href="#durable-journal-1">回看讲解</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-2"><h3>程序重启后从哪恢复，怎样避免重做已经写过的工具操作？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/e5abd2dc95934bf58177525b5736f290?sourceSSR=dynamic" rel="noopener" target="_blank">科大讯飞 · 一面 · 面经原帖</a></p><details class="answer-box"><summary>展开参考回答</summary><div><p>先看<strong>执行记录里有哪些结果，再看整个会话能否接着走</strong>。同一批里读报告的结果已经保存，改价格文件的结果却还没查清，重开时会暂停整个会话。原来那份读报告的回执仍在执行记录里，检查点缺的消息这时还没补。</p><p>我会按原编号核实编辑、登记判断的依据。若所有调用结果均已确认，运行和附件等也没有妨碍恢复，重开时程序会把已有回执按原编号补进聊天，不会再读一遍或改一次文件。</p><p class="interview-origin"><a href="#durable-resume-1">回看讲解</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-3"><h3>工具尚未写文件，程序为什么先登记一次“准备执行”？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>为了留下<strong>要用哪份参数做哪次写入</strong>的记录。</p><p>如果只在写完后才记，文件改了、程序当场退出，重开后连该核对哪次编辑都不知道。</p><p class="interview-origin"><a href="#durable-journal-1">回看讲解</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-4"><h3>用户核实过原任务后补了一条说明，为什么要记下这条说明的来源？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>留下<strong>谁查过、根据什么判断</strong>。如果测试结果是用户事后核实的，恢复记录应把它和工具原先发回的回执分开。</p><p class="interview-origin"><a href="#durable-resume-1">回看讲解</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-5"><h3>后台刚准备好旧检查点，用户已经提交新要求，谁的进度该生效？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>保存前要查<strong>它是基于哪一版会话</strong>准备的。</p><p>程序已有第 8 版记录“保留日志”，基于第 7 版算好的内容不能直接覆盖它，否则用户刚说的话就丢了。</p><p class="interview-origin"><a href="#durable-commit-1">回看讲解</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-6"><h3>批次里有工具已经开始，取消按钮按下后为什么还要等它们收尾？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>取消能挡住后面的动作，已经开始的还得<strong>拿到各自的实际结果</strong>。</p><p>程序如果在编辑刚写完时丢开整批，重开后就无法判断那次写入究竟发生了没有。</p><p class="interview-origin"><a href="#durable-commit-1">回看讲解</a></p></div></details></section>
+</section>
+<nav aria-label="章末导航" class="course-pagination"><a href="../课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a href="request-recovery.html" rel="prev noopener" target="_blank" title="模型回答到一半断了，怎样继续？">上一章</a><a href="task-planning.html" rel="next noopener" target="_blank" title="长任务怎样照着计划走？">下一章</a></nav></article></main>
+</body>
+</html>

@@ -1,0 +1,77 @@
+/* All lesson pages load this after their example-specific styles. */
+#course-reader .lesson-paper .design-hero h1 {
+  color: var(--ink);
+  font: 700 36px/1.4 var(--sans);
+  letter-spacing: -.025em;
+  margin: 0 0 6px;
+  text-wrap: balance;
+}
+#course-reader .design-hero .chapter-subtitle {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font: 400 18px/1.65 var(--sans);
+}
+#course-reader .design-hero .target,
+#course-reader .lesson-paper .design-section > :is(p, ul, ol) {
+  max-inline-size: 45em;
+}
+#course-reader .lesson-paper .design-hero .target {
+  margin: 0;
+  font: 400 17px/1.85 var(--sans);
+}
+#course-reader .lesson-paper .v2-group-heading h2 {
+  margin: 0;
+  font: 700 27px/1.6 var(--sans);
+  letter-spacing: -.015em;
+}
+#course-reader .lesson-paper .v2-topic-group h3 {
+  margin: 0 0 20px;
+  font: 700 21px/1.7 var(--sans);
+}
+#course-reader .lesson-paper :is(.v2-topic-group, .design-section, h3[id], .interview-opening) {
+  /* The root's scroll-padding already accounts for the sticky masthead. */
+  scroll-margin-top: 0;
+}
+.textbook-nav-title .chapter-number {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 3px;
+}
+.textbook-nav-title .nav-chapter-name { display: block; }
+.course-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 24px;
+  margin: 54px 0 0;
+  padding: 20px 0 0;
+  border-top: 1px solid var(--line);
+  font-size: 15px;
+}
+.course-pagination a { text-decoration: none; }
+.course-pagination a:hover { text-decoration: underline; }
+@media (max-width: 900px) {
+  #course-reader .reading-nav { position: relative; top: auto; }
+  #course-reader .textbook-nav-title {
+    display: block;
+    position: absolute;
+    top: 15px;
+    left: 18px;
+  }
+  #course-reader .textbook-nav-title .chapter-number { margin: 0; line-height: 24px; }
+  #course-reader .textbook-nav-title .nav-chapter-name { display: none; }
+  #course-reader .v2-course-toc > summary { padding-inline-start: 64px; }
+}
+@media (max-width: 540px) {
+  #course-reader .textbook-masthead nav { display: flex; gap: 12px; }
+  #course-reader .textbook-masthead nav > a { display: inline; white-space: nowrap; }
+  #course-reader .lesson-paper .design-hero h1 { font-size: 27px; }
+  #course-reader .design-hero .chapter-subtitle { font-size: 16px; }
+  #course-reader .lesson-paper .design-hero .target { font-size: 16px; }
+  #course-reader .lesson-paper .v2-group-heading h2 { font-size: 23px; }
+  #course-reader .lesson-paper .v2-topic-group h3 { font-size: 19px; }
+}
+@media print {
+  #course-reader .course-pagination { display: none; }
+}

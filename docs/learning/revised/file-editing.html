@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN"><head><meta charset="utf-8"/><meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>改价怎样找对位置、保留已有修改并验对结果？ · RuoCun 设计学习</title>
+<link href="../assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="../assets/ruocun-code.css" rel="stylesheet"/>
+<link href="../assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="../assets/ruocun-article.css" rel="stylesheet"/>
+<script defer="" src="../assets/ruocun-textbook.js"></script><link href="../assets/course-opening21.css" rel="stylesheet"/><link href="../assets/course-reader.css" rel="stylesheet"/><link href="course-illustrations.css" rel="stylesheet"/><link href="article-reading.css" rel="stylesheet"/></head>
+<body class="textbook-read" id="course-reader">
+<a class="textbook-skip" href="#file-editing">跳到正文</a>
+<header class="textbook-masthead"><div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#file-editing"><svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg><span>RuoCun <span>设计学习</span></span></a>
+<nav aria-label="文章导航"><a href="../课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a href="tool-contract.html" rel="prev noopener" target="_blank" title="模型开口要读文件，谁真正去读？">上一章</a><a href="permission-gates.html" rel="next noopener" target="_blank" title="执行之前谁说了算？">下一章</a></nav>
+</div></header>
+<main class="reading-layout"><aside class="reading-nav"><div class="textbook-nav-title"><span class="chapter-number">第 4 章</span><span class="nav-chapter-name">改价怎样找对位置、保留已有修改并验对结果？</span></div><p class="textbook-nav-caption">文章目录</p><details class="v2-course-toc" open=""><summary>文章目录</summary><nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#page-to-code">两个 prices.mjs，预览用的是哪一个？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#matching">同一行乘法出现了两次</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#read-baseline">旧文已经唯一，为什么还要重读？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#file-concurrency">为什么只锁写入还会丢修改？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#verify-at-entry">函数算出 180，预览还是 200</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways">这一章带走什么</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#interview-practice">面经自测</a></li></ol></nav></details></aside><article class="lesson-paper v2-paper pilot-paper" data-format="article" id="file-editing"><header class="design-hero"><h1>改价怎样找对位置、保留已有修改并验对结果？</h1>
+<p class="target">假设有位普通顾客买两件单价 100 元的商品。你让 agent 给普通价打九折，会员原价照旧。它跑了测试，普通价函数已经算出 180 元。你打开订单预览，还是 200 元。</p>
+<p>测试和页面都给了一个数字，改动究竟在哪一步没接上？用这笔订单推一遍。先翻回第一次找代码的时候，仓库里有两份名字一模一样的价格文件。</p>
+</header>
+<section class="v2-topic-group" id="page-to-code"><header class="v2-group-heading"><h2>两个 prices.mjs，预览用的是哪一个？</h2></header>
+<section class="design-section" id="trace-the-entry">
+<p>手里只有文件名，可以用 <code>Glob({"glob":"**/prices.mjs"})</code> 找到 <code>shop/prices.mjs</code> 和 <code>examples/prices.mjs</code>。手里若是页面文字或报错原话，就用 Grep 查内容。两种搜索都可通过 <code>path</code> 缩到应用目录。Glob 有忽略目录和扫描、返回上限。Grep 可以用 <code>context</code> 带上前后几行，会限制返回条数并截断长行。命中给出了要打开的候选文件。</p>
+<p>打开 <code>shop/preview.mjs</code>，看这一行 <code>import { standardTotal, memberTotal } from './prices.mjs'</code>。<code>./</code> 指向入口所在的 <code>shop</code> 目录。再看身份分支，普通顾客走 <code>standardTotal</code>，会员走 <code>memberTotal</code>。仓库更大时，RepoMap 的结构摘要或语言服务器 LSP 给出的定义、引用，也可以帮你走到这个调用处。</p>
+</section>
+<section class="design-section" id="edited-baseline">
+<p>找到了行，也要用 Read 打开 <code>shop/prices.mjs</code>。文件长时用 <code>offset</code> 和 <code>limit</code> 取所需的几行。Read 展示带行号的原文，同时按路径在工具上下文里记下读取前的修改时间和文件大小。Edit 稍后用这份记录核对文件是否发生了变化。</p>
+<figure class="ruocun-code" data-language="javascript"><figcaption class="ruocun-code-caption"><span>计价原文 · shop/prices.mjs</span><span></span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption><div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span><span data-line="2"></span><span data-line="3"></span><span data-line="4"></span><span data-line="5"></span><span data-line="6"></span><span data-line="7"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-javascript"><span class="hljs-keyword">export</span> <span class="hljs-keyword">function</span> standardTotal(count, price) {
+  <span class="hljs-keyword">return</span> count * price;
+}
+
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">function</span> memberTotal(count, price) {
+  <span class="hljs-keyword">return</span> count * price;
+}</code></pre></div></figure>
+<p>读到这里，两个函数的声明分得很清楚，函数里的乘法却一字不差。要是模型只把这一行发给 Edit，工具该怎么挑？</p>
+</section>
+</section>
+<section class="v2-topic-group" id="matching"><header class="v2-group-heading"><h2>同一行乘法出现了两次</h2></header>
+<section class="design-section" id="choose-edit">
+<p>按第 2 行替换，文件顶部多一行注释就可能改到别处。叫模型重写整个文件，其余内容也要抄一遍。Edit 可以只收旧文和新文。先把 Read 显示的行号去掉，只交旧文 <code>return count * price;</code>，请求把它换成带九折的那一行。</p>
+</section>
+<section class="design-section" id="unique-target">
+<p>这次只想改普通价，<code>replace_all</code> 没有打开。<code>raw</code> 是当前文件全文，<code>old</code> 是匹配到的旧文。同一行乘法出现两次，看看 Edit 会把哪条反馈交给模型。</p>
+<figure class="ruocun-code" data-language="python"><figcaption class="ruocun-code-caption"><span>Edit 对实际旧文计数，决定是否替换</span><span>源码节选</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption><div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="90"></span><span data-line="91"></span><span data-line="92"></span><span data-line="93"></span><span data-line="94"></span><span data-line="95"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        count = raw.count(old)
+        <span class="hljs-keyword">if</span> count &gt; <span class="hljs-number">1</span> and not args.get(<span class="hljs-string">"</span><span class="hljs-string">replace_all</span><span class="hljs-string">"</span>):
+            <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">old_string 在 </span><span class="hljs-string">{</span>args[<span class="hljs-string">'</span><span class="hljs-string">path</span><span class="hljs-string">'</span>]<span class="hljs-string">}</span><span class="hljs-string"> 出现 </span><span class="hljs-string">{</span>count<span class="hljs-string">}</span><span class="hljs-string"> 次，不唯一。</span><span class="hljs-string">"</span>
+                               <span class="hljs-string">"</span><span class="hljs-string">只改一处时，把周围未改动的文字同时带入 old_string 和 new_string。</span><span class="hljs-string">"</span>
+                               <span class="hljs-string">"</span><span class="hljs-string">要替换所有匹配时请使用 replace_all。</span><span class="hljs-string">"</span>)
+        next_text = raw.replace(old, args[<span class="hljs-string">"</span><span class="hljs-string">new_string</span><span class="hljs-string">"</span>])</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/edit_file.py#L90" rel="noopener" target="_blank">edit_file.py 第 90–95 行</a></p>
+<p><code>raw.count(old)</code> 数出 2，程序走到 <code>raise ToolRejected</code>。模型会收到 <code>old_string 在 shop/prices.mjs 出现 2 次，不唯一。</code> 后面的提示叫它给旧文和新文都带上周围未改的文字，好让下一次请求只命中一处。如果程序默认改第一处，把会员函数挪到前面就会让会员变成 180、普通价仍是 200。开 <code>replace_all</code> 则两种身份都会变成 180。<strong>「单处编辑需要一段在全文恰好出现一次的旧文。」</strong>找不到旧文时，Edit 在计数前就会停下。</p>
+</section>
+<section class="design-section" id="replacement-context">
+<p>把 <code>standardTotal</code> 的函数头和闭合花括号带进旧文，计数就变成 1。第 95 行用 <code>raw.replace</code> 构造替换后的全文，第 98 行的 <code>atomicWrite</code> 才写入文件。替换的是匹配的整段，新文也要把函数头和花括号写全。倘若新文只留下那行 <code>return</code>，工具会把整个函数换成一条跑到函数外面的语句。</p>
+<figure class="ruocun-code" data-language="json"><figcaption class="ruocun-code-caption"><span>补齐上下文后的 Edit 请求</span><span></span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption><div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span><span data-line="2"></span><span data-line="3"></span><span data-line="4"></span><span data-line="5"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-json">{
+  <span class="hljs-attr">"path"</span>: <span class="hljs-string">"shop/prices.mjs"</span>,
+  <span class="hljs-attr">"old_string"</span>: <span class="hljs-string">"export function standardTotal(count, price) {\n  return count * price;\n}"</span>,
+  <span class="hljs-attr">"new_string"</span>: <span class="hljs-string">"export function standardTotal(count, price) {\n  return count * price * 0.9;\n}"</span>
+}</code></pre></div></figure>
+</section>
+<section class="design-section" id="lookalike-match">
+<p id="compare-lookalike-match">旧文字面没找到时，若存会对短旧文尝试直引号和弯引号等有限近似，再数找到的实际写法出现几次。回包仍说找不到或不唯一时，重新 <code>Read</code>，从当前文件复制带独有上下文的原文。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/edit_file.py#L20" rel="noopener" target="_blank">查看匹配规则</a></p>
+</section>
+</section>
+<section class="v2-topic-group" id="read-baseline"><header class="v2-group-heading"><h2>旧文已经唯一，为什么还要重读？</h2></header>
+<section class="design-section" id="stale-observation">
+<p>函数头已经让这次替换只命中一处。可在模型发出 Edit 前，同事给 <code>memberTotal</code> 加了一行 <code>console.log("member total requested");</code>。普通价原文一字未动，还是只出现一次。这份旧文还能定位替换位置，要不要先重新看一眼整个文件？</p>
+<p>CoreCoder 的 <code>edit_file</code> 读取当前全文，旧文仍只出现一次，就做局部替换，保留同事的日志。Claude Code 官方文档说明了同样的情况。读取文件不需再询问、旧文在当前文件中仍精确且唯一时，修改可以继续，结果会提醒还有其他改动。若存的 Edit 则先用 <code>checkReadBaseline</code> 比对当前文件与上次 Read 记下的修改时间和字节数。<a href="https://github.com/he-yufeng/CoreCoder/blob/main/article/02-tools.md#edit_file一个看着平平无奇的关键创新" rel="noopener" target="_blank">CoreCoder 工具篇</a> · <a href="https://code.claude.com/docs/en/tools-reference#edit-tool-behavior" rel="noopener" target="_blank">Claude Code · 文件变化后的 Edit</a></p>
+<figure class="ruocun-code" data-language="python"><figcaption class="ruocun-code-caption"><span>比较 Read 基线</span><span>源码节选</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption><div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="103"></span><span data-line="104"></span><span data-line="105"></span><span data-line="106"></span><span data-line="107"></span><span data-line="108"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">try</span>:
+            current = fileMeta(absolute)
+        <span class="hljs-keyword">except</span> OSError <span class="hljs-keyword">as</span> exc:
+            <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">写入前无法核对文件:</span><span class="hljs-string">{</span>path<span class="hljs-string">}</span><span class="hljs-string">。请重新 Read。</span><span class="hljs-string">{</span>exc<span class="hljs-string">}</span><span class="hljs-string">"</span>) <span class="hljs-keyword">from</span> exc
+        <span class="hljs-keyword">if</span> current != meta:
+            <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">文件自上次 Read 后已被外部改动:</span><span class="hljs-string">{</span>path<span class="hljs-string">}</span><span class="hljs-string">。请重新 Read 看最新内容再写,以免覆盖他人改动。</span><span class="hljs-string">"</span>)</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/paths.py#L103" rel="noopener" target="_blank">paths.py 第 103–108 行</a></p>
+<p>多出的日志让文件变大，<code>current != meta</code> 为真。若存还没开始数旧文就拒绝这次编辑，让模型重新 Read。只看替换位置，旧文仍然够用。先查读取基线，则会为一行可能无关的日志多读一次文件，换来模型能看过当前内容，再决定原来的改法是否还合适。</p>
+<figure class="course-illustration" data-art="file-baseline" data-figure-slot="0" data-generated-by="SVG"><a aria-label="放大查看：普通价的旧文字还在，为什么 Edit 会要求重读？" href="figures/file-baseline-engineering.svg" rel="noopener" target="_blank"><img alt="按两版全文对照。普通价的目标旧文字仍出现一次，但同事新增的会员日志使文件大小或修改时间与 Read 留下的基线不同。若存 Edit 先检查基线，拒绝继续并要求重新 Read。" decoding="async" loading="lazy" src="figures/file-baseline-engineering.svg"/></a><figcaption>先比上面普通价这一行，再比下面的文件记录，指出 Edit 在数旧文之前看到了什么变化。</figcaption></figure>
+</section>
+<section class="design-section" id="reread-and-retry">
+<p>重读后，模型能看到会员日志。如果普通价旧文仍然适用，就沿用原请求。Edit 从当前全文替换匹配段，日志和会员公式都留在原处。基线靠修改时间和大小发现变化，若两个值都没变，或者外部程序在核对以后才写，还得靠后续核查发现。</p>
+</section>
+<section class="design-section" id="write-or-edit">
+<p>换成 <code>Write</code> 覆盖全文，即使先读到了最新会员日志，只要新稿漏抄这一行，保存的文件也会少这一行。只改普通价时，<code>Edit</code> 让替换范围停在那处旧文。</p>
+</section>
+<section class="design-section" id="write-feedback-gate">
+<details class="answer-box"><summary>查阅连续整篇覆盖的检查</summary><div><p>同一工具上下文里，对刚由 Write 写过的文件再次整篇覆盖会被拦住。拿到一次前台 Bash 结果就会清掉这组待验证标记，命令退出码非零或与该文件无关也一样。要确认会员日志和价格分支无误，得看实际检查了什么。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/write_file.py#L28" rel="noopener" target="_blank">Write 的等待判断</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/exec_shell.py#L192" rel="noopener" target="_blank">Bash 清除标记</a></p>
+</div></details></section>
+</section>
+<section class="v2-topic-group" id="file-concurrency"><header class="v2-group-heading"><h2>为什么只锁写入还会丢修改？</h2></header>
+<section class="design-section" id="concurrency-lost-update">
+<p>换个条件，看看基线核对该放在哪一步。把文件恢复到两种价格都为 200。A 要给普通价打九折，B 要给会员价打八折。两段旧文都唯一，两个人开始时也都拿到了同一版文件。如果只给落盘上锁，A、B 可以在排队前各自读全文、算出整份替换结果。</p>
+<table><thead><tr><th scope="col">步骤</th><th scope="col">A 手里</th><th scope="col">B 手里</th><th scope="col">磁盘</th></tr></thead><tbody>
+<tr><th scope="row">A、B 都读完</th><td>200／200</td><td>200／200</td><td>200／200</td></tr>
+<tr><th scope="row">A 先写</th><td>180／200</td><td>200／160</td><td>180／200</td></tr>
+<tr><th scope="row">B 后写</th><td>180／200</td><td>200／160</td><td>200／160</td></tr>
+</tbody></table>
+<p>每格依次写普通价和会员价。B 算好 <code>200／160</code> 时，A 的九折还没写进去。就算 B 等 A 的写入完成再保存，B 手里还是那份带着 200 的普通价。这道锁得挪到检查和读取之前。</p>
+<figure class="ruocun-code" data-language="python"><figcaption class="ruocun-code-caption"><span>取得锁后才核对，刷新后才释放</span><span>略去部分检查与替换计算</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption><div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="73"></span><span data-line="78"></span><span data-line="98"></span><span data-line="99"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">with</span> fileLock(absolute):
+        checkReadBaseline(absolute, args[<span class="hljs-string">"</span><span class="hljs-string">path</span><span class="hljs-string">"</span>], ctx)
+        atomicWrite(absolute, next_text)
+        refreshReadBaseline(absolute, ctx)</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/edit_file.py#L73" rel="noopener" target="_blank">edit_file.py 第 73–99 行</a></p>
+<p>若存让 <code>fileLock</code> 包住检查、读全文、计算替换、写入和刷新。等 B 拿到锁，A 已经写完了。两次工具调用若共用同一个工具上下文（<code>ToolContext</code>），A 刷新过的版本记录对 B 也可见，B 在 <code>180／200</code> 的全文上继续改，写出 <code>180／160</code>。若各有一份工具上下文，B 仍拿着旧记录，取得锁以后才发现基线冲突，先重读自己的那一份。怎么确认前一次修改没被盖掉？回归测试把文件缩成两行，在同一个工具上下文里同时提交两次编辑，分别把 <code>A</code> 改成 <code>X</code>、<code>B</code> 改成 <code>Y</code>。它检查磁盘上的文件，断言两行已经依次变成 <code>X</code> 和 <code>Y</code>。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/tests/test_mvp_edit_file.py#L37" rel="noopener" target="_blank">同一文件的并发编辑断言</a></p>
+<figure class="course-illustration" data-art="file-lock-scope" data-figure-slot="1" data-generated-by="SVG"><a aria-label="放大查看：为什么只给写入上锁，还是会丢掉前一处修改？" href="figures/file-lock-scope-engineering.svg" rel="noopener" target="_blank"><img alt="示例每对数字依次为普通价、会员价。只给写入上锁时，B 提前从两价都是 200 的旧文件生成 200／160，随后盖掉 A 写的 180／200。若两次 Edit 共用工具上下文并把检查、读取、替换、写入与刷新都放在锁内，B 拿锁后基于 180／200 计算，最终得到 180／160。" decoding="async" loading="lazy" src="figures/file-lock-scope-engineering.svg"/></a><figcaption>两行都经过 A 写完。比较 B 拿到的价格版本，找出哪一行最后保住了九折。</figcaption></figure>
+<p>这里排队的是同一进程里各次 Edit 的内部读取和修改。单独发起的 Read 不取这把锁。若来自主循环的同一批工具调用，批次执行器还会把具有持久副作用的调用串行执行。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/tool_batch.py#L380" rel="noopener" target="_blank">批次执行顺序</a></p>
+</section>
+<section class="design-section" id="concurrency-path-lock">
+<p>锁按 <code>realpath</code> 和 <code>normcase</code> 处理后的路径领取。另一条路径可以用自己的锁，外部编辑器和独立进程则不参与这张锁表。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/paths.py#L117" rel="noopener" target="_blank">路径锁</a></p>
+</section>
+<section class="design-section" id="atomic-file-publication">
+<p>保存时，若存先写同目录的临时文件，再用 <code>os.replace</code> 换到目标位置。要是替换已经成功，之后刷新基线才失败，磁盘可能早已是新版。先读文件和差异，再决定是否补改。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/paths.py#L131" rel="noopener" target="_blank">临时文件与替换</a></p>
+</section>
+</section>
+<section class="v2-topic-group" id="verify-at-entry"><header class="v2-group-heading"><h2>函数算出 180，预览还是 200</h2></header>
+<section class="design-section" id="preview-result">
+<p>回到只改普通价的任务。Edit 的成功回包会报告替换次数和首个匹配行，并生成附近的差异。把第 2 行摘出来看，减号一侧是 <code>return count * price;</code>，加号一侧多出 <code>* 0.9</code>。函数头和花括号在两侧都保留着。如果做的是 <code>replace_all</code>，回包里的差异也只展示首处附近，核对范围时还要看完整差异。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/edit_file.py#L42" rel="noopener" target="_blank">回包的差异范围</a></p>
+<p>现在推一遍开头的两个结果。假如只改到了 <code>examples/prices.mjs</code>，直接测里面的 <code>standardTotal(2, 100)</code> 就会得到 180。订单预览依旧导入 <code>shop/prices.mjs</code>，那里算出来还是 200。即使单测已经证实 <code>shop/prices.mjs</code> 的普通价函数算出 180，入口若把普通顾客送进会员分支，预览同样会显示 200。</p>
+<figure class="course-illustration" data-art="entry-prices" data-figure-slot="2" data-generated-by="SVG"><a aria-label="放大查看：同一笔普通订单，为什么单测是 180 元、页面是 200 元？" href="figures/entry-prices-engineering.svg" rel="noopener" target="_blank"><img alt="同一笔两件、每件一百元的普通订单，函数单测使用已改的 examples/prices.mjs 算出 180 元。页面预览由 shop/preview.mjs 导入未改的 shop/prices.mjs，算出 200 元。" decoding="async" loading="lazy" src="figures/entry-prices-engineering.svg"/></a><figcaption>顺着预览那条 import 找到实际使用的计价文件。它和单测用的是同一份吗？</figcaption></figure>
+<p>所以我会先核对预览实际导入的路径，再看普通顾客进了哪个分支。随后用同一笔订单从预览入口走两遍，普通顾客要看到 180，会员仍要看到 200。</p>
+</section>
+<section class="design-section" id="repair-and-recheck">
+<p>如果预览里两种身份都成了 180，就先读会员函数和差异。有 <code>* 0.9</code> 多出来，就只恢复会员公式。公式仍是原价，就查会员是否也被送进普通价分支。找到自己改错的片段再撤回，整份文件退回旧版会把后来才加的会员日志也删掉。补改完，从原入口再走两遍。</p>
+</section>
+<section class="design-section" id="learning-check">
+<section id="learning-questions"><h3>预览的数字都对，为什么结算仍是 200？</h3><p>改价需求还包括正式结算。预览检查显示普通价 180、会员价 200，客服却拿来一张普通顾客实际付了 200 元的订单。现在只有预览检查记录，你要补查什么？</p><details class="answer-box"><summary>展开判断</summary><div><p>我会查<strong>正式结算入口</strong>实际使用的价格实现和身份分支，用同一笔订单从那里重跑普通和会员两条路径。预览的记录只能核对预览，无法说明正式结算选的是同一段代码。</p></div></details></section>
+</section>
+</section>
+<section class="v2-topic-group" id="article-takeaways"><header class="v2-group-heading"><h2>这一章带走什么</h2></header>
+<div class="design-section">
+<ul>
+<li>两个价格函数都有 <code>return count * price;</code>，单处替换会在这里停下。带上 <code>standardTotal</code> 的函数头就能找准普通价那一处。工具会换掉整段旧文，所以新文也得把函数头写回去。</li>
+<li>旧文还能命中，文件也可能已经改过。若存发现修改时间或大小变了，会要求模型重读。</li>
+<li>同一进程里，文件锁要在编辑读取全文前拿到。只给写入排队，后写的一方还是可能用旧版本算出的全文盖掉前一次修改。</li>
+<li>差异能看出公式改在哪，价格是否生效要从实际入口验。普通价函数算出 180，入口走了会员分支，预览还是 200。</li>
+</ul>
+<p><a href="permission-gates.html" rel="noopener" target="_blank">下一章</a>换一份简单的价格说明。模型只想把 <code>pricing.txt</code> 里的“普通价”换成“九折”，旧文已经定位，终端为何还要等人同意？</p>
+</div>
+</section>
+<section class="v2-topic-group" id="interview-practice"><header class="v2-group-heading"><h2>面经自测</h2></header>
+<div class="design-section interview-exercise" id="interview-opening"><h3 class="interview-prompt">Coding Agent 怎样验证自己改的补丁？发现改坏了怎么办？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/5733bf8605d44262a596ad7ba738e737" rel="noopener" target="_blank">未具名 B 端公司 · 项目面 · 面经原帖</a> · 题意转述</p><details class="answer-box"><summary>展开参考回答</summary><div><p>我先从用户遇到问题的入口追到<strong>真正生效的代码</strong>，看差异是不是只改了目标，再从同一个入口复查要变化和要保持的行为。发现改坏了，先核对当前文件，只撤回自己那次出错的改动，再跑一遍原用例。</p><p>拿这笔订单来说，我会把普通顾客和会员各走一遍。普通价应该从 200 变成 180，会员仍是 200。单独调用一个计算函数算对了，页面接错了函数仍然会出错。</p><p class="interview-origin"><a href="#preview-result">回看讲解</a></p></div></details></div>
+<section class="design-section interview-exercise" id="interview-review-1"><h3 class="interview-prompt">项目里的 Agent 用了哪些工具？举例讲讲它们各自怎么工作。</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/36c0383312294d9c8d38a410338862e8?sourceSSR=dynamic" rel="noopener" target="_blank">字节跳动 · 二面 · 面经原帖</a> · 题意转述</p><details class="answer-box"><summary>展开参考回答</summary><div><p>我会按<strong>手里的线索</strong>选工具。知道文件名的一部分就搜路径，知道页面显示的原话就搜内容，找到候选后再读上下文和调用处。</p><p class="interview-origin"><a href="#trace-the-entry">回看讲解</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-2"><h3 class="interview-prompt">用户已经给了明确报错，按语义找却没找到，你会怎么改？</h3><p class="interview-origin"><a href="https://api-cdn.nowcoder.com/feed/main/detail/8656f1483ebd441bac7c17c313e5394a?sourceSSR=dynamic" rel="noopener" target="_blank">阿里巴巴·淘天供应链 · 一面 · 面经原帖</a> · 题意转述</p><details class="answer-box"><summary>展开参考回答</summary><div><p>拿<strong>原始报错文字</strong>在实际运行的模块里搜索，读命中的条件和调用方。碰到同名文件，沿当前入口的导入路径核对。</p><p class="interview-origin"><a href="#trace-the-entry">回看讲解</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-3"><h3 class="interview-prompt">为了唯一定位多带了函数头，新文里为什么也得把函数头带上？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>工具会把<strong>整段匹配的旧文</strong>换成新文。</p><p>要是用普通价函数头和原公式一起定位，却只交一行九折公式，替换时函数头也会被删掉。新文要保留那行函数头。</p><p class="interview-origin"><a href="#replacement-context">回看讲解</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-4"><h3 class="interview-prompt">旧文仍然只有一处，为什么还要我重新读文件？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>因为<strong>读完以后文件动过了</strong>。旧文还在，不代表我看过其他人刚加进去的内容。</p><p>同事只修改了会员函数，这次普通价替换仍可能被拒绝。重新读到整份当前文件，再按最新原文改普通价。</p><p class="interview-origin"><a href="#stale-observation">回看讲解</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-5"><h3 class="interview-prompt">多个 Agent 一起工作时，怎么处理并发和资源竞争？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/223fa82f976b4418b214894bd7d941fd?sourceSSR=dynamic" rel="noopener" target="_blank">小红书 · 一面 · 面经原帖</a> · 题意转述</p><details class="answer-box"><summary>展开参考回答</summary><div><p>先找它们是否会改<strong>同一份共享内容</strong>。能并行的读取可以并行；同一文件的编辑要一起排队，一次 Edit 在同一把锁内核对版本、读取全文、计算修改并写回。</p><p>两个任务各改一个价格函数，如果它们拿着同一份旧全文同时算改动，后写入的一份可能把先写的修改盖掉。</p><p class="interview-origin"><a href="#concurrency-lost-update">回看讲解</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-6"><h3 class="interview-prompt">AI 写的代码已经通过测试，怎样判断能不能合并？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/e5abd2dc95934bf58177525b5736f290?sourceSSR=dynamic" rel="noopener" target="_blank">科大讯飞 · 一面 · 面经原帖</a> · 题意转述</p><details class="answer-box"><summary>展开参考回答</summary><div><p>我会先看<strong>测试究竟走了哪个入口</strong>，再查差异和没有覆盖的条件。</p><p>如果单测直接调用普通价函数，即使 180 通过，还要从订单预览检查普通顾客看到 180，并让会员走同一入口看到 200。还得看改动有没有顺手覆盖同事的修改。</p><p class="interview-origin"><a href="#preview-result">回看讲解</a></p></div></details></section>
+</section>
+<nav aria-label="章末导航" class="course-pagination"><a href="../课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a href="tool-contract.html" rel="prev noopener" target="_blank" title="模型开口要读文件，谁真正去读？">上一章</a><a href="permission-gates.html" rel="next noopener" target="_blank" title="执行之前谁说了算？">下一章</a></nav></article></main>
+</body></html>

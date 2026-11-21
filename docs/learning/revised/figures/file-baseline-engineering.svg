@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 351" role="img" aria-labelledby="title description" xml:lang="zh-CN">
+<title>普通价的旧文字还在，为什么 Edit 会要求重读？</title>
+<desc>按两版全文对照。普通价的目标旧文字仍出现一次，但同事新增的会员日志使文件大小或修改时间与 Read 留下的基线不同。若存 Edit 先检查基线，拒绝继续并要求重新 Read。</desc>
+<defs><style>text { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif; } text.mono { font-family: "Cascadia Code", Consolas, monospace; }</style>
+<marker id="gray" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="m1 1 6 3-6 3" fill="none" stroke="#7d8895" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></marker>
+<marker id="blue" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="m1 1 6 3-6 3" fill="none" stroke="#0969da" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></marker>
+<marker id="amber" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="m1 1 6 3-6 3" fill="none" stroke="#8a4b08" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></marker>
+</defs>
+<rect width="1100" height="351" fill="#fff"/>
+<path d="M32 52 L1068 52" stroke="#dce1e7" fill="none"/>
+<path d="M32 122 L1068 122" stroke="#dce1e7" fill="none"/>
+<path d="M32 192 L1068 192" stroke="#dce1e7" fill="none"/>
+<path d="M32 258 L1068 258" stroke="#dce1e7" fill="none"/>
+<path d="M254 52 L254 258" stroke="#dce1e7" fill="none"/>
+<path d="M615 52 L615 258" stroke="#dce1e7" fill="none"/>
+<path d="M834 258v19" fill="none" stroke="#8a4b08" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" marker-end="url(#amber)"/>
+<text x="150" y="34" text-anchor="middle" font-size="19" fill="#57606a">核查对象</text>
+<text x="430" y="34" text-anchor="middle" font-size="19" fill="#57606a">上次 Read 留下</text>
+<text x="834" y="34" text-anchor="middle" font-size="19" fill="#57606a">Edit 前磁盘当前内容</text>
+<text x="150" y="94" text-anchor="middle" font-size="22" fill="#1f2328" font-weight="600">普通价函数</text>
+<text x="150" y="164" text-anchor="middle" font-size="22" fill="#1f2328" font-weight="600">会员价函数</text>
+<text x="150" y="234" text-anchor="middle" font-size="22" fill="#1f2328" font-weight="600">文件记录</text>
+<text x="430" y="94" text-anchor="middle" font-size="21" fill="#1f2328">目标旧文字出现 1 次</text>
+<text x="834" y="94" text-anchor="middle" font-size="21" fill="#1f2328">同一段旧文字仍出现 1 次</text>
+<text x="430" y="164" text-anchor="middle" font-size="21" fill="#1f2328">原有内容</text>
+<text x="834" y="164" text-anchor="middle" font-size="22" fill="#0969da" font-weight="600">多出一行日志</text>
+<text x="430" y="234" text-anchor="middle" font-size="20" fill="#1f2328">Read 时的时间和大小</text>
+<text x="834" y="234" text-anchor="middle" font-size="20" fill="#1f2328">文件字节数增大</text>
+<rect x="646" y="283" width="376" height="46" rx="6" fill="#fff7e6" stroke="#dfb374"/>
+<text x="834.0" y="312.8" text-anchor="middle" font-size="20" fill="#8a4b08" font-weight="600">基线不符 → 先重新 Read</text>
+</svg>

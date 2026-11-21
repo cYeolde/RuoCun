@@ -1,0 +1,7 @@
+.reasoning-figure { background: #fff9ee; border-color: #e3cfbd; border-radius: 12px; }
+.reasoning-figure figcaption { display: flex; align-items: center; gap: .6rem; }
+.reasoning-figure figcaption img { flex: none; object-fit: contain; }
+.reasoning-figure .reasoning-grid { gap: .5rem; }
+.reasoning-figure .reasoning-grid > section { background: #f3e7f6; border: 1px solid #dbc5dd; border-radius: .45rem; padding: .55rem .75rem; }
+.reasoning-figure .reasoning-grid > section:nth-child(2) { background: #e3f3ed; border-color: #bfded1; }
+.reasoning-figure .reasoning-grid > section:nth-child(3) { background: #fff0d9; border-color: #e6d1ad; }

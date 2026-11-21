@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>什么时候把工作交给子代理：任务交接、独立会话与结果 · RuoCun 设计学习</title>
+<link href="../assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="../assets/ruocun-code.css" rel="stylesheet"/>
+<link href="../assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="../assets/ruocun-article.css" rel="stylesheet"/>
+<link href="../assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="../assets/ruocun-textbook.js"></script>
+<link href="../assets/reading-diagrams.css" rel="stylesheet"/><link href="later-flows.css" rel="stylesheet"/><link href="../assets/course-reader.css" rel="stylesheet"/><link href="course-illustrations.css" rel="stylesheet"/><link href="article-reading.css" rel="stylesheet"/></head>
+<body class="textbook-read" id="course-reader">
+<a class="textbook-skip" href="#subagents">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#subagents">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航"><a href="../课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a href="interactive-control.html" rel="prev noopener" target="_blank" title="用户中途补了一句，怎么接上正在做的事？">上一章</a><a href="context-compaction.html" rel="next noopener" target="_blank" title="上下文放不下时，哪些内容还能缩短">下一章</a></nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title"><span class="chapter-number">第 12 章</span><span class="nav-chapter-name">什么时候把工作交给子代理</span></div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc">
+<summary>文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#isolation-first">两条线能各自查清吗？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#separate-session">说清要交回什么，再开新会话</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#filesystem-isolation">两个同名文件分别在哪个目录？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#fork-context">Fork 能带走哪段父历史？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#message-and-handoff">中途问一句，结束交一份报告</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#continuation">复核员失联后怎样接续？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways">这一章带走什么</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#interview-practice">面经自测</a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper" data-format="article" data-later-probes="true" id="subagents"><header class="design-hero">
+<h1>什么时候把工作交给子代理</h1>
+<p class="target">“订单预览里会员价是 180，按规则该是 200。”主代理刚看到这行结果，接下来有两条线可查。沿网页找到它真正调用的定价函数，沿回归用例找到测试覆盖的入口。盘点完两条路径，才能知道这次失败为什么没被挡住。值得专门开一个子会话吗？</p>
+</header>
+<section class="v2-topic-group" id="isolation-first">
+<header class="v2-group-heading"><h2>两条线能各自查清吗？</h2></header>
+<section class="design-section" id="two-investigations">
+<span aria-hidden="true" id="two-investigations-heading"></span>
+<p>从页面往下查、从测试往上查，两边可以独立出发。一方交回 <code>preview_order → quote_preview</code>，另一方交回 <code>test_member_price → quote_checkout</code>。主代理把两条路径对起来，就能提出一个可检验的判断：旧测试即使通过，也可能从未进入出错的预览函数。这里的函数名和价格用于说明源码行为。</p>
+<p>如果读一个函数就能判断会员价为什么算错，我会让主代理直接查。现在页面和回归用例是两条能独立追的线，查页面还要翻好几份文件，值得把这一条交出去。<strong>「先问第二个会话能独立交回什么。」</strong> 假如下一步要修好函数再复核，第二方需要的是改好的交付版本。等主代理交出那份版本再开复核，可以省掉来回确认“你测的是哪一版”。</p>
+</section>
+</section>
+<section class="v2-topic-group" id="separate-session">
+<header class="v2-group-heading"><h2>说清要交回什么，再开新会话</h2></header>
+<section class="design-section" id="delegate-spec">
+<p>把页面这条线交给定位员，先试一句“查一下刚才为什么失败了”。普通派发从独立会话开始。子代理有自己的系统提示、任务和角色材料，父代理刚读到的“180，预期 200”还留在父历史里。“刚才”指哪次失败，得由主代理在委托里说清楚。把同一句委托交给 Claude Code 的普通子代理，也要在任务消息中交代失败现象，因为它同样从新的上下文开始。 <a href="https://code.claude.com/docs/en/sub-agents#what-loads-at-startup" rel="noopener" target="_blank">Claude Code 的子会话启动材料</a></p>
+<div class="harness-comparison" id="compare-delegate-spec"><p>我会先把委托补成“会员预览算出 180，预期 200。请找出页面实际调用的定价函数，交回路径、行号和还没查明的条件。”这几句话就够定位员开工。搜索和读文件的过程留在子会话里，主代理收到几行带出处的结论，就能回到原文件复核。程序会在新会话里装配角色提示、可用工具和项目材料。把开工所需的证据写进委托，再核对它交回了什么，就是这次交接多出来的工作。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/run_agent.py#L296" rel="noopener" target="_blank">普通子会话怎样装入任务和角色材料</a></p></div>
+</section>
+<section class="design-section" id="independent-tool-context">
+<h3>父代理读过文件，子代理还要读吗？</h3>
+<p>定位员查到问题，主代理说“<code>pricing.py</code> 我已经读过，你可以试改了”。这句话只交代了线索。改文件要用的内容版本，得由执行 Edit 的那一方自己取得。若存创建子执行的 <code>ToolContext</code> 时，读取记录和待办都是空的。即使父代理给过旧内容，子代理也要重新读自己目录中的文件，程序才能判断读过之后有没有人改动。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/run_agent.py#L320" rel="noopener" target="_blank">src/ruocun/agent/run_agent.py · 第 320–338 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>创建子执行的工具上下文</span><span>19 行节选</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="320"></span><span data-line="321"></span><span data-line="322"></span><span data-line="323"></span><span data-line="324"></span><span data-line="325"></span><span data-line="326"></span><span data-line="327"></span><span data-line="328"></span><span data-line="329"></span><span data-line="330"></span><span data-line="331"></span><span data-line="332"></span><span data-line="333"></span><span data-line="334"></span><span data-line="335"></span><span data-line="336"></span><span data-line="337"></span><span data-line="338"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    child_ctx = replace(parent_ctx,
+                        workspaceRoot=<span class="hljs-built_in">str</span>(workspace), cwd=<span class="hljs-built_in">str</span>(working), signal=child_signal,
+                        createWorktree=<span class="hljs-keyword">None</span>, activeWorktree=<span class="hljs-keyword">None</span>,
+                        readFiles=<span class="hljs-built_in">set</span>(), readMeta={}, pendingUnverifiedWrites=<span class="hljs-built_in">set</span>(), todoWriteRequired=<span class="hljs-keyword">None</span>,
+                        currentImageData=<span class="hljs-keyword">None</span>, todos=[], skills=copy.deepcopy(parent_ctx.skills),
+                        adaptSkill=<span class="hljs-keyword">None</span>, onFileAccessed=<span class="hljs-keyword">None</span>, onSkillsInstalled=<span class="hljs-keyword">None</span>, notifyUser=<span class="hljs-keyword">None</span>,
+                        toolHooks=<span class="hljs-keyword">None</span>, agentHookRuntime=<span class="hljs-keyword">None</span>, agentMcpRuntime=<span class="hljs-keyword">None</span>,
+                        subagentDepth=parent_ctx.subagentDepth + <span class="hljs-number">1</span>, runAgent=<span class="hljs-keyword">None</span>, forkToolSnapshot=<span class="hljs-keyword">None</span>,
+                        launchAgent=<span class="hljs-keyword">None</span>, agentRunsInBackground=<span class="hljs-keyword">None</span>, taskManager=<span class="hljs-keyword">None</span>,
+                        sendToTask=<span class="hljs-keyword">None</span>, resumeAgent=<span class="hljs-keyword">None</span>, messageParent=<span class="hljs-keyword">None</span>,
+                        archiveRead=<span class="hljs-keyword">None</span>,
+                        setMode=<span class="hljs-keyword">None</span> <span class="hljs-keyword">if</span> mode == <span class="hljs-string">"</span><span class="hljs-string">plan</span><span class="hljs-string">"</span> <span class="hljs-keyword">else</span> permit.setMode, askChoice=<span class="hljs-keyword">None</span>,
+                        requestTaskWait=<span class="hljs-keyword">None</span>, rollbackTaskWait=<span class="hljs-keyword">None</span>, onShellOutput=<span class="hljs-keyword">None</span>,
+                        getShellPlan=permit.getShellPlan,
+                        sandboxPolicy=permit.sandboxPolicy,
+                        authorizeSandboxShell=permit.authorizeSandboxShell,
+                        approveSandboxWrite=permit.approveSandboxWrite,
+                        searchTools=<span class="hljs-keyword">lambda</span> query: child_registry.searchAndActivateDeferred(query, parent_ctx.lang)
+                        + <span class="hljs-string">"</span><span class="hljs-string">\n</span><span class="hljs-string">"</span> + child_registry.searchAndActivateMcp(query))</code></pre></div></figure>
+<p>看 <code>readFiles</code> 和 <code>readMeta</code>，两份记录都从空开始。即使定位员和主代理用的是同一目录，这次 Edit 也要靠定位员自己读到的版本。另一个要沿用的是父会话的计划模式。比如角色平时拥有 Edit，甚至为了维护记忆配置过文件工具，计划模式的最后一层筛选仍会去掉写入、执行和 MCP 工具。留下的工具在调用时继续检查其参数和权限。普通子会话也没有可用的再次派发入口，遇到扩大范围的需求可以把问题带回。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/run_agent.py#L83" rel="noopener" target="_blank">角色工具受哪些条件约束</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/run_agent.py#L219" rel="noopener" target="_blank">父会话处于 plan 时的子权限</a></p>
+</section>
+<section class="design-section" id="lifecycle-admission">
+<p>角色还可能有专用的文档查询服务。若存为这次子执行打开该角色声明并配置好的 MCP 连接。交给后台接手时，重建连接后还要和原工具定义、可见集合核对。这样从前台切到后台后，同一个工具名依旧指向原来那份契约。配置了 <code>SubagentStart</code> 时，Hook 附加的信息要先进入子会话并确认保存，模型才能拿到它。正常收尾走 <code>SubagentStop</code>，结果未确认时保留现场。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/agent_hooks.py#L40" rel="noopener" target="_blank">启动 Hook 的附加消息</a> · <a href="mcp.html" rel="noopener" target="_blank">MCP 连接随执行开关</a> · <a href="hooks.html" rel="noopener" target="_blank">Hook 的执行事件</a></p>
+</section>
+</section>
+<section class="v2-topic-group" id="filesystem-isolation">
+<header class="v2-group-heading"><h2>两个同名文件分别在哪个目录？</h2></header>
+<section class="design-section" id="task-location">
+<span aria-hidden="true" id="task-location-heading"></span>
+<p>定位员继续读主目录，复核员需要试改，于是约好给复核员一棵独立的 Git 工作树。它是在另一个目录展开的项目文件。下面按图看两份同名文件。主目录 <code>/shop/pricing.py</code> 已改为 90，改动还没提交。以当前 Git 提交建成的 <code>/review/pricing.py</code> 仍是 100。两人都说自己读了 <code>pricing.py</code>，完整位置和文件版本却各有一份。</p>
+<figure class="course-illustration" data-art="child-workspace" data-figure-slot="0" data-generated-by="SVG"><a aria-label="放大查看：同一个相对文件名，为什么会读到两份不同的内容？" href="figures/child-workspace-engineering.svg" rel="noopener" target="_blank"><img alt="主代理从 /shop 解析 pricing.py，读到含未提交改动的 /shop/pricing.py，价格 90 元。子代理从基于提交创建的 /review 解析同名路径，读到 /review/pricing.py，价格仍为 100 元。" decoding="async" loading="lazy" src="figures/child-workspace-engineering.svg"/></a><figcaption>两行的文件名相同。请指出各自的起点及实际打开的文件，哪一份带着未提交改动？</figcaption></figure>
+<p>假如新工作树没建出来，程序悄悄在父目录执行同一个试改，写入的就是主代理正在用的 <code>/shop/pricing.py</code>。若存要求先核实工作树再派发。确认创建失败，就把“子代理未派发”交回父会话。Git 操作已发出而目录、登记或 HEAD 无法核实时，保留现场供检查。工作树让两份文件在同一台机器上各有自己的目录。角色能调用什么、实际写入范围多大，还由权限与沙箱策略决定。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/run_agent.py#L436" rel="noopener" target="_blank">工作树未就绪就拒绝派发</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/worktree.py#L267" rel="noopener" target="_blank">Git 写入结果未确认时保留什么</a></p>
+</section>
+<section class="design-section" id="verify-before-dispatch">
+<h3 id="verify-before-dispatch-heading">这一次复核用的哪个提交？</h3>
+<p id="worktree-start-commit">创建时，仓库 HEAD 是 <code>h2</code>，任务文字写“请复核旧提交 <code>h1</code>”。新工作树仍从 <code>h2</code> 创建。任务文字说明要核对什么，目录和 Git 提交才告诉执行器眼前是什么。如果要复核父目录刚改的 90，先把它交成一份可核实的变更，再到复核目录确认读到 90。</p>
+</section>
+<section class="design-section" id="worktree-after-report">
+<span aria-hidden="true" id="worktree-after-report-heading"></span>
+<p>复核员完成后，如果工作树有新增提交或未提交改动，若存保留目录和分支，供主代理核对或合并。工作树干净且身份核实后才可清理。报告里几乎总值得写上目录、提交和实际跑过的入口。拿到“测试过了”时，父代理就能回到当时那份文件。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/worktree.py#L324" rel="noopener" target="_blank">完成后怎样处理独立工作树</a></p>
+</section>
+</section>
+<section class="v2-topic-group" id="fork-context">
+<header class="v2-group-heading"><h2>Fork 能带走哪段父历史？</h2></header>
+<section class="design-section" id="fork-catalog-at-dispatch">
+<span aria-hidden="true" id="fork-catalog-at-dispatch-heading"></span>
+<p>定位员开工所需的背景要是几句话说得清，写成委托就够了。如果已经追过几层页面调用、跑过两组对照测试，而后续判断还依赖分散在多轮回包里的原文，逐条转述既费时间，也容易漏掉某次测试的入口。这时才值得考虑 <code>fork=true</code>。它让子会话从一份经过配对筛选的父历史副本起步，省去重写这批材料，子会话也要为继承的历史留出上下文空间。它沿用父模型提出这次分派时看到的工具清单和对应定义，后来才加载的工具留给之后的请求。取不到当时的工具快照，或者这次又另外指定模型、权限模式或隔离，程序就会拒绝这次 Fork。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L275" rel="noopener" target="_blank">请求前冻结当时可见的工具</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/run_agent.py#L428" rel="noopener" target="_blank">使用父请求快照派发 Fork</a></p>
+</section>
+<section class="design-section" id="fork-outstanding-call">
+<h3 id="fork-outstanding-call-heading">发起 Fork 的那次调用还没回包</h3>
+<p>父会话较早的 <code>Read</code> 调用 <code>r1</code> 已经收到回包。最新的 <code>a2</code> 正要求派发子代理，要由这个子代理跑完才会有结果。照抄历史，子代理第一份请求就欠着 <code>a2</code> 的回复。等父代理先把 <code>a2</code> 填好，双方又会互相等。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/fork_agent.py#L39" rel="noopener" target="_blank">src/ruocun/agent/fork_agent.py · 第 39–45 行</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>7 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="39"></span><span data-line="40"></span><span data-line="41"></span><span data-line="42"></span><span data-line="43"></span><span data-line="44"></span><span data-line="45"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python"><span class="hljs-keyword">def</span> forkRequestMessages(parent_messages: Sequence[ChatMessage], task: <span class="hljs-built_in">str</span>) -&gt; <span class="hljs-built_in">list</span>[ChatMessage]:
+    directive = <span class="hljs-string">"</span><span class="hljs-string">[fork 任务] </span><span class="hljs-string">"</span> + task
+    messages = buildForkContextMessages(parent_messages, directive)
+    <span class="hljs-comment"># 占位信息作为用户文本保留。只有工具消息可以与助手的工具调用配对。</span>
+    paired_ids = {message.get(<span class="hljs-string">"</span><span class="hljs-string">tool_call_id</span><span class="hljs-string">"</span>) <span class="hljs-keyword">for</span> message in messages <span class="hljs-keyword">if</span> message.get(<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>) == <span class="hljs-string">"</span><span class="hljs-string">tool</span><span class="hljs-string">"</span>}
+    <span class="hljs-keyword">return</span> [message <span class="hljs-keyword">for</span> message in messages <span class="hljs-keyword">if</span> message.get(<span class="hljs-string">"</span><span class="hljs-string">role</span><span class="hljs-string">"</span>) != <span class="hljs-string">"</span><span class="hljs-string">assistant</span><span class="hljs-string">"</span>
+            or <span class="hljs-built_in">all</span>(call.get(<span class="hljs-string">"</span><span class="hljs-string">id</span><span class="hljs-string">"</span>) in paired_ids <span class="hljs-keyword">for</span> call in message.get(<span class="hljs-string">"</span><span class="hljs-string">tool_calls</span><span class="hljs-string">"</span>) or ())]</code></pre></div></figure>
+<p><code>paired_ids</code> 从工具回包取得编号，此刻只有 <code>r1</code>。它的调用声明和回包都可以留下，声明 <code>a2</code> 的助手消息会被过滤。子任务指令随一条新的用户消息加入。Fork 用文字留个提示，模型能理解那里开始了分派，真正的工具回包仍以 <code>role="tool"</code> 和调用编号来配对。子会话保有自己的副本，父会话稍后再把 <code>a2</code> 的结果配回原位置。</p>
+</section>
+</section>
+<section class="v2-topic-group" id="message-and-handoff">
+<header class="v2-group-heading"><h2>中途问一句，结束交一份报告</h2></header>
+<section class="design-section" id="message-kinds">
+<p>在后台，复核员已经找到价格入口，用 <code>MessageParent</code> 回报 <code>progress</code> 就能更新进度。若追到会员恰好过期当天，测试要选一个产品口径，可发 <code>attention</code> 请主代理在安全边界处理。同一次运行补到确认口径后，主代理用 <code>TaskSend</code> 把说明存进正在运行的子任务收件箱。子代理到准备下一次请求的边界才会把它放入自己的历史。同一发送身份重到时，内容相同可以确认，改了内容则会拒绝。运行已结束就要走明确的后续派发。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/message_parent.py#L24" rel="noopener" target="_blank">子代理发出的两类消息</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/tasks.py#L396" rel="noopener" target="_blank">父代理把补充保存给活跃任务</a></p>
+<p id="reconcile-reports">两份回报到齐。A 在 <code>h1</code> 跑旧结算入口，会员价 200。B 在 <code>h2</code> 跑预览，会员价 180。待交付的是 <code>h2</code>，要求两个入口都保持 200。此时能确认的是 <code>h2</code> 的预览失败，<code>h2</code> 的结算还缺结果。只把 A 跑的版本换到 <code>h2</code>，还是那个结算入口，仍算出 200。现在结算已有当前版本的通过证据，先查预览那条路径即可。任务编号让主代理找到报告，报告里的版本和入口才说明这次验证覆盖了哪里。修好以后，两个入口仍要在最终版本上复验。</p>
+</section>
+<section class="design-section" id="result-output">
+<h3>交付报告取自那一次运行</h3>
+<p>定位员读过十份文件，主代理只需要调用路径和证据。子会话压缩过历史时，当前消息列表里原来的下标可能已经变了。若存保存这次运行的原文输出起点，用运行编号查询那一段，再取最后一条非空的助手正文作为成功报告。主代理拿到报告和运行终态，可以沿报告给的路径复查。失败或取消要看对应终态，失败时有时会附已经得到的部分输出。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/resume_agent.py#L74" rel="noopener" target="_blank">按运行编号和原文位置找报告</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/run_agent.py#L586" rel="noopener" target="_blank">完成后交付最后一条助手正文</a></p>
+</section>
+<section class="design-section" id="foreground-transfer">
+<h3>读完一份文件时，父代理在等什么？</h3>
+<p>回到子代理刚读到 <code>pricing.py</code> 的时点。原文先成为子会话的工具回包，下一次子请求可以用它继续追踪。父代理手里此时或许只有后台编号和“已找到入口”的进度，仍缺入场时约定的证据。</p>
+<figure class="course-illustration" data-art="child-progress-report" data-figure-slot="1" data-generated-by="SVG"><a aria-label="放大查看：主代理收到进度和收到报告分别意味着什么？" href="figures/child-progress-report-engineering.svg" rel="noopener" target="_blank"><img alt="子代理读取的 pricing.py 原文留在子会话。调查中跨给主代理的是“已找到入口”的进度，主代理可见运行编号。完成后交回最终报告中的路径、行号和证据，程序另从同一运行记录取得终态。" decoding="async" loading="lazy" src="figures/child-progress-report-engineering.svg"/></a><figcaption>顺着跨过主、子界线的消息看。只收到进度时，主代理还缺哪份材料才能核对结论？</figcaption></figure>
+<p>若该子执行支持从前台转后台，交出去的是模型循环的接续位置。前台等调用和回包配齐，保存进度、剩余轮次和输出起点，后台从这里接手。接手者还须核对实际目录及适用的工具定义。身份核实失败时保留现场，主代理据实处理。这和上一章唤醒原等待的决定相通：先确认拥有哪一份回执，再判断下一步。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/run_agent.py#L536" rel="noopener" target="_blank">在模型请求边界保存交接点</a></p>
+</section>
+</section>
+<section class="v2-topic-group" id="continuation">
+<header class="v2-group-heading"><h2>复核员失联后怎样接续？</h2></header>
+<section class="design-section" id="child-continuation-evidence">
+<span aria-hidden="true" id="child-continuation-evidence-heading"></span>
+<p>复核员失联前只说过“准备保存核查结果”。这句进度既没有结果正文，也没证明文件已写好。先核对旧运行的提交和未决工具。如果原记录还有副作用未确认或缺少附件，要先解决它们。能明确继续的普通子代理，还需要原模型、角色和版本、目录、消息、权限、预算等可核实的材料。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/recovery.py#L153" rel="noopener" target="_blank">继续前核实未决操作与原运行</a></p>
+</section>
+<section class="design-section" id="child-new-run">
+<span aria-hidden="true" id="child-new-run-heading"></span>
+<p>得到明确继续指令时，若存先保存恢复决定，再为同一任务记录新运行并接续。相同许可再次到达时，从已有记录查状态。当前的继续入口要求普通代理能重建原执行条件。Fork 现场无法通过普通任务恢复时，可以查看原转录再给一个明确的新任务。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/recovery.py#L167" rel="noopener" target="_blank">许可保存和新运行开工的先后</a> · <a href="durable-execution.html" rel="noopener" target="_blank">先沿原编号核实已经发生的动作</a></p>
+</section>
+<section class="design-section learning-check" id="article-assessment"><div class="design-section" id="article-assessment-1"><p>主目录尚未提交的会员阈值是 5，Git 基线里是 3。独立工作树建成后，复核员报告测试退出码为 0，报告没有注明自己读到了哪个阈值。现在可以说“新阈值已验证”吗？先做哪一项最小补查？</p><details><summary>核对判断</summary><p>退出码只确认那份工作树的测试成功。先请复核员从实际运行目录读回阈值和提交。如果仍为 3，把本次变更明确交到复核目录，确认是 5，再运行覆盖新阈值的断言。</p></details></div></section>
+</section>
+<section class="v2-topic-group" id="article-takeaways">
+<header class="v2-group-heading"><h2>这一章带走什么</h2></header>
+<div class="design-section"><p>一项调查能独立推进，又能交回可复核的证据，就值得考虑开子会话。定位员追页面用到的定价函数，主代理照样可以核对测试走的入口。委托说清失败现象、要交回的路径和行号，翻过的文件原文就可以留在子会话里。</p>
+<p>拿到“会员价测试通过”，先查报告属于哪次运行、用的是哪个目录和版本、走的是什么入口。结算算出 200 元的报告，能给那一版结算作证。当前预览有没有修好，还得去预览入口查。</p>
+<p>交给子代理的父历史里，每组调用和回包得配对。要是主会话快塞不下了，<a href="context-compaction.html#cut-through-read" rel="noopener" target="_blank">压缩能从两个回包之间切开吗</a>？</p></div>
+</section>
+<section class="v2-topic-group" id="interview-practice">
+<span aria-hidden="true" id="article-interview"></span><header class="v2-group-heading"><h2>面经自测</h2></header>
+<section class="design-section interview-exercise" id="interview-opening"><h3 class="interview-prompt">什么任务一个 Agent 就够了，什么时候值得分给多个 Agent？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/d2cf5165d1184b59879eff5793b7b453?sourceSSR=dynamic" rel="noopener" target="_blank">字节跳动 · 一面 · 面经原帖</a> · 题意转述</p><details class="answer-box"><summary>展开参考回答</summary><div><p>我会先看<strong>两件事能不能分别得到有用的结果</strong>。每一步都在等前一步答案，就让一个 Agent 做。能各自调查或需要独立复核，再拆开。</p><p>若存可以让一个子代理找会员折扣入口，另一个按指定版本核对用例。父代理接回路径和证据，交接、复查也都要花时间。</p><p class="interview-origin"><a href="#delegate-spec">回看讲解 · 用明确交接材料替代整段调查历史</a></p></div></details></section><div class="design-section"><span aria-hidden="true" id="intern-interview"></span><span aria-hidden="true" id="harness-interview"></span><section class="design-section interview-exercise" id="interview-review-1"><h3>多个 Agent 并行做事，怎样分配任务、跟踪各自的状态，再把结果汇总起来？</h3><p class="interview-origin"><a href="https://api-cdn.nowcoder.com/feed/main/detail/1d067ce539c64d3988eabb9b646ef8a0?sourceSSR=dynamic" rel="noopener" target="_blank">美团 · 一面 · 面经原帖</a> · 题意转述　可回看 <a href="task-planning.html" rel="noopener" target="_blank">第 9 章</a> </p><details class="answer-box"><summary>展开参考回答</summary><div><p>给每个人一件<strong>可以单独验收的事</strong>，按各自的运行编号收进度和结果。两份报告冲突时，我会查他们在哪个目录、哪个提交、从哪个入口跑了什么用例。</p><p>旧版本结算通过，新版本预览失败，这两个结果可以同时成立。我要把失败带回修正，再在同一份待交付版本上把要求覆盖的两个入口都验证一遍。</p><p class="interview-origin"><a href="#message-kinds">回看讲解 · 普通进度只更新，需决定的事项进入交付队列</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-2"><h3>父代理已经读过文件，为什么子代理要改它还得自己读？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>每次执行要保存<strong>自己实际看到的文件版本</strong>。</p><p>父代理昨天读过 pricing.py，今天才交给子代理。若存给子代理一份新的读取记录，让它先看眼前的文件。</p><p class="interview-origin"><a href="#independent-tool-context">回看讲解 · 读过文件的记录和待办各自建立</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-3"><h3>派去独立工作树复核，为什么子代理看不见父目录里刚改的代码？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>我先核对<strong>工作树创建时的 HEAD</strong>，再看要验的改动是否在这份目录里。父目录里没提交的改价不会自动带进来，在任务文字里指定旧提交也不会让程序自动切过去。</p><p class="interview-origin"><a href="#verify-before-dispatch">回看讲解 · 先核对 Git 基线和工作目录</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-4"><h3>子 Agent 在运行中怎样和主 Agent 通信？</h3><p class="interview-origin"><a href="https://api-cdn.nowcoder.com/feed/main/detail/42ba29ab006d4bb793112eb263d18f6a?sourceSSR=dynamic" rel="noopener" target="_blank">阿里云 · 一面 · 面经原帖</a> · 题意转述</p><details class="answer-box"><summary>展开参考回答</summary><div><p>日常进度按<strong>同一次运行</strong>更新。需要主代理作决定时，单独发需要关注的消息。这样“找到入口了”和“过期会员该怎么算”可以得到不同处理。</p><p class="interview-origin"><a href="#message-kinds">回看讲解 · 普通进度只更新，需决定的事项进入交付队列</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-5"><h3>子代理已经读完文件，能据此结束主代理的回合吗？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>我会先看<strong>回包进了哪个会话、父代理在等什么结果</strong>。子代理读完文件，能把原文用于自己的下一次请求。主代理若还在等复核结论，就要等相应交付。</p><p>例如后台只报“已找到价格入口”，父代理可以记进度。等到报告交回实际入口和用例，它才能据此判断会员价是否已经查清。</p><p class="interview-origin"><a href="#foreground-transfer">回看讲解 · 用子代理的读取回包、后台进度和最终报告判断父任务怎么继续</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-6"><h3>子代理的对话压缩过了，父代理怎样找到这次交付的报告？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>按<strong>本次运行的原文起点和身份</strong>查已经保存的消息。</p><p>若存从这段原文里找最后一条非空助手回答。当前对话列表缩短了，报告也仍按原来的运行查。</p><p class="interview-origin"><a href="#result-output">回看讲解 · 从已保存的子代理历史取回报告</a></p></div></details></section></div>
+</section>
+<nav aria-label="章末导航" class="course-pagination"><a href="../课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a href="interactive-control.html" rel="prev noopener" target="_blank" title="用户中途补了一句，怎么接上正在做的事？">上一章</a><a href="context-compaction.html" rel="next noopener" target="_blank" title="上下文放不下时，哪些内容还能缩短">下一章</a></nav></article></main>
+</body>
+</html>

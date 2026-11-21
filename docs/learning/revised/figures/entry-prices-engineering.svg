@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 300" role="img" aria-labelledby="title description" xml:lang="zh-CN">
+  <title id="title">同一笔订单，单测算出 180 元，页面显示 200 元</title>
+  <desc id="description">同一笔普通订单是两件商品，每件一百元。函数单测直接调用已改的 examples/prices.mjs，算出 180 元。页面预览由 shop/preview.mjs 导入未改的 shop/prices.mjs，算出 200 元。</desc>
+  <defs>
+    <style>
+      text { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif; fill: #1f2328; }
+      .muted { fill: #57606a; }
+      .label { font-size: 19px; }
+      .heading { font-size: 21px; font-weight: 600; }
+      .price { font-size: 26px; font-weight: 700; }
+      .status { font-size: 17px; }
+      .code { font: 21px "Cascadia Code", Consolas, monospace; }
+      .wire-label { font: 18px "Cascadia Code", Consolas, monospace; }
+      .blue { fill: #0969da; }
+      .wire { fill: none; stroke: #7d8895; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+      .wire-blue { stroke: #0969da; stroke-width: 2.25; }
+    </style>
+    <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="m1 1 6 3-6 3" fill="none" stroke="#7d8895" stroke-width="1.35" stroke-linejoin="round" stroke-linecap="round"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="m1 1 6 3-6 3" fill="none" stroke="#0969da" stroke-width="1.65" stroke-linejoin="round" stroke-linecap="round"/>
+    </marker>
+  </defs>
+
+  <rect width="1120" height="300" fill="#fff"/>
+  <path d="M280 159H1088" stroke="#e6eaf0"/>
+
+  <g class="wire" marker-end="url(#arrow)">
+    <path d="M213 159H241V99H269"/>
+    <path d="M241 159V219H269"/>
+    <path d="M379 99H661"/>
+    <path d="M373 219H386"/>
+    <path d="M930 99H981"/>
+    <path d="M930 219H981"/>
+  </g>
+  <circle cx="241" cy="159" r="3.5" fill="#7d8895"/>
+  <path d="M600 219H661" class="wire wire-blue" marker-end="url(#arrow-blue)"/>
+
+  <rect x="32" y="114" width="181" height="90" rx="7" fill="#f6f8fa" stroke="#d0d7de"/>
+  <rect x="390" y="190" width="209" height="58" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+  <rect x="667" y="64" width="263" height="70" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+  <rect x="667" y="184" width="263" height="70" rx="6" fill="#edf6ff" stroke="#91bce6"/>
+
+  <g text-anchor="middle">
+    <text x="122.5" y="151" class="heading">普通订单</text>
+    <text x="122.5" y="179" class="label muted">2 件 × 100 元</text>
+
+    <text x="798.5" y="39" class="label muted">使用的计价文件</text>
+    <text x="1033" y="39" class="label muted">结果</text>
+    <text x="324" y="106" class="heading">函数单测</text>
+    <text x="324" y="226" class="heading">页面预览</text>
+    <text x="521" y="84" class="wire-label muted">standardTotal(2, 100)</text>
+    <text x="494.5" y="226" class="code">shop/preview.mjs</text>
+    <text x="631" y="204" class="wire-label blue">import</text>
+
+    <text x="798.5" y="91" class="code">examples/prices.mjs</text>
+    <text x="798.5" y="120" class="status muted">已改</text>
+    <text x="798.5" y="211" class="code blue">shop/prices.mjs</text>
+    <text x="798.5" y="240" class="status">未改</text>
+
+    <text x="1033" y="108" class="price">180 元</text>
+    <text x="1033" y="228" class="price">200 元</text>
+  </g>
+</svg>

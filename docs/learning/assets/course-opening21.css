@@ -1,0 +1,22 @@
+.lesson-paper .walk-figure {
+  margin: 1.4rem 0;
+  padding: 1rem 1.15rem;
+  border: 1px solid #e7ccdc;
+  border-radius: 14px;
+  background: #fffaf3;
+  color: #372f42;
+}
+.walk-figure figcaption { display: flex; align-items: center; gap: .5rem; font-weight: 650; }
+.walk-figure figcaption img { width: 42px; height: 42px; object-fit: contain; }
+.walk-figure .walk-row { display: flex; align-items: stretch; gap: .5rem; margin: .65rem 0; }
+.walk-figure .walk-item { flex: 1; min-width: 0; padding: .5rem .6rem; border-radius: .55rem; background: #ece5f6; }
+.walk-figure .walk-item:nth-of-type(2) { background: #dcefe8; }
+.walk-figure .walk-item:nth-of-type(3) { background: #f9dfd8; }
+.walk-figure .walk-item strong, .walk-figure .walk-item small { display: block; }
+.walk-figure .walk-item small { font-size: .9em; }
+.walk-figure .walk-arrow { color: #82506a; align-self: center; }
+@media (max-width: 540px) {
+  .walk-figure .walk-row { flex-direction: column; gap: .2rem; }
+  .walk-figure .walk-arrow { transform: rotate(90deg); }
+  .walk-figure .walk-item { display: flex; align-items: baseline; gap: .8rem; }
+}

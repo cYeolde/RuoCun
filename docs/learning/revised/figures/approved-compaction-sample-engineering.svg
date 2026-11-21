@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 300" role="img" aria-labelledby="title description" xml:lang="zh-CN">
+  <title id="title">两次读取什么时候算作配齐</title>
+  <desc id="description">同一条助手消息发起 r-rule 和 r-log 两次读取。第一份回包只消掉 r-rule，仍欠 r-log。两份回包均到齐后，这一组之后才可以作为历史切点。</desc>
+  <defs>
+    <style>
+      text { font: 21px "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif; fill: #1f2328; }
+      .heading { font-weight: 600; }
+      .code { font: 20px Consolas, "Cascadia Code", monospace; }
+      .muted { fill: #57606a; }
+      .pending { fill: #8a4b08; }
+      .blue { fill: #0969da; }
+      .rule { stroke: #d0d7de; stroke-width: 1.5; }
+    </style>
+    <marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="m1 1 6 3-6 3" fill="none" stroke="#a9b3bf" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect width="1100" height="300" fill="#fff"/>
+  <path d="M216 80H1045" fill="none" stroke="#a9b3bf" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <path d="M34 109H1064 M34 199H1064 M34 273H1064 M196 109V273" fill="none" class="rule"/>
+  <circle cx="320" cy="80" r="5" fill="#fff" stroke="#a9b3bf" stroke-width="1.5"/>
+  <circle cx="598" cy="80" r="5" fill="#fff7e6" stroke="#8a4b08" stroke-width="1.5"/>
+  <circle cx="876" cy="80" r="5" fill="#0969da"/>
+
+  <rect x="208" y="130" width="106" height="46" rx="6" fill="#fff7e6" stroke="#d49b51"/>
+  <rect x="326" y="130" width="106" height="46" rx="6" fill="#fff7e6" stroke="#d49b51"/>
+  <rect x="545" y="130" width="106" height="46" rx="6" fill="#fff7e6" stroke="#d49b51"/>
+  <rect x="815" y="130" width="122" height="46" rx="6" fill="#edf6ff" stroke="#91bce6"/>
+
+  <text x="35" y="87" class="muted">消息顺序</text>
+  <text x="35" y="160" class="heading">还在等</text>
+  <text x="35" y="243" class="heading">此处能否切分</text>
+  <g text-anchor="middle">
+    <text x="320" y="49" class="heading">发起两次读取</text>
+    <text x="598" y="49" class="heading">规则已返回</text>
+    <text x="876" y="49" class="heading">日志也已返回</text>
+    <text x="261" y="160" class="code pending">r-rule</text>
+    <text x="379" y="160" class="code pending">r-log</text>
+    <text x="598" y="160" class="code pending">r-log</text>
+    <text x="876" y="160" class="blue">无</text>
+    <text x="320" y="243" class="pending">还欠两条回包</text>
+    <text x="598" y="243" class="pending">还欠日志回包</text>
+    <text x="876" y="243" class="blue heading">可在整组之后切</text>
+  </g>
+</svg>

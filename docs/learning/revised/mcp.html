@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>接入 MCP 后，模型怎样真正查到外部资料 · RuoCun 设计学习</title>
+<link href="../assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="../assets/ruocun-code.css" rel="stylesheet"/>
+<link href="../assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="../assets/ruocun-article.css" rel="stylesheet"/>
+<link href="../assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="../assets/ruocun-textbook.js"></script>
+<link href="../assets/reading-diagrams.css" rel="stylesheet"/><link href="later-flows.css" rel="stylesheet"/><link href="../assets/course-reader.css" rel="stylesheet"/><link href="course-illustrations.css" rel="stylesheet"/><link href="article-reading.css" rel="stylesheet"/></head>
+<body class="textbook-read" id="course-reader">
+<a class="textbook-skip" href="#mcp">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#mcp">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航"><a href="../课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a href="skills.html" rel="prev noopener" target="_blank" title="什么时候加载 Skill，加载以后谁来做事">上一章</a><a href="hooks.html" rel="next noopener" target="_blank" title="工具执行前后，Hook 在哪里起作用">下一章</a></nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title"><span class="chapter-number">第 19 章</span><span class="nav-chapter-name">接入 MCP 后，模型怎样真正查到外部资料</span></div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc" open="">
+<summary>文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#mcp-case">服务连上了，查询工具还在哪儿？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#mcp-tool-adapter">服务交来的是目录，模型要用的是工具</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#mcp-visibility">已登记的查询工具，模型还得找一次</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#mcp-results">查到了原价，追加备注时却没有回包</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#mcp-agent-owner">交给后台以后，谁持有那条连接？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-assessment">没拿到回包，后来却查到了写入</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways">这一章带走什么</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#interview-practice">面经自测</a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper" data-format="article" id="mcp">
+<header class="design-hero"><h1>接入 MCP 后，模型怎样真正查到外部资料</h1><p class="target">你让 agent 查资料库里的会员预览说明。终端说资料服务 <code>docs</code> 已连接，第一份发给模型的工具清单里却没有查询接口。模型先找到了工具，又查到了“会员预览保留原价”。这两次动作分别问了谁？</p></header>
+<section class="v2-topic-group" id="mcp-case"><header class="v2-group-heading"><h2>服务连上了，查询工具还在哪儿？</h2></header>
+<section class="design-section" id="local-call-remote-service"><span aria-hidden="true" id="local-call-remote-service-heading"></span>
+<p>下面按源码推演。上一章给模型看的 Skill 可以约定先查说明、再写复核备注。这次说明存在另一个服务里，得先问那台服务肯提供哪些操作，再选一个来用。宿主和服务拿来做这两件事的协议叫 MCP。模型通过函数调用（function calling）把想用的工具和参数告诉宿主。</p>
+<p>先看连接后的第一个结果。面板显示连接成功，表示宿主能和服务对话。要解释为什么模型开头找不到查询工具，接下来检查两份清单：服务列给宿主的工具，和宿主放进模型请求的工具。</p>
+</section></section>
+<section class="v2-topic-group" id="mcp-tool-adapter"><header class="v2-group-heading"><h2>服务交来的是目录，模型要用的是工具</h2></header>
+<section class="design-section" id="mcp-discovery">
+<p>宿主通过本地子进程的标准输入输出、Streamable HTTP 或配置的 SSE 通道连上 <code>docs</code>，先发 <code>initialize</code> 确认对端支持什么，再用 <code>tools/list</code> 要工具目录。目录里有一项叫 <code>search_notes</code>，它的 <code>inputSchema</code> 要求必填的 <code>query</code> 是字符串。宿主把它登记成 <code>mcp__docs__search_notes</code>，以后碰到同名的 <code>search_notes</code>，可以凭中间的服务名分清交给谁。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/mcp/mcp.py#L295" rel="noopener" target="_blank">握手</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/mcp/mcp.py#L458" rel="noopener" target="_blank">登记工具</a></p>
+<figure class="course-illustration" data-art="mcp-discover-call" data-figure-slot="1" data-generated-by="SVG"><a aria-label="放大查看：远程工具已登记，如何到模型手里并执行查询？" href="figures/mcp-discover-call-engineering.svg" rel="noopener" target="_blank"><img alt="docs 用 tools/list 报出 search_notes，宿主登记工具。ToolSearch 激活后，完整工具定义在下一次模型请求可见。模型真正发起会员预览查询后，宿主还会检查参数和权限，再调用工具并送回结果。" decoding="async" loading="lazy" src="figures/mcp-discover-call-engineering.svg"/></a><figcaption>沿上半行追工具说明，沿下半行追实际查询的参数和结果。</figcaption></figure>
+<p>图下半行是模型真正选中查询以后发生的事。模型提出 <code>mcp__docs__search_notes</code> 和 <code>{"query":"会员预览"}</code>，宿主按本地工具路径检查参数和权限。到了处理器，宿主向 <code>docs</code> 发 <code>tools/call</code>，参数是 <code>{"name":"search_notes","arguments":{"query":"会员预览"}}</code>。服务列表里那份说明到这时才变成一趟查询。</p>
+<p>服务在握手时还可以声明资源或提示词模板。若存给这些能力挂上专用工具，例如先列资源，再按 URI 取内容。服务发来列表更新通知时，程序重新取定义，并确认请求回来时还是原来那条连接，才替换注册项。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/mcp/mcp.py#L490" rel="noopener" target="_blank">资源和模板</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/mcp/mcp.py#L512" rel="noopener" target="_blank">列表更新</a></p>
+</section>
+<section class="design-section" id="mcp-schema-seam">
+<p>这里有个容易误会的地方。<code>docs</code> 说 <code>query</code> 必须是字符串，宿主保存这份说明给模型，却只在本地检查传入的是一个 JSON 对象。下面代码中的 <code>schema</code> 和 <code>apiParameters</code> 就是这两份约定。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/mcp/mcp.py#L549" rel="noopener" target="_blank">src/ruocun/mcp/mcp.py · 第 549–559 行</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>11 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="549"></span><span data-line="550"></span><span data-line="551"></span><span data-line="552"></span><span data-line="553"></span><span data-line="554"></span><span data-line="555"></span><span data-line="556"></span><span data-line="557"></span><span data-line="558"></span><span data-line="559"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">def</span> <span class="hljs-title">_tool</span>(<span class="hljs-built_in">self</span>, server: <span class="hljs-built_in">str</span>, connection: _Connection, definition: Mapping[<span class="hljs-built_in">str</span>, Any]) -&gt; Tool:
+        name = definition[<span class="hljs-string">"</span><span class="hljs-string">name</span><span class="hljs-string">"</span>]
+        parameters = copy.deepcopy(definition.get(<span class="hljs-string">"</span><span class="hljs-string">inputSchema</span><span class="hljs-string">"</span>, {<span class="hljs-string">"</span><span class="hljs-string">type</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">object</span><span class="hljs-string">"</span>, <span class="hljs-string">"</span><span class="hljs-string">properties</span><span class="hljs-string">"</span>: {}}))
+
+        <span class="hljs-keyword">async</span> <span class="hljs-keyword">def</span> <span class="hljs-title">handler</span>(arguments: <span class="hljs-built_in">dict</span>[<span class="hljs-built_in">str</span>, Any], ctx: ToolContext) -&gt; <span class="hljs-built_in">str</span>:
+            result = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>._invoke(connection, <span class="hljs-string">"</span><span class="hljs-string">tools/call</span><span class="hljs-string">"</span>, {<span class="hljs-string">"</span><span class="hljs-string">name</span><span class="hljs-string">"</span>: name, <span class="hljs-string">"</span><span class="hljs-string">arguments</span><span class="hljs-string">"</span>: arguments}, ctx)
+            <span class="hljs-keyword">return</span> result <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(result, <span class="hljs-built_in">str</span>) <span class="hljs-keyword">else</span> unpack(result)
+
+        <span class="hljs-keyword">return</span> Tool(name=<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">mcp__</span><span class="hljs-string">{</span>server<span class="hljs-string">}</span><span class="hljs-string">__</span><span class="hljs-string">{</span>name<span class="hljs-string">}</span><span class="hljs-string">"</span>, description=definition.get(<span class="hljs-string">"</span><span class="hljs-string">description</span><span class="hljs-string">"</span>, <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">MCP </span><span class="hljs-string">{</span>server<span class="hljs-string">}</span><span class="hljs-string"> 工具 </span><span class="hljs-string">{</span>name<span class="hljs-string">}</span><span class="hljs-string">"</span>),
+                    schema={<span class="hljs-string">"</span><span class="hljs-string">type</span><span class="hljs-string">"</span>: <span class="hljs-string">"</span><span class="hljs-string">object</span><span class="hljs-string">"</span>}, apiParameters=parameters, capability=<span class="hljs-string">"</span><span class="hljs-string">network</span><span class="hljs-string">"</span>,
+                    handler=handler, persistentEffect=<span class="hljs-keyword">True</span>)</code></pre></div>
+</figure>
+<p>把参数换成 <code>["会员预览"]</code>，本地对象校验就会拒绝，处理器还没运行。换成 <code>{"keyword":"会员预览"}</code>，本地形状过关。若权限也允许，资料服务拿到请求后仍可指出缺少 <code>query</code>。这台服务的字段要求由服务自己落实，同一个字段换名的问题不会因为适配成了本地工具便消失。<a href="tool-contract.html" rel="noopener" target="_blank">回看工具的两份契约</a></p>
+</section></section>
+<section class="v2-topic-group" id="mcp-visibility"><header class="v2-group-heading"><h2>已登记的查询工具，模型还得找一次</h2></header>
+<section class="design-section" id="mcp-tool-search"><span aria-hidden="true" id="mcp-tool-search-heading"></span>
+<p>回到第一份模型请求。假设现在有七项远端工具，<code>search_notes</code> 是第六项。注册表留着七份完整定义，起初只把前五项 MCP 工具放进可见集合。模型可请 <code>ToolSearch</code> 搜 <code>search_notes</code>。本地注册表按名称或描述查找，把命中的名字加入可见集合，返回命中的工具名和描述。接下来正常模式构造模型请求，才会把找到的工具按完整参数定义放进去。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/registry.py#L43" rel="noopener" target="_blank">看初始入表</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/registry.py#L84" rel="noopener" target="_blank">看搜索激活</a></p>
+<p id="compare-mcp-tool-search">把同一份七项工具交给 CoreCoder。扩展篇把发现的远端工具和其他工具一并注册，<code>_tool_schemas()</code> 按这份列表给模型发定义。查笔记马上能做，每个请求也带着其余六项。若存为后来才用到的那一项加了一趟搜索。Claude Code 在支持延迟加载时也能用搜索，配置 <code>alwaysLoad: true</code> 还可以整台服务预先装载。若每天第一步都是查笔记，预装省下一次找工具；若只偶尔查，再为六项额外接口预留空间就得看它们值不值。<a href="https://github.com/he-yufeng/CoreCoder/blob/main/article/08-extensibility.md" rel="noopener" target="_blank">CoreCoder 扩展篇</a> · <a href="https://code.claude.com/docs/en/mcp#exempt-a-server-from-deferral" rel="noopener" target="_blank">Claude Code 预先装载配置</a></p>
+</section>
+<section class="design-section" id="visible-versus-permitted"><span aria-hidden="true" id="visible-versus-permitted-heading"></span>
+<p id="stale-discovered-tool">如果模型上一轮还搜到了写备注的 <code>append_note</code> 呢？只换一个条件，现在进入计划模式。生成下一次请求时，工具清单会排除 MCP；即便模型照着旧消息里的名称再提一次，派发前也要复查当前模式，把拒绝原因按原调用回给模型。资料服务不会收到这次追加。搜索解决的是定义如何到达模型，写入是否获准还要走执行时的判断。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/tools_for_mode.py#L10" rel="noopener" target="_blank">清单过滤</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/tool_batch.py#L132" rel="noopener" target="_blank">派发关口</a></p>
+</section></section>
+<section class="v2-topic-group" id="mcp-results"><header class="v2-group-heading"><h2>查到了原价，追加备注时却没有回包</h2></header>
+<section class="design-section" id="mcp-failure-identity"><span aria-hidden="true" id="mcp-failure-identity-heading"></span>
+<p>回到正常模式。查询发出后，<code>docs</code> 的 <code>content</code> 里有一段文字“会员预览保留原价”。适配器取出文字，主循环把它配回模型的查询编号，模型才有资料可答。此后用户要求向资料库追加一句“过期会员需复核”。模型给这次追加的编号是 <code>c42</code>。宿主已经交出请求，等回包时连接断了。</p>
+<p>如果程序接到调用时连接已经关了，仍可确认没有发出请求。若等待期间收到了能对上的服务端协议错误，程序可以把错误回给模型，服务是否已改变数据仍要按错误含义判断。<code>c42</code> 恰好落在另外一格：调用已走进通信阶段，宿主手里连能对上的答复都没有。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/mcp/mcp.py#L537" rel="noopener" target="_blank">src/ruocun/mcp/mcp.py · 第 537–547 行</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>11 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="537"></span><span data-line="538"></span><span data-line="539"></span><span data-line="540"></span><span data-line="541"></span><span data-line="542"></span><span data-line="543"></span><span data-line="544"></span><span data-line="545"></span><span data-line="546"></span><span data-line="547"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        <span class="hljs-keyword">except</span> _NotSent <span class="hljs-keyword">as</span> error:
+            <span class="hljs-keyword">raise</span> ToolRejected(<span class="hljs-built_in">str</span>(error)) <span class="hljs-keyword">from</span> error
+        <span class="hljs-keyword">except</span> _ProtocolRejected <span class="hljs-keyword">as</span> error:
+            <span class="hljs-keyword">return</span> <span class="hljs-string">"</span><span class="hljs-string">Error: MCP </span><span class="hljs-string">"</span> + <span class="hljs-built_in">self</span>.redact(<span class="hljs-built_in">str</span>(error))
+        <span class="hljs-keyword">except</span> (Exception, asyncio.CancelledError) <span class="hljs-keyword">as</span> error:
+            <span class="hljs-keyword">if</span> not work.done():
+                work.cancel()
+                <span class="hljs-keyword">await</span> asyncio.gather(work, return_exceptions=<span class="hljs-keyword">True</span>)
+            <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(error, UnknownToolOutcome):
+                <span class="hljs-keyword">raise</span>
+            <span class="hljs-keyword">raise</span> UnknownToolOutcome(<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">MCP 请求可能已执行但结果未确认（</span><span class="hljs-string">{</span><span class="hljs-built_in">type</span>(error).__name__<span class="hljs-string">}</span><span class="hljs-string">）；现场保留，未自动重放。</span><span class="hljs-string">"</span>) <span class="hljs-keyword">from</span> error</code></pre></div>
+</figure>
+<p>断线或超时会走到 <code>UnknownToolOutcome</code>，主循环停在 <code>outcome_unknown</code>，带持久执行记录的会话会留下这次调用的意图。本地的 <code>c42</code> 用来查这次模型提议与执行记录。通信协议另有编号，用来把发出的请求和收到的回包配起来。就算知道两个编号，远端是否多了一条备注，仍要看服务留下的证据。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L425" rel="noopener" target="_blank">看主循环如何停下</a> · <a href="durable-execution.html" rel="noopener" target="_blank">回看执行意图与结果</a></p>
+</section>
+<section class="design-section" id="disconnect-unconfirmed"><span aria-hidden="true" id="disconnect-unconfirmed-heading"></span>
+<div id="remote-effect-check"><span aria-hidden="true" id="remote-effect-check-heading"></span>
+<p>连接恢复后，查询可以继续，<code>c42</code> 那条旧写入仍少一份回执。<strong>「可能已经写入的调用，先查原操作留下的证据，再决定是否补做。」</strong> 两条字面相同的备注可能分别来自两个任务。要找的是能对应 <code>c42</code> 的远端业务标记或审计记录。确认这次已经写入就不要再追加。只查到同样文字而对不上来源时，仍应保留未决。</p>
+<p>重开会话能不能直接把新任务交给模型？现有用例让模拟服务先记下一次写入，再丢掉回执。本地留下 <code>outcome_unknown</code> 后，用另一条用户输入尝试续聊。用例断言模型请求数没有增加，服务端也仍只写过一次。重开程序没有替这笔写入作确认，也没有给模型一次补写的机会。查看重开前后的请求数和写入计数（项目回归测试）</p><p>如果掉线的只是同一份会员说明的查询，取舍就变了。HTTP 服务若已把查询工具标为只读，而调用在连接关闭时还没收到答复，Claude Code 允许在新连接上重试一次，省去一次人工续接。若存的适配器把远端工具统一按可能留下持久效果处理，<code>readOnlyHint</code> 不改变缺回执时的分支。这会暂停一部分本可重查的请求，换来一个统一的恢复规则。若用户只需要现在的说明，可以把它当作一趟新的查询，交代读的是哪一次，原回执仍未确认。<a href="https://code.claude.com/docs/en/mcp#mark-tools-that-are-safe-to-call-twice" rel="noopener" target="_blank">Claude Code 官方文档 · 可重复调用的工具</a></p>
+</div></section></section>
+<section class="v2-topic-group" id="mcp-agent-owner"><header class="v2-group-heading"><h2>交给后台以后，谁持有那条连接？</h2></header>
+<section class="design-section" id="mcp-agent-rebind"><span aria-hidden="true" id="mcp-agent-rebind-heading"></span>
+<p>现在让一个专门查资料的子代理接手。它只打开角色配置选中的服务，持有自己的连接管理对象。要把这趟复核从前台转交给后台，旧执行器最终会关闭自己打开的连接。带过去的应是配置、旧工具定义和曾经可见的名称。后台创建自己的连接，才能独立继续和收尾。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/agent_mcp.py#L63" rel="noopener" target="_blank">保存定义和可见名称</a></p>
+</section>
+<section class="design-section" id="rebind-schema-change"><span aria-hidden="true" id="rebind-schema-change-heading"></span>
+<p>设原来 <code>append_note</code> 用 <code>note_id</code> 定位记录，重连后的同名工具却要求 <code>document_id</code>。后台若直接沿用旧任务，先前构造的参数已经对不上。看看连接成功以后还要等哪处判断。</p>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/agent_mcp.py#L47" rel="noopener" target="_blank">src/ruocun/agent/agent_mcp.py · 第 47–56 行</a></p>
+<figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>10 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="47"></span><span data-line="48"></span><span data-line="49"></span><span data-line="50"></span><span data-line="51"></span><span data-line="52"></span><span data-line="53"></span><span data-line="54"></span><span data-line="55"></span><span data-line="56"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            <span class="hljs-keyword">try</span>:
+                <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.manager.init()
+                <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>._expected is not <span class="hljs-keyword">None</span>:
+                    <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>._schemas() != <span class="hljs-built_in">self</span>._expected:
+                        <span class="hljs-keyword">raise</span> ValueError(<span class="hljs-string">"</span><span class="hljs-string">原子代理 MCP 工具定义已变更，未交接执行。</span><span class="hljs-string">"</span>)
+                    <span class="hljs-built_in">self</span>.registry.restoreMcpVisibility(<span class="hljs-built_in">self</span>._visible)
+                <span class="hljs-built_in">self</span>._opened = <span class="hljs-keyword">True</span>
+            <span class="hljs-keyword">except</span> BaseException:
+                <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.close()
+                <span class="hljs-keyword">raise</span></code></pre></div>
+</figure>
+<p>新连接拉下来的定义和旧快照不同，程序会停止此次交接并关闭新资源，旧参数也就不会发出去。定义一致后，先前可见的名称才会被恢复。对上定义只确认接手时还能使用原接口。<code>c42</code> 是否写过仍要沿原执行证据查。</p>
+</section></section>
+<section class="v2-topic-group" id="article-assessment"><header class="v2-group-heading"><h2>没拿到回包，后来却查到了写入</h2></header>
+<section class="design-section" id="article-assessment-1">
+<p>假设发出 <code>c42</code> 时，业务请求另带了标记 <code>review-42</code>。后台接手时，资料服务的审计表显示 <code>review-42</code> 已给目标笔记加上“过期会员需复核”。此时重新连接 <code>docs</code>，发现同名追加工具已把 <code>note_id</code> 换成 <code>document_id</code>。你会补发备注、允许原任务继续，还是各自留下什么结论？</p>
+<details class="answer-box"><summary>核对你的判断</summary><div><p>审计记录支持判定原备注已写入，无需重发。把审计记录作为来源保存，有意图但没收到原回包的事实仍照实记录。新旧接口不一致，原子代理交接不能继续。若还要做后续工作，应先明确旧任务的恢复决定，重新按已核实的新接口安排余下工作。</p></div></details>
+</section></section>
+<section class="v2-topic-group" id="article-takeaways"><header class="v2-group-heading"><h2>这一章带走什么</h2></header>
+<section class="design-section"><ul>
+<li>资料服务已连上，模型仍可能要多搜一次才能用到查询工具。把少用工具的完整定义留到搜索之后，平时能少带几份说明，第一次用要多等一趟。</li>
+<li>宿主验过“这是个对象”，服务还要验“里面有没有 <code>query</code>”。写成 <code>keyword</code> 就可能在本地过关、到服务端被拒。</li>
+<li>重新连上以后可以发新查询。旧备注究竟写进去没有，还得找能对应原调用的记录。后台要接手原任务，还得把新连接里的工具定义和旧快照比一遍。</li>
+</ul>
+<p>查到资料之后，接着要写一份核对报告。<a href="hooks.html#hook-case" rel="noopener" target="_blank">如果 Hook 在动手前换了写入路径，原来的正文和批准还能沿用吗？</a></p></section></section>
+<section class="v2-topic-group" id="interview-practice"><header class="v2-group-heading"><h2>面经自测</h2></header><span aria-hidden="true" id="article-interview"></span><section class="design-section interview-exercise" id="interview-opening"><h3 class="interview-prompt">项目怎样找到要用的 MCP 工具，又从哪个接口开始调用？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/74481a7b176142a188400c93f598aea7?sourceSSR=dynamic" rel="noopener" target="_blank">百度 · 一面 · 面经原帖</a> · 题意转述</p><details class="answer-box"><summary>展开参考回答</summary><div><p>宿主先和服务<strong>协商能力、列出工具、再发起调用</strong>。模型只需要按看见的工具说明选名称和参数。</p><p>若存连接资料服务后用 tools/list 找到查笔记的工具，按需把说明给模型，再用 tools/call 把查询交给远端，结果按原调用返回。</p><p class="interview-origin"><a href="#mcp-discovery">回看讲解</a></p></div></details></section><span aria-hidden="true" id="intern-mcp"></span><span aria-hidden="true" id="harness-mcp"></span><section class="design-section interview-exercise" id="interview-review-1"><h3>MCP 和函数调用分别负责什么？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/6ac5ba31705a4b64a407b087f39d5447?sourceSSR=dynamic" rel="noopener" target="_blank">字节跳动 · 一面 · 面经原帖</a> · 题意转述　可回看 <a href="model-protocol.html" rel="noopener" target="_blank">第 6 章</a> <a href="tool-contract.html" rel="noopener" target="_blank">第 3 章</a> </p><details class="answer-box"><summary>展开参考回答</summary><div><p>函数调用说明<strong>模型怎么开口要用工具</strong>。MCP 说明<strong>宿主怎样联系外部服务</strong>去完成它。模型提出查资料，真正给资料服务发请求的是宿主。</p><p class="interview-origin"><a href="#mcp-discovery">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-2"><h3>接了很多扩展，怎样让模型找到所需工具，又避免每轮都发全套说明？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/6ac5ba31705a4b64a407b087f39d5447?sourceSSR=dynamic" rel="noopener" target="_blank">字节跳动 · 一面 · 面经原帖</a> · 题意转述</p><details class="answer-box"><summary>展开参考回答</summary><div><p>把<strong>登记了什么和这轮公布什么</strong>分开。先给可见清单，需要额外能力时按名称或用途查找，后续请求再带新选中工具的完整说明。</p><p class="interview-origin"><a href="#mcp-tool-search">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-3"><h3>远端说明要求 query 是字符串，本地接受了参数，为什么服务还能拒绝？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>本地和远端<strong>各检查自己的约定</strong>。</p><p>若存会先看传入的是不是 JSON 对象。资料服务还会检查 query 是否符合自己的接口。本地通过并不代表远端已经答应执行。</p><p class="interview-origin"><a href="#mcp-schema-seam">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-4"><h3>远端追加笔记时连接断了，若存为什么不能立刻再追加一次？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>因为<strong>请求可能已经到达，丢的只是回包</strong>。</p><p>若存若拿不到 append_note 的结果，得先核对那条笔记和原调用。直接重发可能会留下两条。</p><p class="interview-origin"><a href="#remote-effect-check">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-5"><h3>子代理接手后能连上服务，为什么还要核对工具定义？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>连上同名服务不能证明<strong>它还接受原来那组参数</strong>。</p><p>若存接手时发现 append_note 的定义换了，就会停止交接。否则旧任务会按新含义运行。</p><p class="interview-origin"><a href="#rebind-schema-change">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-6"><h3>已经用 ToolSearch 找到了远端写工具，进入计划模式还能用吗？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p><strong>计划模式会在两处挡住它</strong>。下一轮发给模型的工具清单会排除 MCP 工具。就算模型从旧消息抄出追加笔记的工具名，派发时程序也会再查当前模式，本地就把拒绝原因回给模型。远端一次追加都没收到。</p><p class="interview-origin"><a href="#visible-versus-permitted">回看讲解</a></p></div></details></section></section>
+<nav aria-label="章末导航" class="course-pagination"><a href="../课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a href="skills.html" rel="prev noopener" target="_blank" title="什么时候加载 Skill，加载以后谁来做事">上一章</a><a href="hooks.html" rel="next noopener" target="_blank" title="工具执行前后，Hook 在哪里起作用">下一章</a></nav>
+</article></main>
+</body>
+</html>

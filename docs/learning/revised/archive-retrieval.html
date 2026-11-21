@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>摘要漏掉要求时，怎样找回当时的原话 · RuoCun 设计学习</title>
+<link href="../assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="../assets/ruocun-code.css" rel="stylesheet"/>
+<link href="../assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="../assets/ruocun-article.css" rel="stylesheet"/>
+<script defer="" src="../assets/ruocun-textbook.js"></script>
+<link href="../assets/reading-diagrams.css" rel="stylesheet"/><link href="../assets/course-reader.css" rel="stylesheet"/><link href="course-illustrations.css" rel="stylesheet"/><link href="../assets/course-opening21.css" rel="stylesheet"/><link href="article-reading.css" rel="stylesheet"/></head>
+<body class="textbook-read" id="course-reader">
+<a class="textbook-skip" href="#archive-retrieval">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#archive-retrieval">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航"><a href="../课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a href="context-compaction.html" rel="prev noopener" target="_blank" title="上下文放不下时，哪些内容还能缩短">上一章</a><a href="prefix-cache.html" rel="next noopener" target="_blank" title="两次请求开头一样，模型服务能复用多少计算">下一章</a></nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title"><span class="chapter-number">第 14 章</span><span class="nav-chapter-name">摘要漏掉要求时，怎样找回当时的原话</span></div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc" open="">
+<summary>文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#same-text-different-evidence">先从摘要找回用户原话</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#raw-message-identity">同文的两条回包，归档里仍是两条</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#authorized-paged-read">找到足够的证据就停</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-assessment">有专项回包，还少了什么？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways">这一章带走什么</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#interview-practice">面经自测</a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper" data-format="article" id="archive-retrieval"><header class="design-hero"><h1>摘要漏掉要求时，怎样找回当时的原话</h1>
+<p class="target">摘要写着“会员日志已保留，检查通过”。用户接着问：“我说过会员预览也要查。过期会员在预览里按什么规则算价？”如果把那句“通过”直接当答案，连查的是哪个页面都说不清。</p>
+<p>我会先沿<a href="context-compaction.html#summary-checkpoint-contrast" rel="noopener" target="_blank">上一章随摘要保存的原文入口</a>找两样东西。先确认用户当时怎么说，再找哪一次检查按这个要求跑过。</p>
+</header>
+<section class="v2-topic-group" id="same-text-different-evidence">
+<header class="v2-group-heading"><h2>先从摘要找回用户原话</h2></header>
+<section class="design-section" id="restore-user-condition">
+<h3 id="restore-user-condition-heading">按摘要留下的 ID 回读</h3>
+<p>摘要末尾有 <code>[原文归档:summary-demo-2]</code>。把这个示意 ID 交给 <code>ArchiveRead</code>，沿归档向前翻，能看到写摘要时用到的原记录。下面是读回材料后摘出的三行。</p>
+<div class="design-trace"><strong>源码推演 · 摘要来源节选</strong>
+<pre>user           只改普通价的折扣；会员预览也要检查，过期会员用普通价。
+tool(r-smoke)  检查通过
+tool(r-member) 检查通过</pre></div>
+<p>“会员预览也要检查”这条要求已经找回。如果手里缺的是归档 ID，用户也可以用本会话的 <code>/archive list</code> 看记录索引。找到要求之后，接着核对当时是否照着做了。两条回包都写“检查通过”，先不要从它们的位置或文字猜哪个跑了专项用例。</p>
+</section>
+<section class="design-section" id="same-text-two-actions">
+<h3 id="same-text-two-actions-heading">用回包编号找到对应调用</h3>
+<figure class="course-illustration" data-art="archive-ids" data-figure-slot="0" data-generated-by="SVG"><a aria-label="放大查看：两条「检查通过」，分别在查什么？" href="figures/archive-ids-engineering.svg" rel="noopener" target="_blank"><img alt="两条工具回包都写着检查通过。第一条用 r-smoke 找到启动检查，第二条用 r-member 找到过期会员的价格预览，确认按普通价算。" decoding="async" loading="lazy" src="figures/archive-ids-engineering.svg"/></a><figcaption>从左向右用调用 ID 找原来的检查，看看哪条能支撑会员预览按普通价计算。</figcaption></figure>
+<p>从 <code>tool_call_id</code> 往前查 <code>assistant</code> 发出的命令。<code>r-smoke</code> 只检查商店能启动，顶多证明最基本的流程能跑。<code>r-member</code> 指向会员预览的专项命令，再核对它确实构造了过期会员，经过预览入口，断言价格等于普通价。只有这组调用与结果对上，才能用其证明当时那项检查通过。只留下“检查通过”四个字，两个结果就会变得无法区分。</p>
+<p>现在可以回用户：“按原约定，过期会员在预览里按普通价。<code>r-member</code> 证明当时那版通过了专项检查。如果后来改了价格入口，得用当前版本再跑一次。”</p>
+<p>只换一个条件。要是归档里有专项命令，却缺它配对的回包，我会把会员预览重新列回待查项。从命令能看出原本要查什么，还得找到结果才能说它通过。</p>
+</section>
+</section>
+<section class="v2-topic-group" id="raw-message-identity">
+<header class="v2-group-heading"><h2>同文的两条回包，归档里仍是两条</h2></header>
+<section class="design-section" id="raw-sequence">
+<p>这两份“通过”确实发生了两次。若存按会话和执行范围为每条追加的原文分配递增的 <code>raw_seq</code>，初始版本为 1。<code>r-smoke</code> 和 <code>r-member</code> 各有一个原文序号。现有消息若只补了图片投递等受支持的元数据，仍用原序号，加一版并记住上一版的身份。这样既能看到一条消息如何演进，也能分辨两次独立的动作。<code>tool_call_id</code> 对应一次工具调用，<code>raw_seq</code> 对应一条原消息，<code>summary-demo-2</code> 引到一组用来派生摘要的记录。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/archive.py#L139" rel="noopener" target="_blank">原文序号及版本的分配</a></p>
+<p>按文字去重会少掉一次用户确实说过的话。现有回归测试连续保存两条文字完全相同的用户消息，关闭并重开存储后，断言导出的历史仍保留两条。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/tests/test_deepseek_compaction_archive.py#L45" rel="noopener" target="_blank">重复消息的归档测试</a></p>
+</section>
+<section class="design-section" id="projection-rewrite"><h3>第二份摘要可以沿第一份找到原文</h3>
+<p>第一次压缩后，模型拿到的是改短的新历史。归档里仍有已接纳、脱敏后的原消息及附件引用。若存把候选摘要或裁剪记录和它引用的来源一起保存。再压一次时，第二份摘要可能直接引用一条原文，也可能沿第一份摘要追到同一条。两条路径最终都指向同一份材料。</p>
+<figure class="course-illustration" data-art="archive-lineage" data-figure-slot="1" data-generated-by="SVG" id="summary-lineage-paths"><a aria-label="放大查看：摘要直接引用和转引，最后找到几条会员回包？" href="figures/archive-lineage-engineering.svg" rel="noopener" target="_blank"><img alt="摘要 2 的两条蓝线分别直接找原文和经摘要 1 转引，最后汇到同一条 r-member，两条路径得到相同的原文序号 raw_seq。r-smoke 同样写检查通过，却有另一个原文序号。" decoding="async" loading="lazy" src="figures/archive-lineage-engineering.svg"/></a><figcaption>沿两条蓝线找到 r-member，再比对下方的 r-smoke。两条路径怎样看出找到了同一条原文？</figcaption></figure><figure class="ruocun-code" data-language="python"><figcaption class="ruocun-code-caption"><span>archive.py · 两条路径到同一原文，只选一版</span><span>源码节选</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption><div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="354"></span><span data-line="355"></span><span data-line="356"></span><span data-line="357"></span><span data-line="358"></span><span data-line="359"></span><span data-line="360"></span><span data-line="361"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        saved = index[source]
+        <span class="hljs-keyword">if</span> saved[<span class="hljs-string">"</span><span class="hljs-string">kind</span><span class="hljs-string">"</span>] == <span class="hljs-string">"</span><span class="hljs-string">raw</span><span class="hljs-string">"</span>:
+            key = (saved.get(<span class="hljs-string">"</span><span class="hljs-string">origin_session</span><span class="hljs-string">"</span>), saved.get(<span class="hljs-string">"</span><span class="hljs-string">origin_scope</span><span class="hljs-string">"</span>, scope), saved[<span class="hljs-string">"</span><span class="hljs-string">raw_seq</span><span class="hljs-string">"</span>])
+            <span class="hljs-keyword">if</span> key not in originals or saved[<span class="hljs-string">"</span><span class="hljs-string">version</span><span class="hljs-string">"</span>] &gt; originals[key][<span class="hljs-string">"</span><span class="hljs-string">version</span><span class="hljs-string">"</span>]:
+                originals[key] = saved
+        <span class="hljs-keyword">else</span>:
+            <span class="hljs-keyword">for</span> child in saved.get(<span class="hljs-string">"</span><span class="hljs-string">sources</span><span class="hljs-string">"</span>, []):
+                expand(child, trail | {source})</code></pre></div></figure>
+<p>沿两份摘要都找到了会员专项的回包，终点是同一条原消息，回查时展示一次就够了。可冒烟测试也写着“检查通过”。把这两条回包按文字合并，读者就少了一次调用的证据。最后的 <code>else</code> 会沿摘要的来源继续翻。每次碰到原文，程序都用原会话、原执行范围和 <code>raw_seq</code> 核对是不是同一条。若翻到同一条原文的不同版本，取能查到的最高版本，最后再按原文序号排列。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/archive.py#L217" rel="noopener" target="_blank">保存投影及来源</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/archive.py#L344" rel="noopener" target="_blank">展开、去重和排序</a></p>
+</section>
+<section class="design-section" id="clear-and-branch">
+<p>回退或清空只移动当前使用的投影，并记下历史边界，早先归档不会随之删除。分支从要继承的投影出发，复制沿来源和旧版本能抵达的记录。比如工作分支带了那份摘要，才能沿它查到会员专项。这个分支带走的是材料，也要按自己当前的执行授权办事。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/archive.py#L269" rel="noopener" target="_blank">投影边界</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/archive.py#L465" rel="noopener" target="_blank">分支如何复制来源</a></p>
+</section>
+</section>
+<section class="v2-topic-group" id="authorized-paged-read">
+<header class="v2-group-heading"><h2>找到足够的证据就停</h2></header>
+<section class="design-section" id="character-pagination"><h3>下一页从回包给的位置接上</h3>
+<p>假设正在查专项结果，页长设为 64 个字符。下面单独拿两份检查回包演示分页。真实回查还要找原话与发起调用的消息。<code>ArchiveRead</code> 返回的外层是 JSON，里面的 <code>text</code> 是原文序列化后的字符片段，一条记录可能横跨两页。</p>
+<figure class="reasoning-figure" id="archive-page-join">
+<figcaption>源码推演 · 第一页停在一条回执中间</figcaption>
+<section><h4>请求第 1 页</h4><p><code>{"id":"summary-demo-2","offset":0,"limit":64}</code></p>
+<figure class="ruocun-code" data-language="json">
+<figcaption class="ruocun-code-caption"><span>JSON</span><span>8 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="1"></span><span data-line="2"></span><span data-line="3"></span><span data-line="4"></span><span data-line="5"></span><span data-line="6"></span><span data-line="7"></span><span data-line="8"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-json">{
+  <span class="hljs-attr">"id"</span>: <span class="hljs-string">"summary-demo-2"</span>,
+  <span class="hljs-attr">"scope"</span>: <span class="hljs-string">"main"</span>,
+  <span class="hljs-attr">"kind"</span>: <span class="hljs-string">"summary"</span>,
+  <span class="hljs-attr">"text"</span>: <span class="hljs-string">"[{\"content\":\"检查通过\",\"role\":\"tool\",\"tool_call_id\":\"r-smoke\"},{\"con"</span>,
+  <span class="hljs-attr">"total"</span>: <span class="hljs-number">118</span>,
+  <span class="hljs-attr">"next_offset"</span>: <span class="hljs-number">64</span>
+}</code></pre></div></figure></section>
+</figure>
+<p>第一页出现了 <code>r-smoke</code>，后面只有第二条记录的开头。继续使用同一 ID，<code>offset</code> 填 <code>next_offset</code> 给的 64。第二页读到 <code>r-member</code>，<code>next_offset</code> 是 <code>null</code>，这份示例归档已经读完。要把整份来源读成结构化消息，就按顺序拼完每页的 <code>text</code> 再解析。要回答一个具体问题，找到用户原话和足以核对的专项调用、回包之后，就可以停。这样省下来的窗口留给正在做的任务。如果翻到底仍缺对应调用或结果，就说明手里的记录不足，接着做当下所需的验证。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/archive.py#L367" rel="noopener" target="_blank">原文切片、总字符数和下一页</a></p>
+</section>
+<section class="design-section" id="bound-reader"><h3>归档 ID 在当前执行范围使用</h3>
+<p>模型能填的是 <code>id</code>、从 0 开始的 <code>offset</code> 和范围为 1 至 16,000 的 <code>limit</code>，默认一页 4,096 个字符。执行器给主代理绑定当前会话和主范围，给有此工具的子代理绑定自己的运行范围。没有绑定就拒绝。即使子代理看见了父代理的归档 ID，只有实际继承到它所属范围的记录才读得到。这个设计把读取约束留在工具和存储层，也意味着跨范围协作时要明确交接哪些材料。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/archive_read.py#L13" rel="noopener" target="_blank">ArchiveRead 参数与绑定检查</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/runtime.py#L694" rel="noopener" target="_blank">主会话的绑定</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/run_agent.py#L126" rel="noopener" target="_blank">子执行的绑定</a></p>
+<p>CoreCoder 的会话加载器先规整会话名，再确认解析后的文件仍在会话目录内。它要决定的是能打开哪个会话文件。若存的运行时已选好会话，<code>ArchiveRead</code> 要回答后一步：当前这次执行能从该会话里读到哪些归档。找到原话就有了历史证据；要照着历史材料动手，还要查当前权限。 <a href="https://github.com/he-yufeng/CoreCoder/blob/95db61a7da83e769ad5f138b18b360b32eb955e7/article/06-session-and-cli.md" rel="noopener" target="_blank">CoreCoder 会话存取篇</a></p>
+<div id="compare-bound-reader">
+<p>手里有摘要 ID 时，我会先追它指向的原记录，范围就是写这份摘要实际用到的材料。手里只剩“检查通过”四个字时，<code>ArchiveRead</code> 还缺可读的 ID。启用可选会话查询插件的 DeepSeek Harness，可以用 <code>session_event_search</code> 在有权访问的会话里按字面找候选，再核对候选各自的命令和回包。能从文字起步的代价，是插件启用时每次请求会带上固定的说明和五个工具的定义。 <a href="https://github.com/deepseek-ai/deepseek-harness/blob/ddac96760b6edf8fa0fe17cbdcf0b512f4c12b2c/packages/experimental/tool-session-query/README.zh.md" rel="noopener" target="_blank">DeepSeek Harness 可选会话查询工具</a></p>
+</div>
+</section>
+</section>
+<section class="v2-topic-group" id="article-assessment">
+<header class="v2-group-heading"><h2>有专项回包，还少了什么？</h2></header>
+<section class="design-section" id="article-assessment-1">
+<p>有一份会话仍留着用户对过期会员的要求。第一页找到了 <code>r-member</code> 的“检查通过”，对应命令尚未找到，回包里还有 <code>next_offset</code>。现在能答用户“会员预览通过”吗？</p>
+<details class="answer-box"><summary>检查你的证据</summary><div><p>还要在同一授权范围内找 <code>r-member</code> 对应的命令和能核对的断言范围，比如用它前面的原文页面补齐命令。如果命令跑的是续费入口，现有结果只证明该入口通过。应把会员预览留作待查。如果命令和回包合起来确实覆盖过期会员在预览入口的普通价，就可以停止回查这项历史事实。</p></div></details>
+<p>检验摘要质量也可以用这份底稿。分别让完整历史、仅有摘要和回读原文后的历史回答同一个问题，再拿用户原话、命令和回包核验答案。这样能发现哪些遗漏要靠回查才能补回，也能发现回查后仍缺的证据。</p>
+</section>
+</section>
+<section class="v2-topic-group" id="article-takeaways">
+<header class="v2-group-heading"><h2>这一章带走什么</h2></header>
+<section class="design-section">
+<p>摘要只说“检查通过”，就沿归档 ID 把用户原话和那次测试的证据找回来。启动检查和过期会员预览都可能回一句“通过”。能给当时的会员预览作证的是走过预览入口的那条专项命令，以及同一次调用的结果。</p>
+<p>两份摘要沿不同路径找到同一条原消息，回查时展示一份就够了。启动检查和会员专项实际跑了两次，写出同一句“通过”，归档里也得留着两条回包。</p>
+<p>假如找回的原文是一大段测试日志，下一次请求还要带上它。这时换了工作目录，<a href="prefix-cache.html" rel="noopener" target="_blank">新目录这一句放在日志前面还是后面</a>？</p>
+</section>
+</section>
+<section class="v2-topic-group" id="interview-practice"><header class="v2-group-heading"><h2>面经自测</h2></header>
+<span aria-hidden="true" id="article-interview"></span><span aria-hidden="true" id="intern-interview"></span><span aria-hidden="true" id="harness-interview"></span>
+<section class="design-section interview-exercise" id="interview-opening"><h3 class="interview-prompt">摘要漏掉了用户的一条要求，后面的任务做错了，怎么发现和补救？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/5733bf8605d44262a596ad7ba738e737" rel="noopener" target="_blank">未具名 B 端公司 · 项目面 · 面经原帖</a> · 题意转述</p><details class="answer-box"><summary>展开参考回答</summary><div><p>我会把摘要里的结论和<strong>当时的用户原话、实际命令和回包</strong>逐一对上。少了一条要求，就把受影响的工作列出来补查。</p><p>比如摘要写着“检查通过”，我顺着归档发现只有冒烟测试的输出，就接着找会员用例；没有那次运行记录，会员预览还要重新验证。</p><p class="interview-origin"><a href="#same-text-different-evidence">回看讲解 · 对上用户原话和两次验证</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-1"><h3>父 Agent 交任务给子 Agent 时传哪些上下文？材料太长怎么办？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/3df8a071701941d484e5a01a1b358655?sourceSSR=post" rel="noopener" target="_blank">腾讯 · 一面 · 面经原帖</a> · 题意转述　可回看 <a href="subagents.html" rel="noopener" target="_blank">第 12 章</a> <a href="context-compaction.html" rel="noopener" target="_blank">第 13 章</a> </p><details class="answer-box"><summary>展开参考回答</summary><div><p>先说清<strong>查什么、能看哪些材料、要交回哪条证据</strong>。原始日志很长，就交给它自己有权限打开的记录位置。这样它查到“检查通过”后，还能核对究竟是哪一个用例。</p><p class="interview-origin"><a href="#bound-reader">回看讲解 · 归档 ID 在当前执行范围使用</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-2"><h3>Agent 有查询工具时，怎么防止它读到超出用户权限的数据？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/45b40914f438434b88b60a21e3d5ec1e?sourceSSR=dynamic" rel="noopener" target="_blank">深信服 · 一面 · 面经原帖</a> · 题意转述　可回看 <a href="permission-gates.html" rel="noopener" target="_blank">第 5 章</a> <a href="subagents.html" rel="noopener" target="_blank">第 12 章</a> </p><details class="answer-box"><summary>展开参考回答</summary><div><p>由<strong>程序决定能查谁的记录</strong>。模型可以给出编号，若存仍只在绑定的会话或这次子任务能访问的材料里找。</p><p class="interview-origin"><a href="#bound-reader">回看讲解 · 归档 ID 在当前执行范围使用</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-3"><h3>压缩上下文节省了 token，怎样判断后面的回答质量有没有下降？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/bab2ccabb366403492901c712278329e?sourceSSR=dynamic" rel="noopener" target="_blank">小红书 · 一面 · 面经原帖</a> · 题意转述</p><details class="answer-box"><summary>展开参考回答</summary><div><p>我会拿<strong>同一批依赖旧信息的问题</strong>，分别问压缩前后的 Agent，再按用户原话和实际输出判分。直接答对、回查后才答对、仍然答错，要分开记。</p><p>在若存里，两次测试都写着“检查通过”。我问会员用例实际跑的是哪条命令。压缩后如果拿冒烟测试来作证，这道题的质量就下降了。</p><p class="interview-origin"><a href="#raw-sequence">回看讲解 · 同文的两条回包在归档有各自的位置</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-4"><h3>你能用运行记录还原一次任务实际做了什么吗？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/3df8a071701941d484e5a01a1b358655?sourceSSR=post" rel="noopener" target="_blank">腾讯 · 一面 · 面经原帖</a> · 题意转述</p><details class="answer-box"><summary>展开参考回答</summary><div><p>可以。我用<strong>调用编号</strong>把工具结果配回当时的请求，找出命令和输出。缺少其中一段，就说明哪项还没有证据。</p><p class="interview-origin"><a href="#raw-sequence">回看讲解 · 同文的两条回包在归档有各自的位置</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-5"><h3>两条工具结果都叫“检查通过”，若存为什么把两条都存下来？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>因为<strong>文字相同，测的对象可能不同</strong>。</p><p>若存里一条是冒烟测试，另一条才是会员用例。保留两条各自的原文位置，才有机会证明会员价真的测过。</p><p class="interview-origin"><a href="#raw-sequence">回看讲解 · 同文的两条回包在归档有各自的位置</a></p></div></details></section>
+<section class="design-section interview-exercise" id="interview-review-6"><h3>归档第一页只有冒烟测试，怎么接着找会员用例？什么时候停？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>沿用<strong>同一个归档编号</strong>，按回包给的下一页起点读。找到能核实的命令和结果就停，读到末尾还找不到就说尚未证实。</p><p>若存给的起点叫 next_offset。即使第二页写了“检查通过”，我也要把它配回测会员的那次调用。</p><p class="interview-origin"><a href="#character-pagination">回看讲解 · 下一页从回包给的位置接上</a></p></div></details></section>
+</section>
+<nav aria-label="章末导航" class="course-pagination"><a href="../课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a href="context-compaction.html" rel="prev noopener" target="_blank" title="上下文放不下时，哪些内容还能缩短">上一章</a><a href="prefix-cache.html" rel="next noopener" target="_blank" title="两次请求开头一样，模型服务能复用多少计算">下一章</a></nav></article></main>
+</body>
+</html>

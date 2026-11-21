@@ -1,0 +1,45 @@
+.lesson-paper .reading-comparison {
+  margin: 20px 0 26px;
+  padding: clamp(12px, 2vw, 22px);
+  border: 1px solid #e9ced7;
+  border-radius: 14px;
+  background: #fff9f0;
+  color: #382d42;
+}
+.lesson-paper .reading-comparison figcaption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 10px;
+  color: #563445;
+  font: 600 clamp(16px, 2vw, 20px)/1.45 var(--sans);
+}
+.reading-comparison figcaption img { width: 54px; height: 54px; object-fit: contain; flex: none; }
+.lesson-paper .reading-comparison table {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  table-layout: fixed;
+  border-spacing: 4px;
+  border-collapse: separate;
+  font: 16px/1.5 var(--sans);
+}
+.lesson-paper .reading-comparison :is(th,td) {
+  border: 0;
+  border-radius: 7px;
+  padding: 10px 8px;
+  text-align: left;
+  vertical-align: middle;
+  overflow-wrap: anywhere;
+  color: #382d42;
+}
+.lesson-paper .reading-comparison thead th { background: transparent; font-size: .9em; }
+.lesson-paper .reading-comparison tbody tr:first-child > * { background: #f1e5f6; }
+.lesson-paper .reading-comparison tbody tr:last-child > * { background: #def2e8; }
+.lesson-paper .reading-sample { margin: 18px 0; }
+.lesson-paper .reading-sample img { display: block; max-width: 100%; width: 100%; height: auto; }
+@media (max-width: 540px) {
+  .reading-comparison figcaption img { width: 42px; height: 42px; }
+  .lesson-paper .reading-comparison table { font-size: 14px; border-spacing: 2px; }
+  .lesson-paper .reading-comparison :is(th,td) { padding: 7px 5px; }
+}

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>一次改错，怎样才值得存成下一次能用的经验 · RuoCun 设计学习</title>
+<link href="../assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="../assets/ruocun-code.css" rel="stylesheet"/>
+<link href="../assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="../assets/ruocun-article.css" rel="stylesheet"/>
+<link href="../assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="../assets/ruocun-textbook.js"></script>
+<link href="../assets/reading-diagrams.css" rel="stylesheet"/><link href="../assets/course-reader.css" rel="stylesheet"/><link href="course-illustrations.css" rel="stylesheet"/><link href="article-reading.css" rel="stylesheet"/></head>
+<body class="textbook-read" id="course-reader">
+<a class="textbook-skip" href="#experience-learning">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#experience-learning">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航"><a href="../课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a href="memory-use.html" rel="prev noopener" target="_blank" title="上一次的经验，这次还能照着用吗">上一章</a><a href="skills.html" rel="next noopener" target="_blank" title="什么时候加载 Skill，加载以后谁来做事">下一章</a></nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title"><span class="chapter-number">第 17 章</span><span class="nav-chapter-name">一次改错，怎样才值得存成下一次能用的经验</span></div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc" open="">
+<summary>文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#learning-case">一次回合，两种值得留下的材料</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#learning-evidence">一句“通过”，沿哪条调用查回去？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#learning-source">要给 S2 盖章，就拿 S2 的结果</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#learning-lifecycle">模型整理出了候选，文件已经变了吗？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-assessment">候选已准备好，手工记录先一步落盘</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways">这一章带走什么</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#interview-practice">面经自测</a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper" data-format="article" data-later-probes="true" id="experience-learning"><header class="design-hero"><h1>一次改错，怎样才值得存成下一次能用的经验</h1><p class="target">会员预览刚测通过，验证回包叫 <code>v12</code>。这时 <code>pricing/preview.py</code> 还是第一版。保存经验之前，有人把文件改成了第二版。现在写“这条测试已经验证当前预览”，这句话有哪一半站不住？</p>
+<p>本章沿上一章的会员预览继续推演。用户还说过一句“以后预览和结算分开验”。一次测试只经历过一个版本，用户的约定却可以作为另一种材料留给下次。</p></header>
+<section class="v2-topic-group" id="learning-case"><header class="v2-group-heading"><h2>一次回合，两种值得留下的材料</h2></header>
+<section class="design-section" id="what-to-learn"><span aria-hidden="true" id="what-to-learn-heading"></span>
+<p>把验证时的文件叫 <code>S1</code>，后改的文件叫 <code>S2</code>。这只是两份文件内容的标记。<code>v12</code> 是那条验证回包对应的工具调用编号。想确认“要求是什么”，回去读用户那句话。想确认“某次检查覆盖了哪个版本”，就追这条调用。</p>
+<figure class="course-illustration" data-art="tested-version" data-figure-slot="0" data-generated-by="SVG"><a aria-label="放大查看：后来找回的 v12 成功结果，证明了哪一版？" href="figures/tested-version-engineering.svg" rel="noopener" target="_blank"><img alt="先用 S1 运行测试 v12，随后文件改成 S2。晚些时候找回 v12 的成功结果，蓝线指回 S1。当前 S2 要重新运行价格预览来验证。" decoding="async" loading="lazy" src="figures/tested-version-engineering.svg"/></a><figcaption>沿找回的回包向上，定位它实际验证的版本，再看当前文件需要做什么。</figcaption></figure>
+</section><section class="design-section" id="after-edit-check"><span aria-hidden="true" id="after-edit-check-heading"></span>
+<p><code>v12</code> 过了，至多能为当时的 <code>S1</code> 作证。现在重读文件只会看到 <code>S2</code>；想验证这一版，需要在第二版重新经过预览入口，拿到新的调用和回包。用户说的“分开验”可以保留，写清它适用的项目和动作。连在一句话里的约定与结果，到落盘时得各拿各的证据。</p>
+</section></section>
+<section class="v2-topic-group" id="learning-evidence"><header class="v2-group-heading"><h2>一句“通过”，沿哪条调用查回去？</h2></header>
+<section class="design-section" id="paired-evidence">
+<p>开启受控学习后，程序在回合末挑材料。先找到本轮最后一条真正由用户发出的消息。<a href="model-input.html#runtime-directory-facts" rel="noopener" target="_blank">程序追加的目录信息</a>也可能标为 <code>user</code>，这里会用同一套识别器跳过它。由用户亲口说的“以后分开验”，才有资格成为用户约定的证据。</p>
+<p>回包里同时写着 <code>2 passed</code> 和退出码 0，能拿它当验证材料吗？现有用例专门留了一条这样的回包，历史里却找不到发出它的调用。测试断言这轮材料不足以触发受控学习。查看缺失配对结果的验证用例（项目回归测试）</p><p>再看手头的 <code>v12</code>。先沿调用编号配回原命令，再核对它是不是程序识别的验证命令、是否成功退出。后台命令还要靠运行编号回到实际执行的那一趟。<code>Read</code>、<code>Write</code> 和 <code>Edit</code> 则提供当时用过的文件线索。这样才能把哪份文件、哪条命令和哪次结果交到下一步。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/controlled_learning.py#L139" rel="noopener" target="_blank">查看配对筛选</a></p>
+</section><section class="design-section" id="citation-screen">
+<p>程序把这些原记录编入一个短证据包，让分析模型提议标题、摘要、适用条件和动作。模型还要指出摘自哪条记录，比如 <code>t4</code> 关联刚才那次工具调用。程序逐条核对引用编号和连续原文，拒绝缺出处、超长或疑似含凭据的内容。用户原话只支持相应的用户纠正或项目约定。要写成已验证的技术做法，还需同时引用具体文件和相关验证。模型负责提议，写到哪一层、能不能覆盖旧条目，由代码裁定。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/controlled_learning.py#L285" rel="noopener" target="_blank">查看引文和候选的核对</a></p>
+<p id="quote-without-negation">引用“修改生产配置里的会员折扣开关”，这串字确实能在“请记住，不能修改生产配置里的会员折扣开关”中找到。可把它整理成“应该修改开关”，意思已经反了。连续原文检查能拦错编号和编造摘录，审核动作时还得把前后文一起读出来。</p>
+</section></section>
+<section class="v2-topic-group" id="learning-source"><header class="v2-group-heading"><h2>要给 S2 盖章，就拿 S2 的结果</h2></header>
+<section class="design-section" id="validate-source-version">
+<p><code>v12</code> 的回包能证明检查通过，当时测的是哪份文件还要另找证据。程序在保存该工具批结果后收集此前已见过的项目内文件，计算内容哈希，给每个验证调用编号留一份小快照。它最多记录 16 个文件，单个文件最多读取 256 KiB。即使什么都没捕获到，也留下空快照。等用户改了文件才回来看旧历史，就不能用新读到的字节补写当时的记录。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/controlled_learning.py#L234" rel="noopener" target="_blank">查看来源快照的时点和上限</a></p>
+<p>筛选候选时，程序要求引用的验证发生在相关文件证据和已观察到的相关编辑之后，并检查当前文件是否还能和至少一份被引用的验证快照对上。所以改成 <code>S2</code> 之后，旧 <code>v12</code> 不能为这份候选作证。</p>
+<p>初筛通过时文件可能还在 <code>S1</code>。稍后有人从外面把它改成了 <code>S2</code>，聊天里没有新的 Edit 记录，候选又已经准备发布。假如发布只看笔记的更新时间，刚整理出的“当前预览已验证”够新，就会被写进去。要查它说的是不是当前版本，得再读一遍文件，然后回到 <code>v12</code> 留下的快照。</p>
+<figure class="ruocun-code" data-language="python"><figcaption class="ruocun-code-caption"><span>Python</span><span>源码节选</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="424"></span><span data-line="425"></span><span data-line="426"></span><span data-line="427"></span><span data-line="428"></span><span data-line="429"></span><span data-line="430"></span><span data-line="431"></span><span data-line="432"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        source = memory.get(<span class="hljs-string">"</span><span class="hljs-string">source</span><span class="hljs-string">"</span>)
+        <span class="hljs-keyword">if</span> source != <span class="hljs-string">"</span><span class="hljs-string">user_stated</span><span class="hljs-string">"</span>:
+            <span class="hljs-keyword">if</span> (not <span class="hljs-built_in">isinstance</span>(source, <span class="hljs-built_in">str</span>) or _relative_source(store.cwd, source) != source
+                    or not record.get(<span class="hljs-string">"</span><span class="hljs-string">source_hash</span><span class="hljs-string">"</span>) or <span class="hljs-keyword">await</span> hashMemorySource(store.cwd, source) != record[<span class="hljs-string">"</span><span class="hljs-string">source_hash</span><span class="hljs-string">"</span>]
+                    or not <span class="hljs-built_in">any</span>(snapshot.get(source) == record[<span class="hljs-string">"</span><span class="hljs-string">source_hash</span><span class="hljs-string">"</span>]
+                               <span class="hljs-keyword">for</span> snapshot in record.get(<span class="hljs-string">"</span><span class="hljs-string">validation_sources</span><span class="hljs-string">"</span>, {}).values())):
+                <span class="hljs-keyword">continue</span>
+        <span class="hljs-keyword">elif</span> record.get(<span class="hljs-string">"</span><span class="hljs-string">source_hash</span><span class="hljs-string">"</span>) is not <span class="hljs-keyword">None</span>:
+            <span class="hljs-keyword">continue</span></code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/controlled_learning.py#L424" rel="noopener" target="_blank">controlled_learning.py · 第 424–432 行</a></p>
+<p>候选的 <code>source_hash</code> 还指向 <code>S1</code>。从磁盘算出的版本标记是 <code>S2</code>，分支直接跳过这条候选。把 <code>source_hash</code> 偷换成 <code>S2</code> 也不会补出一份对应快照。<strong>「相关验证结束后记一版，发布前再读一版。」</strong> 这样才能查清今天的文件有没有经历过那次测试。开销是多读文件，碰到无法取版本的技术材料时，也会少积累一些。要存成 <code>S2</code> 已验证的经验，得先让它跑完专项检查，再用新的回包作证。</p>
+
+</section><section class="design-section" id="memory-store-cas">
+<p>用户刚说“以后预览和结算分开验”，旧经验却还说“一条测试两边都够”。先用这次要求做事，再核对旧条目。发布时只写本项目自己的可写自动语义条目。同名的手写、锁定或只读兼容条目会阻止自动覆盖。</p>
+<p>符合合并条件也不能直接写。比如程序准备更新时，拿到同名自动条目的第三版。等它取得写锁，另一份修改已经把第三版换成第四版。写入方会在锁内重新读取并核对刚才的快照，发现版本已变就放弃这次更新。这次比对保护的是从<strong>准备写入</strong>到<strong>实际写入</strong>之间的变化；来源文件能否作证则由前面的快照检查负责。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/memory/store.py#L322" rel="noopener" target="_blank">查看比较已有记录后才发布</a></p>
+</section></section>
+<section class="v2-topic-group" id="learning-lifecycle"><header class="v2-group-heading"><h2>模型整理出了候选，文件已经变了吗？</h2></header>
+<section class="design-section" id="bounded-analysis">
+<p>命令行默认关闭受控学习。交互模式显式开启后，当前回合正常完成、并且找到可用证据才会安排分析。一趟启动最多 6 次，每次分析的提示与证据合计最多 12000 字符，输出上限 1024 token，关闭工具与重试。一次最多接纳两条，每条最多 1800 字符。这个额外模型请求也计入用量。反思请求失败或未取到用量时，会暂停这一启动中的后续自动学习，任务本身仍可继续。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/controlled_learning.py#L355" rel="noopener" target="_blank">查看分析的请求边界</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/reflection_runtime.py#L129" rel="noopener" target="_blank">查看次数和停止条件</a></p>
+<p>独立任务即使已经算出了结果，发布时也得确认它还属于这次有效的回合。比如分析跟着第 12 代回合启动，用户暂停后结果才到。程序会丢掉这次结果，代价是那笔已经发出的分析调用，保住的是用户暂停时原有的记忆。取消、退出和<a href="interactive-control.html#interactive-generation-1" rel="noopener" target="_blank">回合代号变化</a>都会影响这个决定，写入前还会再检查一次。已有测试先发出暂停信号并让代号失效，再让分析返回，断言状态是 <code>skipped</code>，结果没有保存，写入列表也为空。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/tests/test_controlled_learning_runtime.py#L107" rel="noopener" target="_blank">查看暂停后收到结果的断言</a></p>
+</section><section class="design-section" id="learning-write-intent">
+<p>分析成功返回时，状态先记作 <code>ready</code>。这表示候选已备好，记忆文件还没动。等准备实际写入，程序为同一分析编号保存 <code>ReflectMemory</code> 的执行意图，拿到确认后才执行；随后再记真实写入结果。</p>
+<figure class="ruocun-code" data-language="python"><figcaption class="ruocun-code-caption"><span>Python</span><span>源码节选</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="101"></span><span data-line="102"></span><span data-line="103"></span><span data-line="104"></span><span data-line="105"></span><span data-line="106"></span><span data-line="107"></span><span data-line="108"></span><span data-line="109"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">                cached = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.conversation.scoped_intent(
+                    ref, <span class="hljs-string">"</span><span class="hljs-string">ReflectMemory</span><span class="hljs-string">"</span>, args, <span class="hljs-keyword">True</span>, agent_run=RunRef(<span class="hljs-string">"</span><span class="hljs-string">reflect</span><span class="hljs-string">"</span>, identity),
+                    approval_ref=<span class="hljs-string">"</span><span class="hljs-string">controlled-memory-learning-enabled</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> <span class="hljs-built_in">self</span>.controlled <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">reflect-memory-enabled</span><span class="hljs-string">"</span>)
+                <span class="hljs-keyword">if</span> cached is <span class="hljs-keyword">None</span>:
+                    <span class="hljs-comment"># 修改任何记忆文件前，先取得执行意图的持久化确认。</span>
+                    applied = <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.apply(result)
+                    <span class="hljs-keyword">await</span> <span class="hljs-built_in">self</span>.conversation.scoped_result(ref, json.dumps(applied, ensure_ascii=<span class="hljs-keyword">False</span>))
+                <span class="hljs-keyword">else</span>:
+                    applied = json.loads(cached) <span class="hljs-keyword">if</span> <span class="hljs-built_in">isinstance</span>(cached, <span class="hljs-built_in">str</span>) <span class="hljs-keyword">else</span> cached</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/reflection_runtime.py#L101" rel="noopener" target="_blank">reflection_runtime.py · 第 101–109 行</a></p>
+<p><code>scoped_intent</code> 如果已交回这次操作的结果，程序就从收据还原 <code>applied</code>。看到 <code>applied</code> 时，可以沿收据查这次实际新增或更新了什么。要是只留下一份执行意图，写入结果无从确认，就按<a href="durable-execution.html" rel="noopener" target="_blank">原操作的记录</a>核实，不能因为模型随时能重做分析，就换个编号再写一遍。</p>
+<p>这里能验的是候选怎样留下、受控写入怎样确认。要衡量学到了没有，还得换一组可比较的同类任务，数一数旧错重现几次，额外分析花了多少。<a href="completion-evidence.html" rel="noopener" target="_blank">结课篇</a>再讲怎样读这种对照。</p>
+</section></section>
+<section class="v2-topic-group" id="article-assessment"><header class="v2-group-heading"><h2>候选已准备好，手工记录先一步落盘</h2></header>
+<section class="design-section" id="article-assessment-1">
+<p>新版 <code>S2</code> 重新跑过了预览断言，候选的文件版本也对得上。模型整理候选时，用户手工存了一条同名经验，条件写成“只查会员预览”。此时进程还没登记 <code>ReflectMemory</code> 的写入意图。重开会话后读到 <code>ready</code>，该从哪两份记录查起？</p>
+<details><summary>核对判断</summary><p>核对同名条目的实际归属与内容。验证过 <code>S2</code> 只能给候选作证，手写同名条目仍会拦住自动覆盖。再沿原分析编号查看写入意图和结果。<code>ready</code> 说明候选已保存，现场还缺真正写入的收据，不能据此称经验已经更新。</p></details>
+</section></section>
+<section class="v2-topic-group" id="article-takeaways"><header class="v2-group-heading"><h2>这一章带走什么</h2></header>
+<div class="design-section"><ul>
+<li>用户说“以后分开验”，这句话就能支持一条约定。要写“这个命令已经测到预览”，就去找当时的命令、配对回包和文件版本。</li>
+<li>通过回包只替实际测过的版本作证。准备写经验时再读一遍它引用的文件，对话一字没变，也能发现磁盘上的预览代码已经换版。</li>
+<li>经验有没有写进去，沿原编号找写入收据。收据对得上，就沿用原结果。只找到写入意图，先核实原来那次写入。</li>
+</ul></div>
+</section><section class="v2-topic-group" id="interview-practice"><span aria-hidden="true" id="article-interview"></span><header class="v2-group-heading"><h2>面经自测</h2></header><section class="design-section interview-exercise" id="interview-opening"><h3 class="interview-prompt">怎样从聊天记录中提取值得长期保存的信息？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/discuss/952128712667901952" rel="noopener" target="_blank">未具名半导体公司 · AI 相关岗位 · 面经原帖</a> · 题意转述</p><details class="answer-box"><summary>展开参考回答</summary><div><p>我先分清<strong>谁提出了这个要求、哪条记录能证明这个做法</strong>。能在以后复用，又能说清适用条件的内容，才值得写进长期记忆。</p><p>若存可以引用用户说的“预览和结算分开验”。若还想记“这个命令已经测到预览”，就得配上当时的命令、结果和文件版本。</p><p class="interview-origin"><a href="#paired-evidence">回看讲解</a></p></div></details></section><span aria-hidden="true" id="intern-learning"></span><span aria-hidden="true" id="harness-learning"></span><section class="design-section interview-exercise" id="interview-review-1"><h3>长期记忆和用户刚说的新要求冲突时，怎么避免旧记忆盖过新要求？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/c325a58591c44b42919f2a4984ed12b8" rel="noopener" target="_blank">科大讯飞 · 一面 · 面经原帖</a> · 题意转述　可回看 <a href="model-input.html" rel="noopener" target="_blank">第 2 章</a> <a href="memory-use.html" rel="noopener" target="_blank">第 16 章</a> </p><details class="answer-box"><summary>展开参考回答</summary><div><p>先按<strong>用户这次明确说的要求</strong>做，然后核对旧记录的适用条件和版本。手工写的或已锁定的记录，要保留其归属，不能顺手覆盖。</p><p class="interview-origin"><a href="#memory-store-cas">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-2"><h3>摘要把“不能修改生产配置”写成了“修改生产配置”，还进了长期记忆。怎么发现，又怎样预防？</h3><p class="interview-origin"><a href="https://api-cdn.nowcoder.com/feed/main/detail/d9d6a1ea1adc41b4a44ca47b535e9994?sourceSSR=dynamic" rel="noopener" target="_blank">蚂蚁集团 · 技术面 · 面经原帖</a> · 题意转述　可回看 <a href="context-compaction.html" rel="noopener" target="_blank">第 13 章</a> <a href="archive-retrieval.html" rel="noopener" target="_blank">第 14 章</a> <a href="memory-use.html" rel="noopener" target="_blank">第 16 章</a> </p><details class="answer-box"><summary>展开参考回答</summary><div><p>我会<strong>带着引文回到用户整句话</strong>。建议让人改生产配置，原话里却有个“不能”，先停用这条建议，核对哪些操作受到影响。</p><p>预防时既要让每条建议附上能查回的原句，也要核对建议和整句的意思。程序能检查摘录确实出现在合格来源里，可一句话截掉“不”之后，剩下的字照样可能逐字对得上。</p><p class="interview-origin"><a href="#citation-screen">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-3"><h3>测试通过后文件又改了一次，这条成功经验应当绑定哪一版？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>绑定<strong>跑出那份结果时的文件版本</strong>。</p><p>若存按验证调用编号保存当时的来源。等模型整理经验时再去读，可能把后来的 S2 错写成旧测试已经验证过的版本。</p><p class="interview-origin"><a href="#validate-source-version">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-4"><h3>一条消息标着 user，为什么若存还要查它是不是用户亲口说的？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>因为程序也可能借这个角色记录<strong>运行时的目录事实</strong>。</p><p>目录切换快照可以告诉若存下一次去哪读文件，却不能被自动记成“用户长期偏好这个目录”。</p><p class="interview-origin"><a href="#paired-evidence">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-5"><h3>模型在整理经验的这段时间，有人手改了同名条目，自动更新怎么办？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>写入前再核对<strong>准备更新时看到的旧版本</strong>。</p><p>若存发现会员规则被人改过，便保留现有记录。否则一份按旧内容生成的建议会盖掉刚做的纠正。</p><p class="interview-origin"><a href="#memory-store-cas">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-6"><h3>为什么若存有了自动学习，也不让每次分析无限追问和调用工具？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>把分析限定为<strong>根据已有证据提候选</strong>，才容易控制花费和来源。</p><p>若存显式启用这条路径后，分析请求有次数和长度限制，也不给它工具。缺会员用例的证据就不能靠猜来补。</p><p class="interview-origin"><a href="#bounded-analysis">回看讲解</a></p></div></details></section></section>
+<nav aria-label="章末导航" class="course-pagination"><a href="../课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a href="memory-use.html" rel="prev noopener" target="_blank" title="上一次的经验，这次还能照着用吗">上一章</a><a href="skills.html" rel="next noopener" target="_blank" title="什么时候加载 Skill，加载以后谁来做事">下一章</a></nav></article></main>
+</body>
+</html>

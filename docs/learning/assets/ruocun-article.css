@@ -8,6 +8,12 @@
 .design-section td p { margin: 0; }
 .design-section .table-scroll { overflow-x: auto; margin: 24px 0; }
 .table-scroll table { margin: 0; min-width: 540px; }
+.harness-comparison details { margin-block: 18px; }
+.harness-comparison summary { cursor: pointer; color: var(--blue); }
+.harness-comparison .table-scroll { margin-block: 14px; }
+.harness-comparison .table-scroll table { width: max-content; min-width: 100%; font-variant-numeric: tabular-nums; }
+.harness-comparison .table-scroll :is(th, td) { white-space: nowrap; padding: 8px 10px; }
+.harness-comparison .table-scroll tr > :nth-child(n+3) { text-align: right; }
 .ruocun-code .hljs-addition { color: var(--blue); background: var(--blue-soft); }
 .ruocun-code .hljs-deletion { color: var(--amber); background: var(--amber-soft); }
 .source-label code { background: transparent; padding: 0; color: inherit; }
@@ -22,6 +28,11 @@
 .design-source a:hover { color: var(--blue); }
 .pilot-takeaways { list-style: disc; padding-left: 1.45em; }
 .pilot-takeaways li { margin: 14px 0; padding: 0; border: 0; }
+.interview-opening { border-left: 3px solid var(--blue); padding: 2px 0 2px 16px; margin: 22px 0 18px; }
+.lesson-paper .interview-prompt { font-weight: 650; line-height: 1.65; margin: 0; }
+.lesson-paper .interview-origin { font: 14px/1.7 var(--sans); color: var(--muted); margin: 5px 0; }
+.interview-origin a { color: var(--blue); }
+.interview-exercise .answer-box { margin-top: 10px; }
 @media(max-width:540px) {
   .design-section table { font-size: 14px; }
   .design-section th,.design-section td { padding: 10px 12px; }

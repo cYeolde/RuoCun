@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:lang="zh-CN" role="img" aria-labelledby="title desc" viewBox="0 0 1080 335" width="1080" height="335">
+  <title id="title">Post 的回执存到一半停了，重开能确认什么？</title>
+  <desc id="desc">Write 先保存 w7 的成功结果，重开可确认报告已写入。此后 Post 尝试记录日志，保存自己的回执时中断。重开时日志是否已记录仍要核对。</desc>
+  <defs>
+    <marker id="gray-arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L8 4 L1 7" fill="none" stroke="#57606a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="blue-arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L8 4 L1 7" fill="none" stroke="#0969da" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="amber-arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L8 4 L1 7" fill="none" stroke="#8a4b08" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <style>
+      text { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif; fill:#1f2328; font-size:22px; }
+      .label { font-weight:600; }
+      .small { font-size:20px; fill:#57606a; }
+      .head { font-size:20px; font-weight:600; fill:#57606a; }
+      .mono, .mono-blue, .mono-small { font-family: "Cascadia Code", Consolas, "Microsoft YaHei", monospace; }
+      .mono-small { font-size:20px; }
+      .mono-blue, .blue-text { fill:#0969da; font-weight:600; }
+      .amber-text { fill:#8a4b08; font-weight:600; }
+      .plain { fill:#fff; stroke:#d0d7de; }
+      .soft { fill:#f6f8fa; stroke:#d0d7de; }
+      .blue { fill:#edf6ff; stroke:#0969da; }
+      .amber { fill:#fff7e6; stroke:#b0804f; }
+      .plain, .soft, .blue, .amber { stroke-width:1.5; }
+      .line-gray, .line-blue, .line-amber, .line-muted { fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+      .line-gray { stroke:#57606a; }
+      .line-blue { stroke:#0969da; }
+      .line-amber { stroke:#8a4b08; }
+      .line-muted { stroke:#d0d7de; }
+    </style>
+  </defs>
+  <rect width="1080" height="335" fill="#fff"/>
+  <text x="28" y="37" text-anchor="start" class="head">先完成写入</text>
+  <rect x="28" y="57" width="228" height="80" rx="8" class="soft"/>
+  <text x="142.0" y="91.0" text-anchor="middle" class="mono">Write</text>
+  <text x="142.0" y="123.0" text-anchor="middle" class="small">写报告</text>
+  <rect x="323" y="57" width="265" height="80" rx="8" class="blue"/>
+  <text x="455.5" y="91.0" text-anchor="middle" class="label">保存 w7 的结果</text>
+  <text x="455.5" y="123.0" text-anchor="middle" class="blue-text">报告已写入</text>
+  <path d="M256 97 H323" class="line-blue" marker-end="url(#blue-arrow)"/>
+  <path d="M588 97 H811" class="line-blue" marker-end="url(#blue-arrow)"/>
+  <rect x="811" y="57" width="241" height="80" rx="8" class="blue"/>
+  <text x="931.5" y="91.0" text-anchor="middle" class="label">重开会话</text>
+  <text x="931.5" y="123.0" text-anchor="middle" class="small">写入已有凭据</text>
+  <text x="28" y="225" text-anchor="start" class="head">随后运行 Post</text>
+  <path d="M455 137 V202 H256 V232" class="line-gray" marker-end="url(#gray-arrow)"/>
+  <text x="304" y="185" text-anchor="start" class="small">写入结果保存后启动</text>
+  <rect x="28" y="232" width="228" height="80" rx="8" class="soft"/>
+  <text x="142.0" y="266.0" text-anchor="middle" class="mono">Post</text>
+  <text x="142.0" y="298.0" text-anchor="middle" class="small">尝试记录日志</text>
+  <path d="M256 272 H323" class="line-gray" marker-end="url(#gray-arrow)"/>
+  <rect x="323" y="232" width="265" height="80" rx="8" class="amber"/>
+  <text x="455.5" y="266.0" text-anchor="middle" class="label">Post 的独立回执</text>
+  <text x="455.5" y="298.0" text-anchor="middle" class="amber-text">保存期间中断</text>
+  <path d="M588 272 H811" class="line-amber" marker-end="url(#amber-arrow)" stroke-dasharray="6 5"/>
+  <rect x="811" y="232" width="241" height="80" rx="8" class="amber"/>
+  <text x="931.5" y="266.0" text-anchor="middle" class="label">重开会话</text>
+  <text x="931.5" y="298.0" text-anchor="middle" class="amber-text">日志待核对</text>
+</svg>

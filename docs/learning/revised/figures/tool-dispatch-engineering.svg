@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 300" role="img" aria-labelledby="title description" xml:lang="zh-CN">
+<title>谁决定要读文件，谁真正去打开文件？</title>
+<desc>模型只提出 Read 与参数。程序用名称找到注册项并检查必填字段 path。给错 file 会在参数校验处返回缺少 path。通过校验且允许访问时，才会由本地处理器 _read 打开文件。</desc>
+<defs><style>text { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif; } text.mono { font-family: "Cascadia Code", Consolas, monospace; }</style>
+<marker id="gray" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="m1 1 6 3-6 3" fill="none" stroke="#7d8895" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></marker>
+<marker id="blue" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="m1 1 6 3-6 3" fill="none" stroke="#0969da" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></marker>
+<marker id="amber" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="m1 1 6 3-6 3" fill="none" stroke="#8a4b08" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></marker>
+</defs>
+<rect width="1100" height="300" fill="#fff"/>
+<path d="M284 42 L284 263" stroke="#dce1e7" fill="none" stroke-dasharray="5 5"/>
+<path d="M245 121H312" fill="none" stroke="#7d8895" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" marker-end="url(#gray)"/>
+<path d="M528 121H583" fill="none" stroke="#7d8895" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" marker-end="url(#gray)"/>
+<path d="M774 121H848" fill="none" stroke="#0969da" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" marker-end="url(#blue)"/>
+<path d="M681 153V196" fill="none" stroke="#8a4b08" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" marker-end="url(#amber)"/>
+<text x="148" y="34" text-anchor="middle" font-size="19" fill="#57606a">模型</text>
+<text x="692" y="34" text-anchor="middle" font-size="19" fill="#57606a">本地程序</text>
+<rect x="31" y="86" width="214" height="70" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="138.0" y="117.0" text-anchor="middle" font-size="22" fill="#1f2328" class="mono">Read</text>
+<text x="138.0" y="144.0" text-anchor="middle" font-size="18" fill="#57606a">交来工具名和参数</text>
+<rect x="318" y="86" width="210" height="70" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="423.0" y="117.0" text-anchor="middle" font-size="22" fill="#1f2328" font-weight="600">按工具名找注册项</text>
+<text x="423.0" y="144.0" text-anchor="middle" font-size="18" fill="#57606a">读取接口说明</text>
+<rect x="590" y="86" width="184" height="70" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="682.0" y="117.0" text-anchor="middle" font-size="22" fill="#1f2328" font-weight="600">核对参数</text>
+<text x="682.0" y="144.0" text-anchor="middle" font-size="18" fill="#57606a">必须提供 path</text>
+<rect x="855" y="86" width="213" height="70" rx="6" fill="#edf6ff" stroke="#91bce6"/>
+<text x="961.5" y="117.0" text-anchor="middle" font-size="22" fill="#0969da" class="mono">_read</text>
+<text x="961.5" y="144.0" text-anchor="middle" font-size="18" fill="#57606a">打开磁盘文件</text>
+<text x="808" y="105" text-anchor="middle" font-size="17" fill="#0969da">获准</text>
+<text x="691" y="181" text-anchor="start" font-size="18" fill="#8a4b08">给了 file</text>
+<rect x="590" y="202" width="184" height="58" rx="6" fill="#fff7e6" stroke="#dfb374"/>
+<text x="682.0" y="238.48" text-anchor="middle" font-size="22" fill="#8a4b08" font-weight="600">缺少 path</text>
+</svg>

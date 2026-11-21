@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>模型回答到一半断了，怎样继续？ · Agent 设计学习</title>
+<link href="../assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="../assets/ruocun-code.css" rel="stylesheet"/>
+<link href="../assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="../assets/ruocun-article.css" rel="stylesheet"/>
+<link href="../assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="../assets/ruocun-textbook.js"></script>
+<link href="middle-figures.css" rel="stylesheet"/><link href="../assets/course-reader.css" rel="stylesheet"/><link href="course-illustrations.css" rel="stylesheet"/><link href="article-reading.css" rel="stylesheet"/></head>
+<body class="textbook-read" id="course-reader">
+<a class="textbook-skip" href="#request-recovery">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#request-recovery">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航"><a href="../课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a href="model-protocol.html" rel="prev noopener" target="_blank" title="工具参数分段到达，什么时候能执行？">上一章</a><a href="durable-execution.html" rel="next noopener" target="_blank" title="任务可能已经提交，确认丢了怎么办？">下一章</a></nav>
+</div>
+</header>
+<main class="reading-layout"><aside class="reading-nav"><div class="textbook-nav-title"><span class="chapter-number">第 7 章</span><span class="nav-chapter-name">模型回答到一半断了，怎样继续？</span></div><p class="textbook-nav-caption">文章目录</p><details class="v2-course-toc"><summary>文章目录</summary><nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#request-start">同一个断点，前后各差一句话</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#request-transport-1">一次请求什么时候算有产出？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#request-session-1">暂时拥堵可以等，装不下要换一份输入</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#request-empty-1">连接正常结束，内容仍可能是空的</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-assessment">终端没有字，要从哪里查？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways">这一章带走什么</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#interview-practice">面经自测</a></li></ol></nav></details></aside><article class="lesson-paper v2-paper pilot-paper" data-format="article" id="request-recovery"><header class="design-hero"><h1>模型回答到一半断了，怎样继续？</h1><p class="target">你让若存提交一次价格回归测试。终端刚打出“我先提交价格测试”，连接就断了，测试还没启动。这半句还留在屏幕上，程序该直接重发吗？把断线往前挪到终端打字之前，答案又会怎么变？</p></header>
+<section class="v2-topic-group" id="request-start"><header class="v2-group-heading"><h2>同一个断点，前后各差一句话</h2></header>
+<div class="design-section">
+<section class="design-section" id="one-cut-two-scenes"><span aria-hidden="true" id="one-cut-two-scenes-title"></span>
+<p>把断点放在半个 SSE 事件上，字节还留在缓冲区。往后推一点，屏幕已经显示“我先提交价格测试”，后面只到了半份工具参数。下面按源码推演这两个时点。</p><figure class="course-illustration" data-art="stream-interruption" data-figure-slot="0" data-generated-by="SVG"><a aria-label="放大查看：两次流式断线的区别在哪里？" href="figures/stream-interruption-engineering.svg" rel="noopener" target="_blank"><img alt="半个 SSE 事件断线时字节仍在缓冲区，屏幕尚无文字。文字已显示后断线时，屏幕保留“我先提交价格测试”，后续半份参数还在缓冲区。这两个推演现场均未启动工具。" decoding="async" loading="lazy" src="figures/stream-interruption-engineering.svg"/></a><figcaption>比对屏幕一列。两个断点，一个留下了可见文字，另一个留下了什么？</figcaption></figure>
+</section>
+</div>
+</section>
+<section class="v2-topic-group" id="request-transport-1"><header class="v2-group-heading"><h2>一次请求什么时候算有产出？</h2></header>
+<div class="design-section">
+<span aria-hidden="true" id="request-empty-2"></span><section class="design-section" id="useful-output"><span aria-hidden="true" id="useful-output-title"></span>
+<p>断线时，客户端手里有一张 <code>deltas</code> 列表，存的是已解析出来、可以交给上层的增量。第一遍的半个事件还拼不出来，列表为空。第二遍的文字已在列表里。客户端在捕获断线时，用这张列表决定交回什么。</p><p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/client/client.py#L441" rel="noopener" target="_blank">client.py · 断流时返回部分结果或报告产出前失败</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>5 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="441"></span><span data-line="442"></span><span data-line="443"></span><span data-line="444"></span><span data-line="445"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    <span class="hljs-keyword">except</span> StreamDisconnected:
+        <span class="hljs-keyword">if</span> deltas:
+            status = <span class="hljs-string">"partial"</span>  <span class="hljs-comment"># 返回已累积的内容，并标记为部分结果。</span>
+        <span class="hljs-keyword">else</span>:
+            <span class="hljs-keyword">raise</span> StreamError(<span class="hljs-string">"SSE 中途断流且尚无产出"</span>) <span class="hljs-keyword">from</span> <span class="hljs-literal">None</span></code></pre></div></figure><p>第一遍走到 <code>StreamError</code>。传输层把这次断线判为可恢复，次数还有余量时，就记下 <code>outcome="retry"</code>，稍等再发同一份消息和工具说明。这是再问模型一次，它有机会重新决定怎么回答。</p><p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/client/resilient.py#L397" rel="noopener" target="_blank">resilient.py · 产出前的断流可恢复</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/client/resilient.py#L783" rel="noopener" target="_blank">重试条件和尝试记录</a></p>
+<p>第二遍返回 <code>partial</code>，正文还是“我先提交价格测试”。主循环把这段正文写进会话并保存，以 <code>failed</code> 结束回合，报告“模型回答未完成，工具未执行。”假如程序这时再问一遍，模型可能改从“我先检查测试入口”说起。把原来的半句话连同中断结果留下，用户就知道刚刚那次请求停在哪里。</p><p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L348" rel="noopener" target="_blank">loop.py · 保存已有正文，结束本轮</a></p>
+</section><section class="design-section" id="retry-what"><span aria-hidden="true" id="retry-what-title"></span>
+<p>边界卡在客户端已经交出的内容上。终端还没字时，<code>deltas</code> 也可能已有一条 <code>reasoning</code>（推理）或 <code>tool_call</code>（工具调用提示）。这两类都算产出。仍在缓冲里的参数和单独的用量回包不会增加这张列表。工具提示只说明模型开始提出调用，测试是否启动还得查执行器。</p><p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/client/resilient.py#L371" rel="noopener" target="_blank">resilient.py · 依据有效增量判断产出</a></p><p>既有测试让客户端收到 <code>part</code> 后断线，即使配置了两次重试机会，仍断言只发送了一次，原文字留下，状态是 <code>partial</code>。另一组只收到调用编号或半个参数，尚未交出有效增量，断言发出第二次请求并拿到 <code>recovered</code>。 <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/tests/test_resilient_retry.py#L216" rel="noopener" target="_blank">保留部分产出的用例</a> · 仅接到片段的用例（项目回归测试）</p>
+</section><section class="design-section" id="late-fragment"><h3 id="late-fragment-title">旧回调晚一步，还能打字吗？</h3>
+<p>沿用刚才的断线现场。假设旧请求有一段已经收到、排队待显示的文字“，先核对普通价”，把这次显示挪到下一次请求开始后。它若照常写进终端，新回答就会接上旧请求的后半句。接收时核对过请求身份，为什么显示前还要查一次？</p>
+<p>主循环给每次外层模型请求新建一个接收对象，将它设为 <code>active_request</code>。回调自己记着收到增量时的对象 <code>current</code>。接收时查一次，排队后的 <code>deliver</code> 真要向界面投递时再查一次。</p><p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L291" rel="noopener" target="_blank">loop.py · 设置接收对象与投递前复查</a></p><figure class="ruocun-code" data-language="python">
+<figcaption class="ruocun-code-caption"><span>Python</span><span>4 行</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="303"></span><span data-line="304"></span><span data-line="305"></span><span data-line="306"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">            <span class="hljs-keyword">def</span> <span class="hljs-title">deliver</span>() -&gt; <span class="hljs-literal">None</span>:
+                <span class="hljs-keyword">if</span> (active_request <span class="hljs-keyword">is</span> current <span class="hljs-keyword">and not</span> ctx.signal.is_set()
+                        <span class="hljs-keyword">and</span> (events.accepts_delta <span class="hljs-keyword">is</span> <span class="hljs-literal">None</span> <span class="hljs-keyword">or</span> events.accepts_delta())):
+                    on_delta(value)</code></pre></div></figure>
+<p>流退出时，客户端会关闭支持 <code>close()</code> 的迭代器。已经排进事件循环的回调还要靠这道检查。旧请求结束时，它所在回合的 <code>active_request</code> 已清空。即使是同一回合紧接着发下一次请求，那里也会换成新的对象。旧回调仍拿着原来的对象，第一项判断就为假，终端因此跳过这段旧文字。</p><p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/client/client.py#L446" rel="noopener" target="_blank">client.py · 退出时关闭流迭代器</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L323" rel="noopener" target="_blank">loop.py · 清空当前接收对象</a></p>
+</section>
+</div>
+</section>
+<section class="v2-topic-group" id="request-session-1"><header class="v2-group-heading"><h2>暂时拥堵可以等，装不下要换一份输入</h2></header>
+<div class="design-section">
+<span aria-hidden="true" id="request-transport-2"></span><span aria-hidden="true" id="request-session"></span><section class="design-section" id="wait-or-stop"><span aria-hidden="true" id="wait-or-stop-title"></span>
+<p>这次还没收到有效内容，价格测试也没开始。假如服务返回 <code>429</code>，并说三秒之后再试，可以给服务留出这段时间，再用原来的问题和工具清单问一遍。这个建议放在 <code>Retry-After: 3</code> 里。还有流式重试机会时，若存会按建议等 3 秒，采纳的等待建议最多 120 秒。普通的可恢复断线没有这个建议，程序会逐次增加等待并加一点随机延迟。把同一次产出前的限流交给 CoreCoder。如果创建流时抛出限流错误，<code>_call_with_retry</code> 用当前的尝试次数算等待时间。两边此刻都有原请求和限流错误，区别在于下一次什么时候发：若存看这次服务给的时间，CoreCoder 这段代码看已试过几次。</p><p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/client/resilient.py#L120" rel="noopener" target="_blank">resilient.py · 等待建议的解析和上限</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/client/resilient.py#L783" rel="noopener" target="_blank">等待、重试和非流式兜底</a> · <a href="https://github.com/he-yufeng/CoreCoder/blob/main/article/03-llm-and-cost.md" rel="noopener" target="_blank">CoreCoder · provider 抽风了，自己扛</a></p>
+<span aria-hidden="true" id="recover-account-or-frequency"></span><span aria-hidden="true" id="recover-account-or-frequency-2"></span><p>现在把这个 <code>429</code> 的有效等待建议去掉。传输层交回错误，前台主代理在尚无有效产出时可以进入会话限流恢复。能询问用户时，会给出等待、停止，以及可用的其他已配置账号。选择等待，默认依次等 5 秒、10 秒，之后每次加 5 秒，单次最多 30 秒。默认最多等 5 次，适用于已经走到这条会话恢复分支、又没有人工选择器的情况。</p>
+<p><code>429</code> 要结合服务错误码、等待建议和账号用量来判断。如果确认当月额度耗尽，等 5 秒也得不到新的额度。用户可以先停下，或选另一个已配置账号。菜单里列的是可选配置。成功切换后，还要看那个账号的额度或实际请求结果。</p><p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/client/resilient.py#L397" rel="noopener" target="_blank">resilient.py · 缺少有效等待建议时交回 429</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L368" rel="noopener" target="_blank">loop.py · 前台主代理进入会话恢复</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/model_recovery.py#L60" rel="noopener" target="_blank">model_recovery.py · 询问、切换账号和限流等待</a></p>
+<p>把服务报错换回可恢复的断流，仍然没有任何有效产出。传输层用完流式重试后，符合兜底条件时还能改用一次非流式请求。前台主代理遇到依然未产出的断线或过载，才可能由会话额外重问一次。这几次都还在问同一份输入。</p><p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/client/resilient.py#L798" rel="noopener" target="_blank">resilient.py · 流式重试用完后尝试非流式</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/model_recovery.py#L99" rel="noopener" target="_blank">model_recovery.py · 会话额外重问的次数</a></p>
+</section><section class="design-section" id="change-the-input"><span aria-hidden="true" id="change-the-input-title"></span>
+<p>非流式兜底和延时重问都保留原输入。若服务拒绝的是输入太长，等 3 秒再发，旧日志仍一个字也没少。如果让传输层直接删一条日志，它手里虽然有发出去的请求，却没有决定保留哪些会话材料的压缩规则。主循环有原会话，才能按工具调用与回包的配对关系重组输入。已有的部分回答先收尾。还没产出且启用了压缩时，主循环才尝试缩短输入，再用更新后的请求问模型。压缩失败就保留原文并停止。<a href="context-compaction.html#shrink-tool-text" rel="noopener" target="_blank">上下文压缩</a>会具体解释怎样处置旧日志。</p><p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L348" rel="noopener" target="_blank">loop.py · 先收尾部分结果，再判断是否压缩</a></p>
+</section>
+</div>
+</section>
+<section class="v2-topic-group" id="request-empty-1"><header class="v2-group-heading"><h2>连接正常结束，内容仍可能是空的</h2></header>
+<div class="design-section">
+<span aria-hidden="true" id="request-empty"></span><section class="design-section" id="empty-or-final"><span aria-hidden="true" id="empty-or-final-title"></span>
+<p>这次连接从头到尾畅通。客户端交回 <code>complete</code>，打开这份回复却只有空白或结束原因。主循环检查正文和工具调用，两样都没有，就把空答次数加一，再给模型有限次补救机会。始终拿不到可用内容，就保存并以“模型连续返回空回答，已停止本轮。”结束。</p>
+<p>如果完整回复的结束原因是 <code>length</code>，而正文和工具调用都为空，客户端还会通知主循环这次是空截断。模型可能把输出预算用在了思考上。若存会加一条提示让模型收敛，降低推理强度并调整下次的输出上限。</p><p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/client/client.py#L451" rel="noopener" target="_blank">client.py · 空截断需由完整响应确认</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L392" rel="noopener" target="_blank">loop.py · 空回答独立计数</a></p>
+</section><section class="design-section" id="prove-progress"><span aria-hidden="true" id="prove-progress-title"></span>
+<p>若完整回复里已经有一个测试调用，主循环可以把它送到参数与权限检查。此时如果用户按下取消，响应收尾处的取消检查会保存手上已有的正文，在派发前结束本轮。要确认测试是否已经启动，得去查执行器有没有接单。</p><p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/loop.py#L341" rel="noopener" target="_blank">loop.py · 取消时保存已有正文，结束本轮</a></p>
+</section>
+</div>
+</section>
+<section class="v2-topic-group" id="article-assessment"><header class="v2-group-heading"><h2>终端没有字，要从哪里查？</h2></header>
+<div class="design-section">
+<p>终端没有显示正文，诊断记录却有一条 <code>tool_call</code> 增量，随后连接断开。有人准备直接重发，理由是“用户什么也没看见”。你怎么核对？</p>
+<details><summary>核对判断</summary><p>先查本次有效增量记录。有这条工具提示就已越过传输层的产出边界，纵使屏幕没字，也不能按未产出恢复。再查响应状态和完整调用是否交给执行器。如果响应只是部分结果，先保留中断现场，测试要看之后有无实际派发。</p></details>
+</div>
+</section>
+<section class="v2-topic-group" id="article-takeaways"><header class="v2-group-heading"><h2>这一章带走什么</h2></header>
+<div class="design-section">
+<ul>
+<li><strong>「重发的边界是第一条有效增量」</strong>。哪怕终端还空着，只要客户端已经交出工具提示，就得按已有产出收尾。</li>
+<li>暂时拥堵可以给服务一点时间。输入太长，原样重发还是同样长，得先缩短输入。</li>
+<li>关闭流以后，排队的回调仍可能运行。真正往终端写之前，再核对它属于哪次请求，旧答复的后半句才不会接到新答复上。</li>
+</ul>
+<p>如果断线时执行器可能已经接单，聊天里却没收到回执，<a href="durable-execution.html" rel="noopener" target="_blank">得先查到什么才能决定要不要重新提交测试</a>？</p>
+</div>
+</section>
+<section class="v2-topic-group" id="interview-practice"><span aria-hidden="true" id="article-interview"></span><header class="v2-group-heading"><h2>面经自测</h2></header><section class="design-section interview-exercise" id="interview-opening"><h3 class="interview-prompt">调用大模型遇到限流或者半路断线时，你怎么处理？哪些请求可以重发？</h3><p class="interview-origin"><a href="https://api-cdn.nowcoder.com/feed/main/detail/e2d7d87cab1c41c6a70d9eef166ec1c1?sourceSSR=dynamic" rel="noopener" target="_blank">阿里云 · 一面 · 面经原帖</a> · 题意转述</p><details class="answer-box"><summary>展开参考回答</summary><div><p>我先查<strong>这次调用已经交出什么</strong>。什么都还没交出来，临时故障可以在限额内重试。已经交了一部分，就保留能用的内容，让用户知道中断在哪里。</p><p>提交价格测试时，半截工具参数不会被执行。只收了半个事件和已经显示半句话，用户看到的情况不同，程序也分别处理。</p><p class="interview-origin"><a href="#request-transport-1">回看讲解 · 对照未产出与已产出两种中断</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-1"><h3>程序已经收到了网络字节，为什么还可能安全地重发模型请求？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>我看的是<strong>有没有交出有效内容</strong>。半包 SSE 还在缓冲区，工具也没有启动；遇到可恢复故障时仍可按上限重发。</p><p class="interview-origin"><a href="#request-transport-1">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-2"><h3>模型请求超时或额度不足时，怎么决定重试还是换一种处理方式？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/dccc55bdca4a470ba50ebf31b32fc5e5?sourceSSR=dynamic" rel="noopener" target="_blank">美团 · 一面 · 面经原帖</a></p><details class="answer-box"><summary>展开参考回答</summary><div><p>我先查<strong>有没有交出部分内容、错误会不会随时间消失</strong>。还没有有效产出，短暂断线或拥堵可以有限重试。已经给用户看过的内容要留住。</p><p>碰到“额度不足”，我会看错误码、等待建议和账号用量。确认当月额度用完，就停下等额度恢复，也可以由用户选另一个已配置账号。菜单只说明它可以被选择，切过去后还得核实额度或查看实际请求结果。只有一句 429 时，我会说原因还没分清。</p><p class="interview-origin"><a href="#request-session-1">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-3"><h3>服务端说输入超过窗口，再发一遍原请求有用吗？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>得先<strong>缩小要发的输入</strong>。</p><p>程序把明确的上下文超限交给压缩恢复。原样重发，工具说明和长日志仍然占着同样的空间。</p><p class="interview-origin"><a href="#request-session-1">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-4"><h3>遇到限流，程序怎样决定等多久再试？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>先看<strong>服务有没有给有效的 Retry-After</strong>。它说等 3 秒，传输层就按 3 秒安排，接受的建议最多 120 秒。</p><p>429 没给有效时长，传输层会交回错误。前台主代理进入会话恢复后，选等待默认依次等 5 秒、10 秒，之后逐次增加，单次最多 30 秒。进入这条分支但没有人工选择器时，默认最多等 5 次。</p><p class="interview-origin"><a href="#request-session-1">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-5"><h3>网络连接正常结束，模型一字没答，也没要用工具，这算完成吗？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>先检查有没有<strong>真正能交给用户的内容</strong>。</p><p>程序会给空响应有限的补救机会。如果反复都是空的，就报告停在哪里，不能当作已经答完。</p><p class="interview-origin"><a href="#request-empty-1">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-6"><h3>第二次请求已开始，第一次请求迟到的文字会不会混进来？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>显示增量前先核对<strong>它属于哪次请求</strong>。</p><p>程序开始新请求时换用新的请求令牌，旧请求晚到的那半句不会再显示到新回答中。</p><p class="interview-origin"><a href="#late-fragment">回看讲解</a></p></div></details></section></section><nav aria-label="章末导航" class="course-pagination"><a href="../课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a href="model-protocol.html" rel="prev noopener" target="_blank" title="工具参数分段到达，什么时候能执行？">上一章</a><a href="durable-execution.html" rel="next noopener" target="_blank" title="任务可能已经提交，确认丢了怎么办？">下一章</a></nav></article></main>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:lang="zh-CN" role="img" aria-labelledby="title desc" viewBox="0 0 1080 294" width="1080" height="294">
+  <title id="title">旧测试通过，能证明当前页面的价格吗？</title>
+  <desc id="desc">旧测试 tests/test_discount.py 调用 legacy_preview，并通过 90 元的断言。当前页面调用 preview_total，同类订单的 90 元仍要在当前入口验证。</desc>
+  <defs>
+    <marker id="gray-arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L8 4 L1 7" fill="none" stroke="#57606a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="blue-arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L8 4 L1 7" fill="none" stroke="#0969da" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="amber-arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L8 4 L1 7" fill="none" stroke="#8a4b08" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <style>
+      text { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif; fill:#1f2328; font-size:22px; }
+      .label { font-weight:600; }
+      .small { font-size:20px; fill:#57606a; }
+      .head { font-size:20px; font-weight:600; fill:#57606a; }
+      .mono, .mono-blue, .mono-small { font-family: "Cascadia Code", Consolas, "Microsoft YaHei", monospace; }
+      .mono-small { font-size:20px; }
+      .mono-blue, .blue-text { fill:#0969da; font-weight:600; }
+      .amber-text { fill:#8a4b08; font-weight:600; }
+      .plain { fill:#fff; stroke:#d0d7de; }
+      .soft { fill:#f6f8fa; stroke:#d0d7de; }
+      .blue { fill:#edf6ff; stroke:#0969da; }
+      .amber { fill:#fff7e6; stroke:#b0804f; }
+      .plain, .soft, .blue, .amber { stroke-width:1.5; }
+      .line-gray, .line-blue, .line-amber, .line-muted { fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+      .line-gray { stroke:#57606a; }
+      .line-blue { stroke:#0969da; }
+      .line-amber { stroke:#8a4b08; }
+      .line-muted { stroke:#d0d7de; }
+    </style>
+  </defs>
+  <rect width="1080" height="294" fill="#fff"/>
+  <text x="29" y="35" text-anchor="start" class="head">发起检查的地方</text>
+  <text x="399" y="35" text-anchor="start" class="head">实际调用的入口</text>
+  <text x="756" y="35" text-anchor="start" class="head">看见的结果</text>
+  <rect x="29" y="57" width="290" height="82" rx="8" class="soft"/>
+  <text x="174.0" y="92.0" text-anchor="middle" class="mono-small">tests/test_discount.py</text>
+  <text x="174.0" y="124.0" text-anchor="middle" class="small">旧测试</text>
+  <rect x="399" y="57" width="270" height="82" rx="8" class="soft"/>
+  <text x="534.0" y="105.0" text-anchor="middle" class="mono">legacy_preview</text>
+  <rect x="756" y="57" width="295" height="82" rx="8" class="soft"/>
+  <text x="903.5" y="92.0" text-anchor="middle" class="label">断言 90 元</text>
+  <text x="903.5" y="124.0" text-anchor="middle" class="small">旧测试通过</text>
+  <path d="M319 98 H399" class="line-gray" marker-end="url(#gray-arrow)"/>
+  <path d="M669 98 H756" class="line-gray" marker-end="url(#gray-arrow)"/>
+  <rect x="29" y="180" width="290" height="82" rx="8" class="plain"/>
+  <text x="174.0" y="215.0" text-anchor="middle" class="label">当前页面</text>
+  <text x="174.0" y="247.0" text-anchor="middle" class="small">同一类会员订单</text>
+  <rect x="399" y="180" width="270" height="82" rx="8" class="blue"/>
+  <text x="534.0" y="228.0" text-anchor="middle" class="mono-blue">preview_total</text>
+  <rect x="756" y="180" width="295" height="82" rx="8" class="amber"/>
+  <text x="903.5" y="215.0" text-anchor="middle" class="label">应为 90 元</text>
+  <text x="903.5" y="247.0" text-anchor="middle" class="amber-text">当前入口待核对</text>
+  <path d="M319 221 H399" class="line-blue" marker-end="url(#blue-arrow)"/>
+  <path d="M669 221 H756" class="line-amber" marker-end="url(#amber-arrow)"/>
+</svg>

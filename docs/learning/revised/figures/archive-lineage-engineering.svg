@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:lang="zh-CN" role="img" aria-labelledby="title desc" viewBox="0 0 1080 341" width="1080" height="341">
+  <title id="title">摘要直接引用和转引，最后找到几条会员回包？</title>
+  <desc id="desc">摘要 2 的两条蓝线分别直接找原文和经过摘要 1，最后汇到同一条 r-member，落在同一条原文的 raw_seq。另一条原文 r-smoke 同样写检查通过，但有另一个 raw_seq。</desc>
+  <defs>
+    <marker id="gray-arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L8 4 L1 7" fill="none" stroke="#57606a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="blue-arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L8 4 L1 7" fill="none" stroke="#0969da" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="amber-arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L8 4 L1 7" fill="none" stroke="#8a4b08" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <style>
+      text { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif; fill:#1f2328; font-size:22px; }
+      .label { font-weight:600; }
+      .small { font-size:20px; fill:#57606a; }
+      .head { font-size:20px; font-weight:600; fill:#57606a; }
+      .mono, .mono-blue, .mono-small { font-family: "Cascadia Code", Consolas, "Microsoft YaHei", monospace; }
+      .mono-small { font-size:20px; }
+      .mono-blue, .blue-text { fill:#0969da; font-weight:600; }
+      .amber-text { fill:#8a4b08; font-weight:600; }
+      .plain { fill:#fff; stroke:#d0d7de; }
+      .soft { fill:#f6f8fa; stroke:#d0d7de; }
+      .blue { fill:#edf6ff; stroke:#0969da; }
+      .amber { fill:#fff7e6; stroke:#b0804f; }
+      .plain, .soft, .blue, .amber { stroke-width:1.5; }
+      .line-gray, .line-blue, .line-amber, .line-muted { fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+      .line-gray { stroke:#57606a; }
+      .line-blue { stroke:#0969da; }
+      .line-amber { stroke:#8a4b08; }
+      .line-muted { stroke:#d0d7de; }
+    </style>
+  </defs>
+  <rect width="1080" height="341" fill="#fff"/>
+  <text x="29" y="35" text-anchor="start" class="head">从新摘要往回找</text>
+  <text x="772" y="35" text-anchor="start" class="head">找回原始工具回包</text>
+  <path d="M242 137 H284 V74 H733 V120 H772" class="line-blue" marker-end="url(#blue-arrow)"/>
+  <path d="M242 137 H284 V185 H355" class="line-blue" marker-end="url(#blue-arrow)"/>
+  <path d="M544 185 H732 V152 H772" class="line-blue" marker-end="url(#blue-arrow)"/>
+  <rect x="29" y="96" width="213" height="82" rx="8" class="soft"/>
+  <text x="135.5" y="144.0" text-anchor="middle" class="label">摘要 2</text>
+  <rect x="355" y="147" width="189" height="75" rx="8" class="soft"/>
+  <text x="449.5" y="191.5" text-anchor="middle" class="label">摘要 1</text>
+  <text x="450" y="62" text-anchor="start" class="head">直接引用</text>
+  <text x="582" y="174" text-anchor="start" class="head">转引原文</text>
+  <rect x="772" y="91" width="279" height="95" rx="8" class="blue"/>
+  <text x="911.5" y="132.5" text-anchor="middle" class="mono-small blue-text">r-member · 同一 raw_seq</text>
+  <text x="911.5" y="164.5" text-anchor="middle" class="small">检查通过</text>
+  <path d="M28 236 H1052" class="line-muted"/>
+  <text x="29" y="284" text-anchor="start" class="head">另一条原始回包</text>
+  <rect x="772" y="254" width="279" height="66" rx="8" class="soft"/>
+  <text x="911.5" y="281.0" text-anchor="middle" class="mono-small">r-smoke · 另一 raw_seq</text>
+  <text x="911.5" y="313.0" text-anchor="middle" class="small">检查通过</text>
+</svg>

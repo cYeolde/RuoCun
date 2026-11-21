@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:lang="zh-CN" role="img" aria-labelledby="title desc" viewBox="0 0 1080 322" width="1080" height="322">
+  <title id="title">切到目录 B，第二次请求从哪里开始变化？</title>
+  <desc id="desc">两次请求的规则、已有历史和原目录 A 对齐。第二次只在共同前缀末尾追加目录 B。服务端返回的用量才确认缓存是否命中。</desc>
+  <defs>
+    <marker id="gray-arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L8 4 L1 7" fill="none" stroke="#57606a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="blue-arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L8 4 L1 7" fill="none" stroke="#0969da" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="amber-arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L8 4 L1 7" fill="none" stroke="#8a4b08" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <style>
+      text { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif; fill:#1f2328; font-size:22px; }
+      .label { font-weight:600; }
+      .small { font-size:20px; fill:#57606a; }
+      .head { font-size:20px; font-weight:600; fill:#57606a; }
+      .mono, .mono-blue, .mono-small { font-family: "Cascadia Code", Consolas, "Microsoft YaHei", monospace; }
+      .mono-small { font-size:20px; }
+      .mono-blue, .blue-text { fill:#0969da; font-weight:600; }
+      .amber-text { fill:#8a4b08; font-weight:600; }
+      .plain { fill:#fff; stroke:#d0d7de; }
+      .soft { fill:#f6f8fa; stroke:#d0d7de; }
+      .blue { fill:#edf6ff; stroke:#0969da; }
+      .amber { fill:#fff7e6; stroke:#b0804f; }
+      .plain, .soft, .blue, .amber { stroke-width:1.5; }
+      .line-gray, .line-blue, .line-amber, .line-muted { fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+      .line-gray { stroke:#57606a; }
+      .line-blue { stroke:#0969da; }
+      .line-amber { stroke:#8a4b08; }
+      .line-muted { stroke:#d0d7de; }
+    </style>
+  </defs>
+  <rect width="1080" height="322" fill="#fff"/>
+  <text x="29" y="39" text-anchor="start" class="head">第一次请求</text>
+  <text x="29" y="146" text-anchor="start" class="head">第二次请求</text>
+  <rect x="30" y="54" width="194" height="59" rx="8" class="soft"/>
+  <text x="127.0" y="90.5" text-anchor="middle" class="label">规则</text>
+  <rect x="224" y="54" width="194" height="59" rx="8" class="soft"/>
+  <text x="321.0" y="90.5" text-anchor="middle" class="label">已有历史</text>
+  <rect x="418" y="54" width="194" height="59" rx="8" class="soft"/>
+  <text x="515.0" y="90.5" text-anchor="middle" class="label">目录 A</text>
+  <rect x="30" y="160" width="194" height="59" rx="8" class="soft"/>
+  <text x="127.0" y="196.5" text-anchor="middle" class="label">规则</text>
+  <rect x="224" y="160" width="194" height="59" rx="8" class="soft"/>
+  <text x="321.0" y="196.5" text-anchor="middle" class="label">已有历史</text>
+  <rect x="418" y="160" width="194" height="59" rx="8" class="soft"/>
+  <text x="515.0" y="196.5" text-anchor="middle" class="label">目录 A</text>
+  <rect x="612" y="160" width="194" height="59" rx="8" class="blue"/>
+  <text x="709.0" y="196.5" text-anchor="middle" class="blue-text">追加目录 B</text>
+  <path d="M30 229 V244 H612 V229" class="line-blue"/>
+  <text x="321" y="274" text-anchor="middle" class="blue-text">到目录 A 为止，两次请求共用这段开头</text>
+  <text x="30" y="307" text-anchor="start" class="small">是否实际命中，看服务端返回的用量。</text>
+</svg>

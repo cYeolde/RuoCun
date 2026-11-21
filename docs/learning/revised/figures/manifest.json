@@ -1,0 +1,495 @@
+{
+  "version": 1,
+  "chapters": {
+    "task-loop": [
+      {
+        "id": "loop-sequence",
+        "section": "result-back-to-history",
+        "question": "第二次查价时，模型从哪儿看到计算公式？",
+        "src": "figures/loop-sequence-engineering.svg",
+        "alt": "同一次普通价查价先发出用户问题，模型请求读取价格文件，程序本地读出公式。第二次请求携带原问题、读取调用和含计算公式的工具回包，模型这才有依据说明按原价算。",
+        "reading_task": "沿一次查价看两条向下的请求，指出公式是哪一步读到、又在哪一次请求交给模型的。",
+        "size": [
+          1100,
+          340
+        ],
+        "sha256": "f82fce92f7781aff4f4fd1bc87ca33cc7fe083d259ad979065de3f4fc1e16757",
+        "origin": "svg"
+      }
+    ],
+    "model-input": [
+      {
+        "id": "request-messages",
+        "section": "message-senders",
+        "question": "第二次查价请求比第一次多带了什么？",
+        "src": "figures/request-messages-engineering.svg",
+        "alt": "两次请求对齐相同的项目约定和用户问题。第二次末尾增加 assistant 的读取调用和 tool 回包，回包工具编号 read_price 对应原调用，正文含价格计算公式。",
+        "reading_task": "先读左边两列共同开头，再看右边新增的调用和回包，哪一项给了模型计算公式？",
+        "size": [
+          1100,
+          299
+        ],
+        "sha256": "4aabf6494bd3e1103ccdc2129098d659ae5e0c01fbd3565ccbd1adb2a25853b1",
+        "origin": "svg"
+      },
+      {
+        "id": "relative-path-cwd",
+        "section": "case-startup",
+        "question": "同一个相对文件名，切换工作树后为什么失效？",
+        "src": "figures/relative-path-cwd-engineering.svg",
+        "alt": "从原目录 /shop/packages/pricing 找 prices.mjs 可以命中。执行起点切到 discount 工作树根目录，照抄短文件名会找不到。保留新起点并补上 packages/pricing/prices.mjs 才命中新工作树里的文件。",
+        "reading_task": "先比前两行左列的执行起点，再比后两行中列的相对路径，哪一次需要补目录？",
+        "size": [
+          1100,
+          313
+        ],
+        "sha256": "2be447729e9e0ce2e2342a4d720e199d8241b29410e57fcdd8d9dcd8e6cafb6c",
+        "origin": "svg"
+      },
+      {
+        "id": "worktree-tail",
+        "section": "case-worktree",
+        "question": "切进工作树后，旧目录记录去了哪儿？",
+        "src": "figures/worktree-tail-engineering.svg",
+        "alt": "两次请求保留原规则、用户问题和 pricing 旧目录。第二次把切换请求、回包和 discount 新目录依次接在后面，模型下一次应按新目录找相对路径。",
+        "reading_task": "沿着两行相同的开头走，找出第二行哪一条记录给出了最新的执行起点。",
+        "size": [
+          1100,
+          266
+        ],
+        "sha256": "97ac933978013165a5a72710fa1299d7ec27cc346f051ffec97558053a757deb",
+        "origin": "svg"
+      }
+    ],
+    "tool-contract": [
+      {
+        "id": "tool-dispatch",
+        "section": "read-arrives",
+        "question": "谁决定要读文件，谁真正去打开文件？",
+        "src": "figures/tool-dispatch-engineering.svg",
+        "alt": "模型只提出 Read 与参数。程序用名称找到注册项并检查必填字段 path。给错 file 会在参数校验处返回缺少 path。通过校验且允许访问时，才会由本地处理器 _read 打开文件。",
+        "reading_task": "从模型发出的 Read 往右追，找出 file 写错时停在哪一格，真正打开文件的是谁。",
+        "size": [
+          1100,
+          300
+        ],
+        "sha256": "0d1c18ed0c4bc9cb505f06432acc4ff846b2647f1eeeb80f8543baec45f3e7d5",
+        "origin": "svg"
+      }
+    ],
+    "file-editing": [
+      {
+        "id": "file-baseline",
+        "section": "stale-observation",
+        "question": "普通价的旧文字还在，为什么 Edit 会要求重读？",
+        "src": "figures/file-baseline-engineering.svg",
+        "alt": "按两版全文对照。普通价的目标旧文字仍出现一次，但同事新增的会员日志使文件大小或修改时间与 Read 留下的基线不同。若存 Edit 先检查基线，拒绝继续并要求重新 Read。",
+        "reading_task": "先比上面普通价这一行，再比下面的文件记录，指出 Edit 在数旧文之前看到了什么变化。",
+        "size": [
+          1100,
+          351
+        ],
+        "sha256": "c4dcbf0c43eb6addce123ba7a9e904b49686f76e0cd3f57840ff2c42522923d4",
+        "origin": "svg"
+      },
+      {
+        "id": "file-lock-scope",
+        "section": "concurrency-lost-update",
+        "question": "为什么只给写入上锁，还是会丢掉前一处修改？",
+        "src": "figures/file-lock-scope-engineering.svg",
+        "alt": "示例每对数字依次为普通价、会员价。只给写入上锁时，B 提前从两价都是 200 的旧文件生成 200／160，随后盖掉 A 写的 180／200。若两次 Edit 共用工具上下文并把检查、读取、替换、写入与刷新都放在锁内，B 拿锁后基于 180／200 计算，最终得到 180／160。",
+        "reading_task": "两行都经过 A 写完。比较 B 拿到的价格版本，找出哪一行最后保住了九折。",
+        "size": [
+          1100,
+          350
+        ],
+        "sha256": "eb10e7e8048d07e0735172990f1dad2fa00f1827f30f9d3f3d760b9f6bae14d4",
+        "origin": "svg"
+      },
+      {
+        "id": "entry-prices",
+        "section": "preview-result",
+        "question": "同一笔普通订单，为什么单测是 180 元、页面是 200 元？",
+        "src": "figures/entry-prices-engineering.svg",
+        "alt": "同一笔两件、每件一百元的普通订单，函数单测使用已改的 examples/prices.mjs 算出 180 元。页面预览由 shop/preview.mjs 导入未改的 shop/prices.mjs，算出 200 元。",
+        "reading_task": "顺着预览那条 import 找到实际使用的计价文件。它和单测用的是同一份吗？",
+        "size": [
+          1120,
+          300
+        ],
+        "sha256": "8dcf0b9d6cb1267ca27ad3f6b38bd49262144a54c09245c1292b0b0c161ed75d",
+        "origin": "svg"
+      }
+    ],
+    "permission-gates": [
+      {
+        "id": "approval-final",
+        "section": "requested-action",
+        "question": "批准的是 pricing.txt，改目标后还可以继续吗？",
+        "src": "figures/approval-final-engineering.svg",
+        "alt": "两行里用户都同意 A，即 pricing.txt。实际目标仍是 A 时，可以继续后续检查。目标变为 B，即 draft/pricing.txt 时，A 的同意无法用在 B 上，程序应按最终参数重新裁决。",
+        "reading_task": "固定左列已批准的 A，再看右边哪次送进工具的是 B，以及程序接下来要核对什么。",
+        "size": [
+          1100,
+          292
+        ],
+        "sha256": "3a163079246fcdaa5e75306acf3cafacc94fd49d2c2f573809273ae2f18039bf",
+        "origin": "svg"
+      }
+    ],
+    "model-protocol": [
+      {
+        "id": "stream-parts",
+        "section": "two-slots",
+        "question": "两次工具调用的参数交错到达，按哪一项拼接？",
+        "src": "figures/stream-parts-engineering.svg",
+        "alt": "到达顺序依次是位置 0 的起始片段、位置 1 的起始片段、位置 0 的后半截、位置 1 的后半截。每次只更新对应 index 的缓存，位置 0 得到 prices.mjs，位置 1 得到 test.mjs。",
+        "reading_task": "从第三个到达的片段往下看，只更新哪个 index 的缓存？此时另一个文件名齐了没有？",
+        "size": [
+          1100,
+          375
+        ],
+        "sha256": "559d39e089c0b8bb5d3f24594a4d2e6be1e4deb429b1c3811b055d1c9bfc923f",
+        "origin": "svg"
+      },
+      {
+        "id": "call-pairing",
+        "section": "project-to-wire",
+        "question": "Chat 和 Responses 怎样把同一条工具回包配回原调用？",
+        "src": "figures/call-pairing-engineering.svg",
+        "alt": "同一次 Read 使用调用 ID c7。Chat 发送 tool_calls 的 id，并在 tool 回包内使用 tool_call_id 等于 c7。Responses 用 function_call 和 function_call_output，两侧 call_id 都等于 c7。",
+        "reading_task": "两列的字段名不同。分别从调用顺着蓝线到回包，找出必须原样带回的编号。",
+        "size": [
+          1100,
+          289
+        ],
+        "sha256": "028ee9250c08aeb8a8d50e9832b4e69e2fa9d2f79a25253ffeb72985256a8b66",
+        "origin": "svg"
+      }
+    ],
+    "request-recovery": [
+      {
+        "id": "stream-interruption",
+        "section": "one-cut-two-scenes",
+        "question": "两次流式断线的区别在哪里？",
+        "src": "figures/stream-interruption-engineering.svg",
+        "alt": "半个 SSE 事件断线时字节仍在缓冲区，屏幕尚无文字。文字已显示后断线时，屏幕保留“我先提交价格测试”，后续半份参数还在缓冲区。这两个推演现场均未启动工具。",
+        "reading_task": "比对屏幕一列。两个断点，一个留下了可见文字，另一个留下了什么？",
+        "size": [
+          1100,
+          282
+        ],
+        "sha256": "29dd1a7cecaad3214a293a731c4ac050845eab8ee7f18eaeaac061d2ab8f9a84",
+        "origin": "svg"
+      }
+    ],
+    "durable-execution": [
+      {
+        "id": "recovery-two-worlds-kawaii",
+        "section": "the-lost-receipt",
+        "question": "聊天缺回包时，原测试已经启动了吗？",
+        "src": "figures/recovery-two-worlds-kawaii-engineering.svg",
+        "alt": "两个现场中，本地都超时且没有工具回包。启动请求在执行器开始前中断时，测试未启动。执行器已经启动测试、返回通路中断时，原运行确实存在。应沿原运行查证。",
+        "reading_task": "先只读本地一列，再看两行的断点方向。在哪一行重发可能多跑一趟？",
+        "size": [
+          1100,
+          351
+        ],
+        "sha256": "7d18312c6c0b7f2a8c5fe5c8955e9a4c25f53b77b202064e6e9cc70fd406e192",
+        "origin": "svg"
+      }
+    ],
+    "task-planning": [
+      {
+        "id": "plan-two-checks",
+        "section": "know-the-destination",
+        "question": "普通价确认后，哪条预览还缺验收结果？",
+        "src": "figures/plan-two-checks-engineering.svg",
+        "alt": "同一个 shop/preview.mjs 入口要分别检查普通价和会员价。要求普通价 180 元、会员价 200 元。推演中已有普通价的页面观察，会员价的观察仍待补齐。",
+        "reading_task": "遮住用户要求，只看预览结果一列。哪一行仍缺一次观察？",
+        "size": [
+          1100,
+          270
+        ],
+        "sha256": "ab7e2dbccfc7ac82260c6049aec2ca57c9ee4bb5eb34c451e62a8859f8902a7e",
+        "origin": "svg"
+      }
+    ],
+    "shell-lifecycle": [
+      {
+        "id": "run-same-id",
+        "section": "start-is-not-finish",
+        "question": "看到普通价 PASS，能确认整趟运行结束吗？",
+        "src": "figures/run-same-id-engineering.svg",
+        "alt": "对 run-price-7 来说，前台已有普通价 PASS 日志，移到后台后仍沿同一个运行编号观察。此时进程继续执行，尚无终态和退出码。",
+        "reading_task": "普通价 PASS 已出现。看同一个运行的终态行，能不能据此报告命令已结束？",
+        "size": [
+          1100,
+          320
+        ],
+        "sha256": "b93a755cae24e14a0f46f2f8d054da7c098056afad5b10b98239e58fa9d9e68d",
+        "origin": "svg"
+      },
+      {
+        "id": "cancel-confirmation",
+        "section": "request-stop",
+        "question": "停止请求的回包和原运行终态有什么区别？",
+        "src": "figures/cancel-confirmation-engineering.svg",
+        "alt": "对同一个 run-price-7 发出 KillShell 后，首次回包只能确认停止已请求，状态为 canceling。这个例子中原进程因环境故障先以 1 退出，终态为 failed。",
+        "reading_task": "先只读左侧。收到 canceling 时能告诉用户什么？再比对右侧同一编号的终态。",
+        "size": [
+          1100,
+          320
+        ],
+        "sha256": "9e3bf0f41a675c305559ef215782dc3ce5010f93382760fbadaff88d34db0387",
+        "origin": "svg"
+      }
+    ],
+    "interactive-control": [
+      {
+        "id": "queued-input",
+        "section": "accept-the-note",
+        "question": "“再查一下订单预览页”什么时候进入模型请求？",
+        "src": "figures/queued-input-engineering.svg",
+        "alt": "补充输入先作为编号 12 的 queued 记录提交，原模型历史和已发请求仍没有这句话。工具回包配齐后，输入与其消费状态一同提交，这句话作为新 user 消息进入后续模型请求。",
+        "reading_task": "沿蓝线追同一句补充。它在哪一格只是已保存，又在哪一格才发给模型？",
+        "size": [
+          1100,
+          316
+        ],
+        "sha256": "69fc7def7968d880abb4ae34ed68adc43d8bb621b1bcbe9d6881a83812852870",
+        "origin": "svg"
+      },
+      {
+        "id": "late-generation",
+        "section": "pause-before-reply",
+        "question": "暂停后，旧回调还能把界面改回等待中吗？",
+        "src": "figures/late-generation-engineering.svg",
+        "alt": "原运行代号 12 的等待回调在暂停后才到达。暂停已把当前代号推进到 13。两个代号不同，调度器不接纳旧状态并保留暂停。",
+        "reading_task": "并排核对晚到回调的代号和当前代号。它们在哪一处决定这次更新能不能接收？",
+        "size": [
+          1100,
+          324
+        ],
+        "sha256": "bf564ead49aad6d47e1bd4aa1e5e14772c012d8bfa17b0313dfdbc48c68f62e9",
+        "origin": "svg"
+      }
+    ],
+    "subagents": [
+      {
+        "id": "child-workspace",
+        "section": "task-location",
+        "question": "同一个相对文件名，为什么会读到两份不同的内容？",
+        "src": "figures/child-workspace-engineering.svg",
+        "alt": "主代理从 /shop 解析 pricing.py，读到含未提交改动的 /shop/pricing.py，价格 90 元。子代理从基于提交创建的 /review 解析同名路径，读到 /review/pricing.py，价格仍为 100 元。",
+        "reading_task": "两行的文件名相同。请指出各自的起点及实际打开的文件，哪一份带着未提交改动？",
+        "size": [
+          1100,
+          302
+        ],
+        "sha256": "a1bb99e08fa3832c2f5d19b642d3599892aebc424d1acc14b5cda00237a3b9c0",
+        "origin": "svg"
+      },
+      {
+        "id": "child-progress-report",
+        "section": "foreground-transfer",
+        "question": "主代理收到进度和收到报告分别意味着什么？",
+        "src": "figures/child-progress-report-engineering.svg",
+        "alt": "子代理读取的 pricing.py 原文留在子会话。调查中跨给主代理的是“已找到入口”的进度，主代理可见运行编号。完成后交回最终报告中的路径、行号和证据，程序另从同一运行记录取得终态。",
+        "reading_task": "顺着跨过主、子界线的消息看。只收到进度时，主代理还缺哪份材料才能核对结论？",
+        "size": [
+          1100,
+          391
+        ],
+        "sha256": "106b0596842df0d6c38f9f46907cf11554171ea26f4f93989c77d294791693f2",
+        "origin": "svg"
+      }
+    ],
+    "context-compaction": [
+      {
+        "id": "approved-compaction-sample",
+        "section": "balanced-boundary",
+        "question": "规则先返回时，历史能从两条回包之间切开吗？",
+        "src": "figures/approved-compaction-sample-engineering.svg",
+        "alt": "同一条助手消息发起 r-rule 和 r-log 两次读取。规则已返回时仍欠 r-log。两条回包均到齐后，才能在这一组之后切开。",
+        "reading_task": "从左往右看「还在等」一行。规则返回后少了哪个编号，还有哪个编号不能丢？",
+        "size": [
+          1100,
+          300
+        ],
+        "sha256": "bc028dff225c9281bafef313a90be6931db9471b84f63be18df651b324acb197",
+        "origin": "svg"
+      },
+      {
+        "id": "compaction-checkpoint",
+        "section": "confirm-candidate",
+        "question": "保存结果未知时，当前历史会立即切换吗？",
+        "src": "figures/compaction-checkpoint-engineering.svg",
+        "alt": "候选摘要生成时仍确认旧历史。保存结果未知时继续保留旧历史，暂停本轮并核对原提交。归档与检查点均确认后，后续请求才可使用新历史。",
+        "reading_task": "保存结果没确认时，当前仍是哪份历史？哪两项都确认后，下一次请求才会用新历史？",
+        "size": [
+          1100,
+          310
+        ],
+        "sha256": "0e99d11b35e35f2925e928852c32a1e376cfef0f411ac1165b1a1d26589d4e49",
+        "origin": "svg"
+      }
+    ],
+    "archive-retrieval": [
+      {
+        "id": "archive-ids",
+        "section": "same-text-two-actions",
+        "question": "两条「检查通过」，分别在查什么？",
+        "src": "figures/archive-ids-engineering.svg",
+        "alt": "两条工具回包都写着检查通过。第一条用 r-smoke 找到启动检查，第二条用 r-member 找到过期会员的价格预览，确认按普通价算。",
+        "reading_task": "从左向右用调用 ID 找原来的检查，看看哪条能支撑会员预览按普通价计算。",
+        "size": [
+          1080,
+          269
+        ],
+        "sha256": "21fc41a05656764e801a271413a3b4d7aac0c98aea57f48e4645635901856542",
+        "origin": "svg"
+      },
+      {
+        "id": "archive-lineage",
+        "section": "projection-rewrite",
+        "question": "摘要直接引用和转引，最后找到几条会员回包？",
+        "src": "figures/archive-lineage-engineering.svg",
+        "alt": "摘要 2 的两条蓝线分别直接找原文和经摘要 1 转引，最后汇到同一条 r-member，两条路径得到相同的原文序号 raw_seq。r-smoke 同样写检查通过，却有另一个原文序号。",
+        "reading_task": "沿两条蓝线找到 r-member，再比对下方的 r-smoke。两条路径怎样看出找到了同一条原文？",
+        "size": [
+          1080,
+          341
+        ],
+        "sha256": "e80414481d016349aee4d15021a04a2e93f858ca2f696d7ad50d4301ebe0afd7",
+        "origin": "svg"
+      }
+    ],
+    "prefix-cache": [
+      {
+        "id": "prefix-identical",
+        "section": "final-wire-shape",
+        "question": "切到目录 B，第二次请求从哪里开始变化？",
+        "src": "figures/prefix-identical-engineering.svg",
+        "alt": "两次请求的规则、已有历史和原目录 A 对齐。第二次只在共同前缀末尾追加目录 B。服务端返回的用量才确认缓存是否命中。",
+        "reading_task": "对齐上、下两条请求，找出仍然相同的部分和新加的目录 B。",
+        "size": [
+          1080,
+          322
+        ],
+        "sha256": "a668deda070a6bc1a4e561598894d1f90c41b08d2fab3b36e6046e6fc0469624",
+        "origin": "svg"
+      }
+    ],
+    "memory-use": [
+      {
+        "id": "memory-current-entry",
+        "section": "old-check-passes",
+        "question": "旧测试通过，能证明当前页面的价格吗？",
+        "src": "figures/memory-current-entry-engineering.svg",
+        "alt": "旧测试 tests/test_discount.py 调用 legacy_preview，并通过 90 元的断言。当前页面调用 preview_total，同类订单的 90 元仍要在当前入口验证。",
+        "reading_task": "对照两行的调用入口，判断旧测试的通过记录能给当前页面证明什么。",
+        "size": [
+          1080,
+          294
+        ],
+        "sha256": "e6f18997c4a514df4b11d2a64394667f6469379e7f6e3d83f655d1d31f3cd964",
+        "origin": "svg"
+      }
+    ],
+    "experience-learning": [
+      {
+        "id": "tested-version",
+        "section": "what-to-learn",
+        "question": "后来找回的 v12 成功结果，证明了哪一版？",
+        "src": "figures/tested-version-engineering.svg",
+        "alt": "先用 S1 运行测试 v12，随后文件改成 S2。晚些时候找回 v12 的成功结果，蓝线指回 S1。当前 S2 要重新运行价格预览来验证。",
+        "reading_task": "沿找回的回包向上，定位它实际验证的版本，再看当前文件需要做什么。",
+        "size": [
+          1080,
+          273
+        ],
+        "sha256": "79ae2c14b886c26669548ed75ce88383fbc51860a96f9c09b5c30ceb0101b03d",
+        "origin": "svg"
+      }
+    ],
+    "skills": [
+      {
+        "id": "skill-catalog",
+        "section": "skill-name-first",
+        "question": "Read 找到技能后，模型什么时候能用它？",
+        "src": "figures/skill-catalog-engineering.svg",
+        "alt": "同一批里的 Read 读到定价预览文件并发现技能，Skill 仍返回未找到。整批结束后名称发布到会话的技能目录，下一次请求模型才看到 pricing-tests，可以再调用 Skill 读到步骤。",
+        "reading_task": "顺着上排看名称何时发布，再看第一次请求和下一次请求的 Skill 调用有什么变化。",
+        "size": [
+          1080,
+          350
+        ],
+        "sha256": "392868f1cb77ce60af9ad16de45d1d7ebe229547dbbf490fb036374890df716b",
+        "origin": "svg"
+      }
+    ],
+    "mcp": [
+      {
+        "id": "mcp-discover-call",
+        "section": "mcp-discovery",
+        "question": "远程工具已登记，如何到模型手里并执行查询？",
+        "src": "figures/mcp-discover-call-engineering.svg",
+        "alt": "docs 用 tools/list 报出 search_notes，宿主登记工具。ToolSearch 激活后，完整工具定义在下一次模型请求可见。模型真正发起会员预览查询后，宿主还会检查参数和权限，再调用工具并送回结果。",
+        "reading_task": "沿上半行追工具说明，沿下半行追实际查询的参数和结果。",
+        "size": [
+          1080,
+          454
+        ],
+        "sha256": "ad42c2e2c46e5d57012a9c40e697fcb15c448aaffc46c28657b5a6b416eb4e1f",
+        "origin": "svg"
+      }
+    ],
+    "hooks": [
+      {
+        "id": "hook-full-input",
+        "section": "before-write-path",
+        "question": "改写目标路径时，钩子为什么也要带上原来的内容？",
+        "src": "figures/hook-full-input-engineering.svg",
+        "alt": "原写入请求有 notes/preview.md 和内容已核对。钩子只返回 reports/preview.md 会因缺 content 校验失败，同时返回新路径和内容时通过校验，宿主再按新目标查权限。",
+        "reading_task": "比较钩子两种返回，找出哪份能继续进入新目标的权限检查。",
+        "size": [
+          1080,
+          318
+        ],
+        "sha256": "c3182303c10e5e1bbd4a9a480e45402f8fb7bf6aa3403f4ba48690359135c91b",
+        "origin": "svg"
+      },
+      {
+        "id": "hook-two-receipts",
+        "section": "hook-confirm-tool-first",
+        "question": "Post 的回执存到一半停了，重开能确认什么？",
+        "src": "figures/hook-two-receipts-engineering.svg",
+        "alt": "Write 先保存 w7 的成功结果，重开可确认报告已写入。此后 Post 尝试记录日志，保存自己的回执时中断。重开时日志是否已记录仍要核对。",
+        "reading_task": "分开追写入和 Post 的两条记录，找出重开时哪件事已有凭据。",
+        "size": [
+          1080,
+          335
+        ],
+        "sha256": "96518190760807812b4acb1a30aeccf94e246fc5fa7d41180172532fd7f77ab6",
+        "origin": "svg"
+      }
+    ],
+    "completion-evidence": [
+      {
+        "id": "eval-two-axes",
+        "section": "artifact-and-clock",
+        "question": "同得 1 分，两份运行记录差在哪里？",
+        "src": "figures/eval-two-axes-engineering.svg",
+        "alt": "build-cython-ext 的两份产物各得 1 分。DeepSeek Harness 在 273.3 秒正常结束，其中包括收尾。若存到 900 秒作答截止，另用 11.9 秒收尾。",
+        "reading_task": "先看右侧产物得分，再沿两行找结束时间和若存另记的收尾。",
+        "size": [
+          1080,
+          311
+        ],
+        "sha256": "29a7e8b25da45b7c7f2d3d9076ffe996ff59e6b5ce6df60695926e3098dd3923",
+        "origin": "svg"
+      }
+    ]
+  }
+}

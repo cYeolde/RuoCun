@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 340" role="img" aria-labelledby="title description" xml:lang="zh-CN">
+<title>第二次查价时，模型从哪儿看到计算公式？</title>
+<desc>同一次普通价查价先发出用户问题，模型请求读取价格文件，程序本地读出公式。第二次请求携带原问题、读取调用和含计算公式的工具回包，模型这才有依据说明按原价算。</desc>
+<defs><style>text { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif; } text.mono { font-family: "Cascadia Code", Consolas, monospace; }</style>
+<marker id="gray" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="m1 1 6 3-6 3" fill="none" stroke="#7d8895" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></marker>
+<marker id="blue" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="m1 1 6 3-6 3" fill="none" stroke="#0969da" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></marker>
+<marker id="amber" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="m1 1 6 3-6 3" fill="none" stroke="#8a4b08" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></marker>
+</defs>
+<rect width="1100" height="340" fill="#fff"/>
+<path d="M116 151 L1060 151" stroke="#dce1e7" fill="none"/>
+<path d="M116 275 L1060 275" stroke="#dce1e7" fill="none"/>
+<path d="M130 47H1048" fill="none" stroke="#7d8895" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" marker-end="url(#gray)"/>
+<path d="M216 154V268" fill="none" stroke="#7d8895" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" marker-end="url(#gray)"/>
+<path d="M436 270V157" fill="none" stroke="#7d8895" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" marker-end="url(#gray)"/>
+<path d="M810 156V268" fill="none" stroke="#0969da" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" marker-end="url(#blue)"/>
+<path d="M447 151H504" fill="none" stroke="#7d8895" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" marker-end="url(#gray)"/>
+<path d="M681 151H696" fill="none" stroke="#0969da" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" marker-end="url(#blue)"/>
+<path d="M820 275H899" fill="none" stroke="#7d8895" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" marker-end="url(#gray)"/>
+<text x="96" y="161" text-anchor="end" font-size="19" fill="#57606a">本地程序</text>
+<text x="96" y="282" text-anchor="end" font-size="19" fill="#57606a">模型</text>
+<text x="119" y="53" text-anchor="end" font-size="17" fill="#57606a">时间</text>
+<rect x="130" y="89" width="172" height="62" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="216.0" y="126.12" text-anchor="middle" font-size="18" fill="#1f2328" font-weight="600">普通价打折了吗？</text>
+<rect x="356" y="275" width="160" height="48" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="436.0" y="306.48" text-anchor="middle" font-size="22" fill="#1f2328" class="mono">Read</text>
+<rect x="510" y="112" width="168" height="52" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="594.0" y="144.46" text-anchor="middle" font-size="19" fill="#1f2328" font-weight="600">读取 prices.mjs</text>
+<rect x="700" y="90" width="243" height="63" rx="6" fill="#edf6ff" stroke="#91bce6"/>
+<text x="821.5" y="127.62" text-anchor="middle" font-size="18" fill="#0969da" class="mono">return count * price;</text>
+<text x="229" y="204" text-anchor="start" font-size="18" fill="#57606a">第 1 次请求</text>
+<text x="448" y="230" text-anchor="start" font-size="18" fill="#57606a">要求读文件</text>
+<text x="823" y="211" text-anchor="start" font-size="18" fill="#0969da">第 2 次请求 · 带上工具回包</text>
+<rect x="906" y="275" width="142" height="48" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="977.0" y="305.8" text-anchor="middle" font-size="20" fill="#1f2328" font-weight="600">按原价算</text>
+</svg>

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light" name="color-scheme"/>
+<meta content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'self'" http-equiv="Content-Security-Policy"/>
+<title>上一次的经验，这次还能照着用吗 · RuoCun 设计学习</title>
+<link href="../assets/ruocun-mark.svg" rel="icon" type="image/svg+xml"/>
+<link href="../assets/ruocun-code.css" rel="stylesheet"/>
+<link href="../assets/ruocun-textbook.css" rel="stylesheet"/>
+<link href="../assets/ruocun-article.css" rel="stylesheet"/>
+<link href="../assets/course-lessons.css" rel="stylesheet"/>
+<script defer="" src="../assets/ruocun-textbook.js"></script>
+<link href="../assets/reading-diagrams.css" rel="stylesheet"/><link href="later-flows.css" rel="stylesheet"/><link href="../assets/course-reader.css" rel="stylesheet"/><link href="course-illustrations.css" rel="stylesheet"/><link href="article-reading.css" rel="stylesheet"/></head>
+<body class="textbook-read" id="course-reader">
+<a class="textbook-skip" href="#memory-use">跳到正文</a>
+<header class="textbook-masthead">
+<div class="textbook-masthead-inner">
+<a class="textbook-brand" href="#memory-use">
+<svg aria-hidden="true" viewbox="0 0 28 28"><rect fill="currentColor" height="22" rx="5" width="22" x="3" y="3"></rect><path d="M9 19V9h5a3 3 0 0 1 0 6H9m5 0 4 4" fill="none" stroke="white" stroke-width="2"></path></svg>
+<span>RuoCun <span>设计学习</span></span>
+</a>
+<nav aria-label="文章导航"><a href="../课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a href="prefix-cache.html" rel="prev noopener" target="_blank" title="两次请求开头一样，模型服务能复用多少计算">上一章</a><a href="experience-learning.html" rel="next noopener" target="_blank" title="一次改错，怎样才值得存成下一次能用的经验">下一章</a></nav>
+</div>
+</header>
+<main class="reading-layout">
+<aside class="reading-nav">
+<div class="textbook-nav-title"><span class="chapter-number">第 16 章</span><span class="nav-chapter-name">上一次的经验，这次还能照着用吗</span></div>
+<p class="textbook-nav-caption">文章目录</p>
+<details class="v2-course-toc" open="">
+<summary>文章目录</summary>
+<nav aria-label="文章目录"><ol class="v2-toc-root"><li class="v2-toc-group"><a class="v2-toc-group-link" href="#memory-case">测试给了 90，页面为什么是 100？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#startup-memory">开个新会话，经验以什么形式进来？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#memory-paths">把旧经验带进这一问</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#memory-actions">拿到经验，怎么用它避免再错一次？</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-assessment">只改了一份配置，旧来源仍对得上</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#article-takeaways">这一章带走什么</a></li><li class="v2-toc-group"><a class="v2-toc-group-link" href="#interview-practice">面经自测</a></li></ol></nav>
+</details>
+</aside>
+<article class="lesson-paper v2-paper pilot-paper" data-format="article" data-later-probes="true" id="memory-use"><header class="design-hero"><h1>上一次的经验，这次还能照着用吗</h1><p class="target">你让 agent 查一项会员活动。100 元的订单，预览页应显示 90 元。它从旧经验找到一条回归测试，跑完是绿的。你打开预览页，页面仍显示 100 元。</p>
+<p>这次测试确实通过了。先看它把订单交给了哪个函数，再看看今天的页面用的是谁。</p></header>
+<section class="v2-topic-group" id="memory-case"><header class="v2-group-heading"><h2>测试给了 90，页面为什么是 100？</h2></header>
+<section class="design-section" id="old-check-passes"><span aria-hidden="true" id="old-check-passes-heading"></span>
+<p>这次活动另有一条会员折扣，和<a href="file-editing.html" rel="noopener" target="_blank">第四章的普通价改动</a>是两个任务。这里按源码和工具流程推演。<code>tests/test_discount.py</code> 直接调用旧函数 <code>legacy_preview</code>，断言会员的实付价为 90 元。当前页面拿着同一个会员和同一笔订单，却走的是 <code>preview_total</code>。</p>
+<figure class="course-illustration" data-art="memory-current-entry" data-figure-slot="0" data-generated-by="SVG"><a aria-label="放大查看：旧测试通过，能证明当前页面的价格吗？" href="figures/memory-current-entry-engineering.svg" rel="noopener" target="_blank"><img alt="旧测试 tests/test_discount.py 调用 legacy_preview，并通过 90 元的断言。当前页面调用 preview_total，同类订单的 90 元仍要在当前入口验证。" decoding="async" loading="lazy" src="figures/memory-current-entry-engineering.svg"/></a><figcaption>对照两行的调用入口，判断旧测试的通过记录能给当前页面证明什么。</figcaption></figure>
+</section><section class="design-section" id="verify-current-page"><span aria-hidden="true" id="verify-current-page-heading"></span>
+<p>旧函数照样算出 90，整份测试也能以 <code>0</code> 退出。它没经过新入口，<code>preview_total</code> 返回 90 还是 100，在这份结果里没有答案。把测试改成从预览路由进入，断言页面实际给会员的价格，才能观察到那个 100。</p>
+<p>我会把旧经验留下来，保住它指向的测试和当时适用的入口。新任务省的是重新查找的时间。等它真正决定要不要交付，得看今天的订单走过哪段代码。</p>
+</section></section>
+<section class="v2-topic-group" id="startup-memory"><header class="v2-group-heading"><h2>开个新会话，经验以什么形式进来？</h2></header>
+<section class="design-section" id="memory-snapshot">
+<p id="session-or-memory">如果接着打开昨天的会话，可以在那份历史里找回昨天那次 <code>Read</code>。另开会话时，程序从绑定的 Markdown 记忆库挑材料。一条“查会员预览”的旧经验可以跨过去，昨天那次 <code>Read</code> 的原始回包仍要到原会话里找。</p>
+<p>启动时，程序从项目、用户和知识库载入条目。同名条目也有各自的作用域。知识库中属于其他项目、未锁定的经验先被排掉，已过期的条目也不参与。有效条目少于 50 时提供正文；达到 50 时，普通正文容量变成 40 条，其余最多选 200 个标题或名称进索引。用户、反馈和锁定记录优先，保护项多时可以超过普通正文容量。</p>
+<figure class="ruocun-code" data-language="python"><figcaption class="ruocun-code-caption"><span>Python</span><span>源码节选</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="145"></span><span data-line="146"></span><span data-line="147"></span><span data-line="148"></span><span data-line="149"></span><span data-line="150"></span><span data-line="151"></span><span data-line="152"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">    index = [] <span class="hljs-keyword">if</span> small <span class="hljs-keyword">else</span> _selectIndexEntries(validated, today, full)
+    text = buildMemorySection(full) + buildIndexSection([item.mem.title or item.mem.name <span class="hljs-keyword">for</span> item in index])
+
+    <span class="hljs-keyword">def</span> identities(items: Sequence[ValidatedMemory]) -&gt; <span class="hljs-built_in">tuple</span>[StartupMemoryEntry, ...]:
+        <span class="hljs-keyword">return</span> <span class="hljs-built_in">tuple</span>(StartupMemoryEntry(item.scope, item.mem.name, item.content_hash)
+                     <span class="hljs-keyword">for</span> item in items <span class="hljs-keyword">if</span> item.scope is not <span class="hljs-keyword">None</span>)
+
+    <span class="hljs-keyword">return</span> StartupMemorySnapshot(text, identities(full), identities(index))</code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/memory/inject.py#L145" rel="noopener" target="_blank">inject.py · 第 145–152 行</a></p>
+<p>这里的 <code>text</code> 给<a href="model-input.html" rel="noopener" target="_blank">启动系统消息</a>用，后两个值分别记住全文和索引里的条目身份。身份里还带着正文哈希，也就是从文件内容算出的标识。假如先生成文本，随后再去磁盘读取版本，中间恰好有人改了经验，程序就可能拿今天的版本号给昨天的文字盖章。用同一批条目完成这两件事，后面才能判断模型究竟已经读了哪一版。</p>
+<p>把同一条“会员预览回归”放进两边的本地记忆库，细节都写成一份主题说明。Claude Code 开启自动记忆后，启动时最多读 <code>MEMORY.md</code> 的前 200 行或 25 KB，以先到的上限为准。用到这条经验才通过文件工具取主题正文。若存按条目数和优先级选正文和索引。小库直接带正文，可以省一次读取；落到索引的项则在用到时交给 <code>MemoryRead</code>，换取更小的启动上下文。启动时实际发出去的正文版本也记下来，稍后才知道本次任务需不需要再带一份。<a href="https://code.claude.com/docs/en/memory#how-it-works" rel="noopener" target="_blank">Claude Code 官方文档 · 自动记忆的索引与正文</a></p>
+</section><section class="design-section" id="memory-source-check">
+<p>旧经验正文还写着“从旧预览函数查起”，原文一个字没变。入口文件 <code>pricing/preview.py</code> 却已经换成新实现。程序比较的是另一份哈希：经验记录下来的来源版本和此刻读到的文件版本。</p>
+<p>来源文件还能读，哈希却变了，这条经验标为 <code>changed</code>，仍能提供线索，同时提醒你复查。已超过有效期，或工作区内的来源文件读不到，自动召回会跳过。没有文件来源、无法比较哈希等情况也可能得到 <code>ok</code>。这个值只能回答此次来源检查发现了什么，入口调用方、配置或依赖变化还得自己追。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/memory/validate.py#L27" rel="noopener" target="_blank">查看来源检查</a></p>
+</section></section>
+<section class="v2-topic-group" id="memory-paths"><header class="v2-group-heading"><h2>把旧经验带进这一问</h2></header>
+<section class="design-section" id="memory-current-input">
+<p>用户发来“查一下会员折扣预览”。程序在消费这条<a href="interactive-control.html" rel="noopener" target="_blank">排队输入</a>时，先看输入 Hook 是否允许。允许后才有机会拿当前问题搜记忆。这一步取当前文字的词项，按作用域和来源先筛一遍，再给标题和正文里的匹配打分。搜到“会员预览回归”，只说明它值得打开。</p>
+<ul>
+<li>默认 <code>--memory-strategy startup</code> 提供启动材料。</li>
+<li>选 <code>--memory-strategy task</code> 时，还会按本次输入召回。首次已经提供过全文的条目按作用域和名称排除，补进来的材料最多两条、共 2400 字符。</li>
+<li>交互任务启用 <code>--memory-learning controlled</code> 时，当前输入优先走受控旧错检查。它也最多补两条、共 2400 字符，不过会挑选可复查的语义和操作经验，并核对启动时见到的具体版本。这是独立的学习选项，命令行默认关闭。<code>--no-memory</code> 关闭自动记忆，评估模式也会设置它。</li>
+</ul>
+<p>启动消息留在原处。确有相关条目时，程序让排队原文与补充材料在同一次提交中进入会话，补充另成一条后续 <code>system</code>。输入被挡住或没有召回文字时，不会追加这份补充。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/agent/runtime.py#L1288" rel="noopener" target="_blank">查看两条召回分支</a> · <a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/session/conversation.py#L246" rel="noopener" target="_blank">查看输入与补充怎样提交</a></p>
+</section><section class="design-section" id="memory-version-check">
+<p>启动时，模型已经读过“会员预览回归”这条经验。它再次被搜到时，假如只改了预览代码，重发旧经验也说不清代码变了。要是改的是经验里的验收条件，省掉正文反而可能把新要求漏掉。下面把启动时的经验正文叫 <code>M1</code>，把它记录的来源文件版本叫 <code>S1</code>，看看程序怎样分开核对两份材料。</p>
+<figure class="ruocun-code" data-language="python"><figcaption class="ruocun-code-caption"><span>Python</span><span>源码节选</span><button aria-label="复制代码，不含行号" class="textbook-copy" type="button">复制</button></figcaption>
+<div class="ruocun-code-scroll"><div aria-hidden="true" class="ruocun-code-gutter"><span data-line="170"></span><span data-line="171"></span><span data-line="172"></span><span data-line="173"></span><span data-line="174"></span><span data-line="175"></span><span data-line="176"></span><span data-line="177"></span><span data-line="178"></span><span data-line="179"></span><span data-line="180"></span><span data-line="181"></span></div><pre data-ruocun-highlighted="1"><code class="hljs language-python">        record = _record(entry, verdict)
+        <span class="hljs-keyword">if</span> startup is not <span class="hljs-keyword">None</span>:
+            same = <span class="hljs-built_in">bool</span>(entry.contentDigest) and full_versions.get((entry.scope, entry.memory.name)) == entry.contentDigest
+            <span class="hljs-comment"># 先按相关性选出目标，再决定是否隐藏重复正文。</span>
+            <span class="hljs-comment"># 复验警告对应当前源码。Markdown 没变时也可能有警告。</span>
+            <span class="hljs-keyword">if</span> same:
+                warning = <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">\n</span><span class="hljs-string">{</span>_CHANGED<span class="hljs-string">}</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> verdict == <span class="hljs-string">"</span><span class="hljs-string">changed</span><span class="hljs-string">"</span> <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">"</span>
+                source = <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">；来源：</span><span class="hljs-string">{</span>entry.memory.source<span class="hljs-string">}</span><span class="hljs-string">"</span> <span class="hljs-keyword">if</span> entry.memory.source <span class="hljs-keyword">else</span> <span class="hljs-string">"</span><span class="hljs-string">"</span>
+                record = (<span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">[</span><span class="hljs-string">{</span>entry.scope<span class="hljs-string">}</span><span class="hljs-string">/</span><span class="hljs-string">{</span>entry.memory.name<span class="hljs-string">}</span><span class="hljs-string">] </span><span class="hljs-string">{</span>entry.memory.title or entry.memory.name<span class="hljs-string">}</span><span class="hljs-string">"</span>
+                          <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">{</span>source<span class="hljs-string">}</span><span class="hljs-string">"</span>
+                          <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">\n</span><span class="hljs-string">同版本正文已在启动记忆提供；定位摘录（仅供查找）：</span><span class="hljs-string">{</span>entry.memory.text[:<span class="hljs-number">120</span>]<span class="hljs-string">}</span><span class="hljs-string">{</span>warning<span class="hljs-string">}</span><span class="hljs-string">"</span>)
+            record = <span class="hljs-string">f</span><span class="hljs-string">"</span><span class="hljs-string">{</span>record<span class="hljs-string">}</span><span class="hljs-string">\n</span><span class="hljs-string">记忆版本：</span><span class="hljs-string">{</span>entry.contentDigest<span class="hljs-string">}</span><span class="hljs-string">"</span></code></pre></div></figure>
+<p class="design-source"><a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/memory/retrieval.py#L170" rel="noopener" target="_blank">retrieval.py · 第 170–181 行</a></p>
+<p>正文仍是 <code>M1</code> 时，<code>same</code> 成立，回给模型的是简短的定位摘录。假如磁盘上的预览代码已是 <code>S2</code>，<code>verdict</code> 仍是 <code>changed</code>，摘录后面会留着变化提醒。若有人改了经验的适用条件，正文变成 <code>M2</code>，即使名称相同也会走当前正文，能否放入请求还要看剩余预算。<strong>「旧正文可以少发一次，眼下的来源变化还要告诉模型。」</strong></p>
+<p>名字还一样，能不能直接省掉正文？现有用例换成分页经验来验证。一个用例在启动读过全文后再次召回，断言只给定位和检查提示，旧正文不用再发。另一个保留同名条目，把“第一页成功即可”改成“核对末页和总数”，再按同一主题召回。它断言补充用的是新版正文，原来那条只看第一页的条件没有再出现。查看同版摘录和改版重读的断言（项目回归测试）</p>
+</section></section>
+<section class="v2-topic-group" id="memory-actions"><header class="v2-group-heading"><h2>拿到经验，怎么用它避免再错一次？</h2></header>
+<section class="design-section" id="memory-read-write">
+<p>只见过标题，可以手动调用 <code>MemoryRead</code>。例如搜“预览”，同时找到“会员预览回归”和“导出预览格式”，先挑会员那条，再用完整标题查正文。工具先按名称或标题精确比对，找不到才按空白拆词查内容。默认最多列六条。命中一条会回正文，命中多条会给列表。自动召回的相关性排序和新鲜度判断在另一条路径上，手动读回的内容也该按现状核实。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/memory_read.py#L27" rel="noopener" target="_blank">查看手动读取的匹配顺序</a></p>
+<p>确认适用范围后，可用 <code>MemoryWrite</code> 保存经验。例如以“会员预览回归”为标题，把“预览走 <code>preview_total</code> 时，断言实际给会员显示的价格”写入项目记忆，并附上来源 <code>pricing/preview.py</code>。工具会筛查疑似凭据并为读得到的文件来源记录哈希。也可以用 <code>delete: true</code> 加标题或正文定位删除，只读兼容来源仍会保留。写入回执确认的是笔记保存下来。<a href="https://github.com/hmmgotit/RuoCun/blob/v2.0.0/src/ruocun/tools/memory_write.py#L39" rel="noopener" target="_blank">查看写入怎样确定范围和来源</a></p>
+</section><section class="design-section" id="memory-targeted-verify">
+<p>经验已经找回来了，页面上那笔 100 元还缺一份经过当前入口的证据。先从路由读到 <code>preview_total</code>，再看测试能否把同一笔 100 元的会员订单送进去。受控召回给出的旧错检查提示会让模型把核对放进原有的 <code>TodoWrite</code> 清单，保留其余待办，然后使用最后一次相关修改之后的工具结果说明是否通过。跑不起来就标未验证；这回只改结算、与这条预览经验无关，就说明不适用。若历史只剩一句“检查通过”，沿<a href="archive-retrieval.html#same-text-different-evidence" rel="noopener" target="_blank">原调用和它的回包</a>核对。<strong>「报告会员价已修前，先找到最后一次相关修改之后、真正经过预览入口的结果。」</strong></p>
+</section></section>
+<section class="v2-topic-group" id="article-assessment"><header class="v2-group-heading"><h2>只改了一份配置，旧来源仍对得上</h2></header>
+<section class="design-section" id="article-assessment-1">
+<p>经验文档还是 <code>M1</code>，它指向的 <code>pricing/preview.py</code> 也没改。今天运维只改了一份活动配置，页面改从另一条插件路由计算价格。一条直接调用 <code>preview_total</code> 的用例仍然全绿。受控召回会给什么，交付前要查哪一项？</p>
+<details><summary>核对判断</summary><p>若这条经验在启动时已给过全文，且本次命中并能放入预算，程序可以只给定位摘录。它跟踪的文件没变，此处不会提示来源变化。还要查当前页面实际走的插件路由，确认当前活动配置下会员订单显示多少。眼前的测试只走了 <code>preview_total</code>，针对页面旧错仍应标未验证。</p></details>
+</section></section>
+<section class="v2-topic-group" id="article-takeaways"><header class="v2-group-heading"><h2>这一章带走什么</h2></header>
+<div class="design-section"><p>旧测试跑绿了，先查它走的是哪个入口。旧函数仍能算出 90 元，今天的预览页却可能已经换了一条路。交付前，拿同一笔订单从实际页面入口再验一遍。</p>
+<p>启动时给过哪一版经验，程序会记下来。再次搜到同一版，可以少发一遍全文。经验指向的代码有自己的版本，正文没改过，文件也可能早就变了。</p>
+<p>这回终于测到了预览入口。要是经验还没保存，预览文件又被改了一次，<a href="experience-learning.html#learning-case" rel="noopener" target="_blank">刚才的通过回包还能给哪一版作证？</a></p></div>
+</section><section class="v2-topic-group" id="interview-practice"><span aria-hidden="true" id="article-interview"></span><header class="v2-group-heading"><h2>面经自测</h2></header><section class="design-section interview-exercise" id="interview-opening"><h3 class="interview-prompt">你们项目里的长期记忆是怎样实现的？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/2d982457b8b94da09fab383e275de93d?sourceSSR=dynamic" rel="noopener" target="_blank">网易 · 一面 · 面经原帖</a> · 题意转述</p><details class="answer-box"><summary>展开参考回答</summary><div><p>我把能跨会话复用的经验存起来，当前任务用到时<strong>找相关条目，再核对它还管不管用</strong>。</p><p>若存启动时可以列出本地记忆，收到会员预览的问题再按任务找相关经验。如果它指向的源码已经换了入口，就重新查当前实现。</p><p class="interview-origin"><a href="#memory-current-input">回看讲解</a></p></div></details></section><span aria-hidden="true" id="intern-memory"></span><span aria-hidden="true" id="harness-memory"></span><section class="design-section interview-exercise" id="interview-review-1"><h3>短期记忆和长期记忆分别存在哪里，又在什么时候读出来？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/223fa82f976b4418b214894bd7d941fd?sourceSSR=dynamic" rel="noopener" target="_blank">小红书 · 一面 · 面经原帖</a> · 题意转述　可回看 <a href="model-input.html" rel="noopener" target="_blank">第 2 章</a> <a href="context-compaction.html" rel="noopener" target="_blank">第 13 章</a> </p><details class="answer-box"><summary>展开参考回答</summary><div><p><strong>接回原会话</strong>时，我从它保存的消息记录里找当时的问题和工具结果。昨天那次 Read 的结果，是这场会话的一条消息。</p><p><strong>另开新会话</strong>时，程序从绑定的 Markdown 记忆库挑条目，带上正文或供检索的索引。新会话能读到选中的经验；想知道文件今天怎么写，还要去读现在的文件。</p><p class="interview-origin"><a href="#memory-snapshot">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-2"><h3>记忆的文字一个字没改，为什么若存还提醒我重新查源码？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>记录本身和<strong>它引用的文件</strong>都有自己的版本。</p><p>经验仍写着去旧预览入口，但 preview.py 已经变过。先打开现在的入口，这条经验才有资格指导今天的修改。</p><p class="interview-origin"><a href="#memory-source-check">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-3"><h3>启动时已经展开过同一条经验，什么时候还要再给模型看全文？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>要看<strong>这次命中的内容还是不是启动时那一版</strong>。</p><p>若存发现同名的会员经验已经更新，就要按新的内容处理。标题一样并不能说明模型读过新版。</p><p class="interview-origin"><a href="#memory-version-check">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-4"><h3>MemoryRead 一次搜到多条记录，怎样找出要用的那条？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>先看<strong>候选名称和标题</strong>，再取真正相关的一份全文。</p><p>若存搜索会员折扣时若只命中一条可以直接读到正文，多条命中时先给索引，方便继续选。</p><p class="interview-origin"><a href="#memory-read-write">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-5"><h3>过去踩过的会员价问题又改了一次，旧的通过记录还能给现在的结果作证吗？</h3><p class="interview-origin">若存设计题</p><details class="answer-box"><summary>展开参考回答</summary><div><p>要看<strong>最后一次相关修改之后</strong>的证据。</p><p>在若存案例里，我会从当前预览入口传入会员身份和 100 元，重新核对 90 元的断言。之前那次只验证过旧代码。</p><p class="interview-origin"><a href="#memory-targeted-verify">回看讲解</a></p></div></details></section><section class="design-section interview-exercise" id="interview-review-6"><h3>项目怎样把长期记忆里和当前问题相关的内容找回来？</h3><p class="interview-origin"><a href="https://www.nowcoder.com/feed/main/detail/8a553bb6ea8445d0b0abe11e87614cea?sourceSSR=dynamic" rel="noopener" target="_blank">字节跳动 · 一面 · 面经原帖</a> · 题意转述</p><details class="answer-box"><summary>展开参考回答</summary><div><p>拿<strong>这一次用户输入</strong>和已有条目匹配，在预算内带入相关内容。看到旧经验后，先确认它讲的是当前项目、当前入口，再据此行动。</p><p class="interview-origin"><a href="#memory-current-input">回看讲解</a></p></div></details></section></section>
+<nav aria-label="章末导航" class="course-pagination"><a href="../课程学习地图.html" rel="noopener" target="_blank">学习地图</a><a href="prefix-cache.html" rel="prev noopener" target="_blank" title="两次请求开头一样，模型服务能复用多少计算">上一章</a><a href="experience-learning.html" rel="next noopener" target="_blank" title="一次改错，怎样才值得存成下一次能用的经验">下一章</a></nav></article></main>
+</body>
+</html>

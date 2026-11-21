@@ -1,0 +1,39 @@
+.lesson-flow .flow-line {
+  align-items: center;
+  display: grid;
+  gap: .4rem;
+  grid-template-columns: minmax(4em, .7fr) 1fr 1em 1fr 1em 1fr;
+  padding: .55rem .75rem;
+}
+.lesson-flow .flow-line + .flow-line {
+  border-top: 1px solid #e9ded2;
+}
+.lesson-flow .flow-line b {
+  color: #614961;
+  font-size: .89em;
+}
+.lesson-flow .flow-node {
+  padding: .3rem .4rem;
+  border: 1px solid #dfc6e8;
+  border-radius: .45rem;
+  background: #f4e9f8;
+  text-align: center;
+  line-height: 1.45;
+}
+.lesson-flow .flow-line:nth-of-type(2) .flow-node {
+  background: #e3f5ed;
+  border-color: #b8dfce;
+}
+.lesson-flow .flow-arrow {
+  color: #7f6685;
+  text-align: center;
+}
+@media (max-width: 600px) {
+  .lesson-flow .flow-line {
+    grid-template-columns: minmax(0, 1fr) .7em minmax(0, 1fr) .7em minmax(0, 1fr);
+    gap: .14rem;
+    padding: .35rem;
+  }
+  .lesson-flow .flow-line b { grid-column: 1 / -1; }
+  .lesson-flow .flow-node { overflow-wrap: anywhere; font-size: .88rem; }
+}

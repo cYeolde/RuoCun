@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:lang="zh-CN" role="img" aria-labelledby="title desc" viewBox="0 0 1080 311" width="1080" height="311">
+  <title id="title">同得 1 分，两份运行记录差在哪里？</title>
+  <desc id="desc">build-cython-ext 的两份产物各得 1 分。DeepSeek Harness 在 273.3 秒正常结束，其中包括收尾。若存到 900 秒作答截止，另用 11.9 秒收尾。</desc>
+  <defs>
+    <marker id="gray-arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L8 4 L1 7" fill="none" stroke="#57606a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="blue-arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L8 4 L1 7" fill="none" stroke="#0969da" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="amber-arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L8 4 L1 7" fill="none" stroke="#8a4b08" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <style>
+      text { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif; fill:#1f2328; font-size:22px; }
+      .label { font-weight:600; }
+      .small { font-size:20px; fill:#57606a; }
+      .head { font-size:20px; font-weight:600; fill:#57606a; }
+      .mono, .mono-blue, .mono-small { font-family: "Cascadia Code", Consolas, "Microsoft YaHei", monospace; }
+      .mono-small { font-size:20px; }
+      .mono-blue, .blue-text { fill:#0969da; font-weight:600; }
+      .amber-text { fill:#8a4b08; font-weight:600; }
+      .plain { fill:#fff; stroke:#d0d7de; }
+      .soft { fill:#f6f8fa; stroke:#d0d7de; }
+      .blue { fill:#edf6ff; stroke:#0969da; }
+      .amber { fill:#fff7e6; stroke:#b0804f; }
+      .plain, .soft, .blue, .amber { stroke-width:1.5; }
+      .line-gray, .line-blue, .line-amber, .line-muted { fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+      .line-gray { stroke:#57606a; }
+      .line-blue { stroke:#0969da; }
+      .line-amber { stroke:#8a4b08; }
+      .line-muted { stroke:#d0d7de; }
+    </style>
+  </defs>
+  <rect width="1080" height="311" fill="#fff"/>
+  <text x="28" y="38" text-anchor="start" class="head">同一题 build-cython-ext</text>
+  <text x="1017" y="38" text-anchor="end" class="head">产物得分</text>
+  <path d="M228 262 H870" class="line-muted"/>
+  <path d="M717 91 V262" class="line-amber" stroke-dasharray="6 5"/>
+  <text x="717" y="76" text-anchor="middle" class="amber-text">900 秒 · 作答截止</text>
+  <text x="28" y="121" text-anchor="start" class="label">DeepSeek Harness</text>
+  <text x="28" y="215" text-anchor="start" class="label">若存</text>
+  <path d="M228 132 H377" class="line-blue"/>
+  <rect x="372" y="126" width="12" height="12" rx="8" class="blue"/>
+  <text x="399" y="140" text-anchor="start" class="blue-text">273.3 秒 · 已含收尾</text>
+  <path d="M228 222 H717" class="line-blue"/>
+  <rect x="711" y="216" width="12" height="12" rx="8" class="amber"/>
+  <path d="M723 222 H750" class="line-amber" marker-end="url(#amber-arrow)"/>
+  <text x="750" y="210" text-anchor="start" class="small">另用 11.9 秒收尾</text>
+  <text x="228" y="288" text-anchor="middle" class="small">开始</text>
+  <rect x="919" y="102" width="113" height="61" rx="8" class="blue"/>
+  <text x="975.5" y="139.5" text-anchor="middle" class="blue-text">1 分</text>
+  <rect x="919" y="192" width="113" height="61" rx="8" class="blue"/>
+  <text x="975.5" y="229.5" text-anchor="middle" class="blue-text">1 分</text>
+</svg>

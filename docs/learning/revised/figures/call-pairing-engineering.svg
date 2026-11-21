@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 289" role="img" aria-labelledby="title description" xml:lang="zh-CN">
+<title>Chat 和 Responses 怎样把同一条工具回包配回原调用？</title>
+<desc>同一次 Read 使用调用 ID c7。Chat 发送 tool_calls 的 id，并在 tool 回包内使用 tool_call_id 等于 c7。Responses 用 function_call 和 function_call_output，两侧 call_id 都等于 c7。</desc>
+<defs><style>text { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif; } text.mono { font-family: "Cascadia Code", Consolas, monospace; }</style>
+<marker id="gray" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="m1 1 6 3-6 3" fill="none" stroke="#7d8895" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></marker>
+<marker id="blue" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="m1 1 6 3-6 3" fill="none" stroke="#0969da" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></marker>
+<marker id="amber" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="m1 1 6 3-6 3" fill="none" stroke="#8a4b08" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></marker>
+</defs>
+<rect width="1100" height="289" fill="#fff"/>
+<path d="M586 47 L586 264" stroke="#dce1e7" fill="none" stroke-dasharray="5 5"/>
+<path d="M366 133V172" fill="none" stroke="#0969da" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" marker-end="url(#blue)"/>
+<path d="M809 133V172" fill="none" stroke="#0969da" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" marker-end="url(#blue)"/>
+<text x="366" y="34" text-anchor="middle" font-size="19" fill="#57606a">Chat</text>
+<text x="809" y="34" text-anchor="middle" font-size="19" fill="#57606a">Responses</text>
+<text x="112" y="105" text-anchor="end" font-size="22" fill="#1f2328" font-weight="600">调用</text>
+<text x="112" y="225" text-anchor="end" font-size="22" fill="#1f2328" font-weight="600">回包</text>
+<rect x="182" y="57" width="368" height="76" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="366.0" y="91.0" text-anchor="middle" font-size="22" fill="#1f2328" class="mono">tool_calls</text>
+<text x="366.0" y="118.0" text-anchor="middle" font-size="18" fill="#57606a" class="mono">id = c7</text>
+<rect x="182" y="177" width="368" height="76" rx="6" fill="#edf6ff" stroke="#91bce6"/>
+<text x="366.0" y="211.0" text-anchor="middle" font-size="22" fill="#0969da" class="mono">tool</text>
+<text x="366.0" y="238.0" text-anchor="middle" font-size="18" fill="#57606a" class="mono">tool_call_id = c7</text>
+<rect x="624" y="57" width="369" height="76" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="808.5" y="91.0" text-anchor="middle" font-size="22" fill="#1f2328" class="mono">function_call</text>
+<text x="808.5" y="118.0" text-anchor="middle" font-size="18" fill="#57606a" class="mono">call_id = c7</text>
+<rect x="624" y="177" width="369" height="76" rx="6" fill="#edf6ff" stroke="#91bce6"/>
+<text x="808.5" y="211.0" text-anchor="middle" font-size="22" fill="#0969da" class="mono">function_call_output</text>
+<text x="808.5" y="238.0" text-anchor="middle" font-size="18" fill="#57606a" class="mono">call_id = c7</text>
+<text x="378" y="162" text-anchor="start" font-size="18" fill="#0969da" class="mono">c7</text>
+<text x="821" y="162" text-anchor="start" font-size="18" fill="#0969da" class="mono">c7</text>
+</svg>

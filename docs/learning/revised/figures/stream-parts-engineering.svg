@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 375" role="img" aria-labelledby="title description" xml:lang="zh-CN">
+<title>两次工具调用的参数交错到达，按哪一项拼接？</title>
+<desc>到达顺序依次是位置 0 的起始片段、位置 1 的起始片段、位置 0 的后半截、位置 1 的后半截。每次只更新对应 index 的缓存，位置 0 得到 prices.mjs，位置 1 得到 test.mjs。</desc>
+<defs><style>text { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif; } text.mono { font-family: "Cascadia Code", Consolas, monospace; }</style>
+<marker id="gray" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="m1 1 6 3-6 3" fill="none" stroke="#7d8895" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></marker>
+<marker id="blue" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="m1 1 6 3-6 3" fill="none" stroke="#0969da" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></marker>
+<marker id="amber" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto"><path d="m1 1 6 3-6 3" fill="none" stroke="#8a4b08" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/></marker>
+</defs>
+<rect width="1100" height="375" fill="#fff"/>
+<path d="M385 95H401" fill="none" stroke="#7d8895" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" marker-end="url(#gray)"/>
+<path d="M602 95H618" fill="none" stroke="#7d8895" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" marker-end="url(#gray)"/>
+<path d="M819 95H835" fill="none" stroke="#7d8895" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" marker-end="url(#gray)"/>
+<path d="M286 131V172" fill="none" stroke="#0969da" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" marker-end="url(#blue)"/>
+<path d="M572 131H615V297H602" fill="none" stroke="#0969da" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" marker-end="url(#blue)"/>
+<path d="M720 131V172" fill="none" stroke="#0969da" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" marker-end="url(#blue)"/>
+<path d="M1006 131H1049V297H1036" fill="none" stroke="#0969da" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" marker-end="url(#blue)"/>
+<text x="140" y="106" text-anchor="end" font-size="19" fill="#57606a">收到的片段</text>
+<text x="286" y="39" text-anchor="middle" font-size="19" fill="#57606a">第 1 截</text>
+<rect x="190" y="61" width="192" height="68" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="286.0" y="91.0" text-anchor="middle" font-size="19" fill="#1f2328" class="mono">{&quot;path&quot;:&quot;pri</text>
+<text x="286.0" y="118.0" text-anchor="middle" font-size="17" fill="#57606a" class="mono">index = 0</text>
+<text x="503" y="39" text-anchor="middle" font-size="19" fill="#57606a">第 2 截</text>
+<rect x="407" y="61" width="192" height="68" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="503.0" y="91.0" text-anchor="middle" font-size="19" fill="#1f2328" class="mono">{&quot;path&quot;:&quot;test</text>
+<text x="503.0" y="118.0" text-anchor="middle" font-size="17" fill="#57606a" class="mono">index = 1</text>
+<text x="720" y="39" text-anchor="middle" font-size="19" fill="#57606a">第 3 截</text>
+<rect x="624" y="61" width="192" height="68" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="720.0" y="91.0" text-anchor="middle" font-size="19" fill="#1f2328" class="mono">ces.mjs&quot;}</text>
+<text x="720.0" y="118.0" text-anchor="middle" font-size="17" fill="#57606a" class="mono">index = 0</text>
+<text x="937" y="39" text-anchor="middle" font-size="19" fill="#57606a">第 4 截</text>
+<rect x="841" y="61" width="192" height="68" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="937.0" y="91.0" text-anchor="middle" font-size="19" fill="#1f2328" class="mono">.mjs&quot;}</text>
+<text x="937.0" y="118.0" text-anchor="middle" font-size="17" fill="#57606a" class="mono">index = 1</text>
+<text x="140" y="213" text-anchor="end" font-size="22" fill="#1f2328" class="mono" font-weight="600">index = 0</text>
+<rect x="190" y="178" width="192" height="50" rx="6" fill="#edf6ff" stroke="#91bce6"/>
+<text x="286.0" y="210.14" text-anchor="middle" font-size="21" fill="#0969da" class="mono">pri</text>
+<rect x="407" y="178" width="192" height="50" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="503.0" y="210.14" text-anchor="middle" font-size="21" fill="#1f2328" class="mono">pri</text>
+<rect x="624" y="178" width="192" height="50" rx="6" fill="#edf6ff" stroke="#91bce6"/>
+<text x="720.0" y="210.14" text-anchor="middle" font-size="21" fill="#0969da" class="mono">prices.mjs</text>
+<rect x="841" y="178" width="192" height="50" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="937.0" y="210.14" text-anchor="middle" font-size="21" fill="#1f2328" class="mono">prices.mjs</text>
+<text x="140" y="307" text-anchor="end" font-size="22" fill="#1f2328" class="mono" font-weight="600">index = 1</text>
+<rect x="190" y="272" width="192" height="50" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="286.0" y="304.14" text-anchor="middle" font-size="21" fill="#1f2328" class="mono">—</text>
+<rect x="407" y="272" width="192" height="50" rx="6" fill="#edf6ff" stroke="#91bce6"/>
+<text x="503.0" y="304.14" text-anchor="middle" font-size="21" fill="#0969da" class="mono">test</text>
+<rect x="624" y="272" width="192" height="50" rx="6" fill="#f6f8fa" stroke="#d0d7de"/>
+<text x="720.0" y="304.14" text-anchor="middle" font-size="21" fill="#1f2328" class="mono">test</text>
+<rect x="841" y="272" width="192" height="50" rx="6" fill="#edf6ff" stroke="#91bce6"/>
+<text x="937.0" y="304.14" text-anchor="middle" font-size="21" fill="#0969da" class="mono">test.mjs</text>
+<text x="189" y="352" text-anchor="start" font-size="18" fill="#57606a">缓存中只展示路径片段</text>
+</svg>

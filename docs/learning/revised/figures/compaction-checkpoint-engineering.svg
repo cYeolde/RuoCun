@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 310"
+     role="img" aria-labelledby="title description" xml:lang="zh-CN">
+  <title id="title">保存摘要时，当前会话使用哪份历史</title>
+  <desc id="description">比较三个时点的当前历史。候选摘要已生成时，仍用旧历史，等待提交确认。保存结果未知时，仍保留旧历史，本轮暂停并核对原提交。归档和检查点都已确认后，当前换成新历史，后续请求可使用它。</desc>
+  <defs>
+    <style>
+      text {
+        font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", "Noto Sans SC", sans-serif;
+        font-size: 21px;
+        fill: #1f2328;
+      }
+      .axis-label { font-size: 18px; fill: #57606a; }
+      .row-label { font-weight: 600; }
+      .stage { font-weight: 600; text-anchor: middle; }
+      .cell { text-anchor: middle; }
+      .rule { stroke: #d0d7de; stroke-width: 1.5; fill: none; }
+      .old { fill: #f6f8fa; stroke: #d0d7de; stroke-width: 1.5; }
+      .new { fill: #eef6ff; stroke: #0969da; stroke-width: 1.5; }
+      .pending { fill: #fff7e6; stroke: #d49b51; stroke-width: 1.5; }
+      .unknown { fill: #8a4b08; }
+      .highlight { fill: #0969da; }
+      .emphasis { font-weight: 700; }
+    </style>
+    <marker id="time-arrow" markerWidth="10" markerHeight="10" refX="8" refY="5"
+            orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M2 1 L8 5 L2 9" fill="none" stroke="#a9b3bf" stroke-width="1.5"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <rect width="1100" height="310" fill="#ffffff"/>
+
+  <path d="M212 82 H591" stroke="#a9b3bf" stroke-width="1.5" fill="none"/>
+  <path d="M591 82 H1046" stroke="#a9b3bf" stroke-width="1.5" fill="none" stroke-dasharray="6 5"
+        marker-end="url(#time-arrow)"/>
+  <path class="rule" d="M36 110 H1064 M36 200 H1064 M36 280 H1064"/>
+  <path class="rule" d="M198 110 V280"/>
+  <circle cx="310" cy="82" r="5" fill="#ffffff" stroke="#a9b3bf" stroke-width="1.5"/>
+  <circle cx="591" cy="82" r="5" fill="#fff7e6" stroke="#8a4b08" stroke-width="1.5"/>
+  <circle cx="872" cy="82" r="5" fill="#0969da"/>
+
+  <rect class="old" x="238" y="131" width="144" height="48" rx="6"/>
+  <rect class="old" x="519" y="131" width="144" height="48" rx="6"/>
+  <rect class="new" x="800" y="131" width="144" height="48" rx="6"/>
+  <rect class="pending" x="469" y="218" width="244" height="44" rx="6"/>
+
+  <text class="axis-label" x="36" y="87">观察时点</text>
+  <text class="stage" x="310" y="51">候选摘要已生成</text>
+  <text class="stage unknown" x="591" y="51">若保存结果未知</text>
+  <text class="stage" x="872" y="51">归档与检查点均确认后</text>
+
+  <text class="row-label" x="36" y="162">当前确认的历史</text>
+  <text class="cell" x="310" y="162">旧历史</text>
+  <text class="cell" x="591" y="162">旧历史</text>
+  <text class="cell highlight emphasis" x="872" y="162">新历史</text>
+
+  <text class="row-label" x="36" y="247">下一步</text>
+  <text class="cell" x="310" y="247">等待提交确认</text>
+  <text class="cell unknown" x="591" y="247">暂停本轮，核对原提交</text>
+  <text class="cell" x="872" y="247">后续请求可使用新历史</text>
+</svg>

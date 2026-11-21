@@ -69,6 +69,12 @@ article > #route { margin-top: 30px; padding-top: 0; border-top: 0; }
 .problem-list > section { padding: 5px 0 22px; border-bottom: 1px solid var(--line); }
 .problem-list h3 { margin: 20px 0 5px; }
 .problem-list p { margin: 8px 0; }
+.interview-chapter { font-size: 15px; }
+.problem-list .interview-main { margin: 4px 0; font-size: clamp(21px, 2.4vw, 25px); line-height: 1.5; overflow-wrap: anywhere; }
+.interview-main a { color: var(--ink); }
+.review-questions { padding-inline-start: 1.6em; margin: 12px 0 0; font-size: 16px; }
+.review-questions li { margin-block: 6px; overflow-wrap: anywhere; }
+.review-questions small { color: var(--muted); white-space: nowrap; }
 .audiences { color: var(--muted); font-size: 14px; }
 .chapter { margin-top: 44px; padding: 8px 0 36px; border-bottom: 1px solid var(--line); scroll-margin-top: 100px; }
 .chapter > header { display: flex; gap: 15px; align-items: baseline; }

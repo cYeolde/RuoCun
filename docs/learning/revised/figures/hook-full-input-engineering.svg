@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:lang="zh-CN" role="img" aria-labelledby="title desc" viewBox="0 0 1080 318" width="1080" height="318">
+  <title id="title">改写目标路径时，钩子为什么也要带上原来的内容？</title>
+  <desc id="desc">原写入请求有 notes/preview.md 和内容已核对。钩子只返回 reports/preview.md 会因缺 content 校验失败，同时返回新路径和内容时通过校验，宿主再按新目标查权限。</desc>
+  <defs>
+    <marker id="gray-arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L8 4 L1 7" fill="none" stroke="#57606a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="blue-arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L8 4 L1 7" fill="none" stroke="#0969da" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="amber-arrow" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L8 4 L1 7" fill="none" stroke="#8a4b08" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <style>
+      text { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif; fill:#1f2328; font-size:22px; }
+      .label { font-weight:600; }
+      .small { font-size:20px; fill:#57606a; }
+      .head { font-size:20px; font-weight:600; fill:#57606a; }
+      .mono, .mono-blue, .mono-small { font-family: "Cascadia Code", Consolas, "Microsoft YaHei", monospace; }
+      .mono-small { font-size:20px; }
+      .mono-blue, .blue-text { fill:#0969da; font-weight:600; }
+      .amber-text { fill:#8a4b08; font-weight:600; }
+      .plain { fill:#fff; stroke:#d0d7de; }
+      .soft { fill:#f6f8fa; stroke:#d0d7de; }
+      .blue { fill:#edf6ff; stroke:#0969da; }
+      .amber { fill:#fff7e6; stroke:#b0804f; }
+      .plain, .soft, .blue, .amber { stroke-width:1.5; }
+      .line-gray, .line-blue, .line-amber, .line-muted { fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+      .line-gray { stroke:#57606a; }
+      .line-blue { stroke:#0969da; }
+      .line-amber { stroke:#8a4b08; }
+      .line-muted { stroke:#d0d7de; }
+    </style>
+  </defs>
+  <rect width="1080" height="318" fill="#fff"/>
+  <text x="28" y="37" text-anchor="start" class="head">准备写入的参数</text>
+  <text x="383" y="37" text-anchor="start" class="head">PreToolUse 返回的新参数</text>
+  <text x="822" y="37" text-anchor="start" class="head">宿主接着做什么</text>
+  <rect x="28" y="107" width="280" height="114" rx="8" class="soft"/>
+  <text x="168.0" y="158.0" text-anchor="middle" class="mono-small">notes/preview.md</text>
+  <text x="168.0" y="190.0" text-anchor="middle" class="small">内容「已核对」</text>
+  <rect x="383" y="62" width="362" height="84" rx="8" class="plain"/>
+  <text x="564.0" y="111.0" text-anchor="middle" class="mono-small">path = reports/preview.md</text>
+  <rect x="383" y="189" width="362" height="84" rx="8" class="blue"/>
+  <text x="564.0" y="225.0" text-anchor="middle" class="mono-small">path = reports/preview.md</text>
+  <text x="564.0" y="257.0" text-anchor="middle" class="mono-small">content = 已核对</text>
+  <rect x="822" y="62" width="230" height="84" rx="8" class="amber"/>
+  <text x="937.0" y="98.0" text-anchor="middle" class="label">缺少 content</text>
+  <text x="937.0" y="130.0" text-anchor="middle" class="amber-text">校验失败</text>
+  <rect x="822" y="189" width="230" height="84" rx="8" class="blue"/>
+  <text x="937.0" y="225.0" text-anchor="middle" class="label">通过参数校验</text>
+  <text x="937.0" y="257.0" text-anchor="middle" class="blue-text">按新目标查权限</text>
+  <path d="M308 164 H345 V104 H383" class="line-gray" marker-end="url(#gray-arrow)"/>
+  <path d="M345 164 V231 H383" class="line-blue" marker-end="url(#blue-arrow)"/>
+  <path d="M745 104 H822" class="line-amber" marker-end="url(#amber-arrow)"/>
+  <path d="M745 231 H822" class="line-blue" marker-end="url(#blue-arrow)"/>
+  <text x="383" y="304" text-anchor="start" class="small">钩子返回的是整份参数。</text>
+</svg>
