@@ -18,3 +18,4 @@ RUOCUN.local.md
 .env.*
 !.env.example
 *.log
+.DS_Store
