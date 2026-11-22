@@ -141,7 +141,7 @@ py -3.11 -m venv .venv
 
 ## 面试源码学习补充
 
-如果要按源码和项目证据准备面试，可从 [21 章源码索引与文档盘点](study/README.md) 开始，配合 [3 天学习计划](study/3-DAY-PLAN.md)、[面试演练](study/INTERVIEW.md) 和 [部署与验证边界](study/DEPLOYMENT.md)。
+如果要按源码和项目证据准备面试，可从 [21 章源码索引与文档盘点](study/README.md) 开始，配合 [工程补遗](study/ENGINEERING-EXTRAS.md)、[3 天学习计划](study/3-DAY-PLAN.md)、[面试演练](study/INTERVIEW.md) 和 [部署与验证边界](study/DEPLOYMENT.md)。
 
 ## 许可证
 
