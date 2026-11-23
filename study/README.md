@@ -17,7 +17,7 @@
 
 本补充材料填四处学习空白：跨章节调用链、章节到源码的入口、可执行的复述/实验验收、当前机器与发布平台的差异。另把课程没有单列成章的 TUI、配置、观测、RepoMap/LSP 和平台能力汇在 [工程补遗](ENGINEERING-EXTRAS.md)。详见 [部署与验证](DEPLOYMENT.md)、[3 天计划](3-DAY-PLAN.md)、[面试演练](INTERVIEW.md)。
 
-逐章学习时的复习卡放在 `chapters/`：[第 1 章 · Agent Loop](chapters/01-agent-loop.md)、[第 2 章 · 模型输入](chapters/02-model-input.md)。后续每学完一章再补对应一篇。
+逐章学习时的复习卡放在 `chapters/`：[第 1 章 · Agent Loop](chapters/01-agent-loop.md)、[第 2 章 · 模型输入](chapters/02-model-input.md)、[第 3 章 · 工具契约](chapters/03-tool-contract.md)。后续每学完一章再补对应一篇。
 
 ## 一条请求如何穿过系统
 
