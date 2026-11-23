@@ -28,6 +28,8 @@
 - **正常结束**：在完整、有效的模型响应中，没有待执行的工具调用，程序保存回答并返回 `complete`。
 - **用户任务完成**：还要看回答是否有足够证据。如果文件找不到，模型回答“请告诉我路径”，程序也能正常结束，但查价还没完成。
 
+**两个默认数值：** 主 Agent 的 `max_turns` 默认是无穷大，即没有固定工具轮数上限；可用 `RUOCUN_MAX_TURNS` 显式设置。这里的计数在一批工具执行并保存后增加，不是把每次用户输入或每个工具单独计数。空响应的 `empty_max_retries` 默认是 `2`：空文字且无工具调用时，前两次会重试；连续第 **3** 次仍为空，因为判断是 `empty > 2`，才返回失败。成功的非空响应会把连续空响应计数清零。对应源码：[`agent/turn_options.py`](../../src/ruocun/agent/turn_options.py)、[`agent/context_runtime.py`](../../src/ruocun/agent/context_runtime.py)、[`agent/loop.py`](../../src/ruocun/agent/loop.py)。
+
 源码对照：[`agent/loop.py:run_turn`](../../src/ruocun/agent/loop.py) 构造每次请求、保存 assistant 消息、判断 `if not calls`、派发工具、把工具结果加入 `session.messages` 后继续循环；[`tools/tool_batch.py`](../../src/ruocun/tools/tool_batch.py) 给工具回复保留 `tool_call_id`。[`tests/test_mvp_loop.py`](../../tests/test_mvp_loop.py) 检查下一次请求确实带着原调用编号和读取结果。
 
 ## 为什么“编辑成功”还不等于“需求完成”
